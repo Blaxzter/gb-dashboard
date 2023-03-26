@@ -1,23 +1,25 @@
-import { createApp } from "vue";
-import "./style.css";
-import App from "./App.vue";
+/**
+ * main.js
+ *
+ * Bootstraps Vuetify and other plugins then mounts the App`
+ */
 
-const app = createApp(App);
+// Components
+import App from './App.vue'
 
-// Store
+// Composables
+import { createApp } from 'vue'
 
-import { createPinia } from "pinia";
+// Plugins
+import { registerPlugins } from '@/plugins'
 
-const pinia = createPinia();
-app.use(pinia);
+const app = createApp(App)
 
-import { useStore } from "./stores/store";
-const store = useStore();
-store.fetchData();
+registerPlugins(app)
 
-import "vuetify/styles";
-import { createVuetify } from "vuetify";
+// Load all data into the store
+import { useAppStore } from "./store/app";
+const store = useAppStore();
+store.loadData();
 
-const vuetify = createVuetify();
-
-app.use(vuetify).mount("#app");
+app.mount('#app')
