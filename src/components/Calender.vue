@@ -1,12 +1,9 @@
 <template>
   <v-container>
-    <v-expansion-panels>
-      <v-expansion-panel title="Kalender">
-        <v-expansion-panel-text>
-          <vue-cal style="height: 600px" active-view="month" locale="de"/>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
+    <div class="text-h4">
+      Kalender
+    </div>
+    <vue-cal style="height: 500px" active-view="month" locale="de"/>
   </v-container>
 
 </template>
