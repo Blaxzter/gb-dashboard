@@ -1,7 +1,7 @@
 <template>
-  <HelloWorld />
+  <DashboardComponent/>
 </template>
 
 <script setup>
-  import HelloWorld from '@/components/HelloWorld.vue'
+import DashboardComponent from '@/components/DashboardComponent.vue'
 </script>
