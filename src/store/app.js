@@ -7,7 +7,7 @@ export const useAppStore = defineStore('app', {
     author: [],
     text: [],
     melodie: [],
-    gesangsbuchlied: [],
+    gesangbuchlied: [],
     arbeitskreis: [],
     kategorie: [],
     lizens: [],
@@ -17,7 +17,7 @@ export const useAppStore = defineStore('app', {
     authors: (state) => state.author,
     texts: (state) => state.text,
     melodies: (state) => state.melodie,
-    gesangsbuchlieder: (state) => state.gesangsbuchlied,
+    gesangbuchlieder: (state) => state.gesangbuchlied,
     arbeitskreise: (state) => state.arbeitskreis,
     kategorien: (state) => state.kategorie,
     lizenzen: (state) => state.lizens,
@@ -59,7 +59,7 @@ export const useAppStore = defineStore('app', {
       return data;
     },
 
-    
+
     async loadData() {
 
       let data = JSON.parse(localStorage.getItem('data'));
@@ -72,8 +72,6 @@ export const useAppStore = defineStore('app', {
         // Set the data in localStorage to avoid requesting again
         localStorage.setItem('data', JSON.stringify(data));
       }
-
-      console.log(data);
 
       const { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag } = data
 
