@@ -42,7 +42,7 @@
           </v-window-item>
 
           <v-window-item value="two">
-            Two
+            {{ auftraege }}
           </v-window-item>
 
           <v-window-item value="three">

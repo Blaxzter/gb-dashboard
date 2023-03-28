@@ -4,10 +4,12 @@ specifiers:
   '@mdi/font': 7.0.96
   '@vitejs/plugin-vue': ^3.0.3
   axios: ^1.3.4
+  chart.js: ^4.2.1
   core-js: ^3.8.3
   eslint: ^8.22.0
   eslint-config-prettier: ^8.8.0
   eslint-plugin-vue: ^9.3.0
+  lodash: ^4.17.21
   pinia: ^2.0.23
   prettier: 2.8.7
   roboto-fontface: '*'
@@ -16,6 +18,7 @@ specifiers:
   vite-plugin-vuetify: ^1.0.0-alpha.12
   vue: ^3.2.13
   vue-cal: ^4.8.1
+  vue-chartjs: ^5.2.0
   vue-router: ^4.0.0
   vuetify: ^3.0.0
   webfontloader: ^1.0.0
@@ -23,11 +26,14 @@ specifiers:
 dependencies:
   '@mdi/font': 7.0.96
   axios: 1.3.4
+  chart.js: 4.2.1
   core-js: 3.29.1
+  lodash: 4.17.21
   pinia: 2.0.33_vue@3.2.47
   roboto-fontface: 0.10.0
   vue: 3.2.47
   vue-cal: 4.8.1_vue@3.2.47
+  vue-chartjs: 5.2.0_chart.js@4.2.1+vue@3.2.47
   vue-router: 4.1.6_vue@3.2.47
   vuetify: 3.1.11_zhdigtlnoj4qfl4bi7c6fb2bly
   webfontloader: 1.6.28
@@ -139,6 +145,10 @@ packages:
   /@humanwhocodes/object-schema/1.2.1:
     resolution: {integrity: sha512-ZnQMnLV4e7hDlUvw8H+U8ASL02SS2Gn6+9Ac3wGGLIe7+je2AeAOxPY+izIPJDfFDb7eDjev0Us8MO1iFRN8hA==}
     dev: true
+
+  /@kurkle/color/0.3.2:
+    resolution: {integrity: sha512-fuscdXJ9G1qb7W8VdHi+IwRqij3lBkosAm4ydQtEmbY58OzHXqQhvlxqEkoz0yssNVn38bcpRWgA9PP+OGoisw==}
+    dev: false
 
   /@mdi/font/7.0.96:
     resolution: {integrity: sha512-rzlxTfR64hqY8yiBzDjmANfcd8rv+T5C0Yedv/TWk2QyAQYdc66e0kaN1ipmnYU3RukHRTRcBARHzzm+tIhL7w==}
@@ -361,6 +371,13 @@ packages:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
     dev: true
+
+  /chart.js/4.2.1:
+    resolution: {integrity: sha512-6YbpQ0nt3NovAgOzbkSSeeAQu/3za1319dPUQTXn9WcOpywM8rGKxJHrhS8V8xEkAlk8YhEfjbuAPfUyp6jIsw==}
+    engines: {pnpm: ^7.0.0}
+    dependencies:
+      '@kurkle/color': 0.3.2
+    dev: false
 
   /chokidar/3.5.3:
     resolution: {integrity: sha512-Dr3sfKRP6oTcjf2JmUmFJfeVMvXBdegxB0iVQ5eb2V10uFJUCAS8OByZdVAyVb8xXNz3GjjTgj9kLWsZTqE6kw==}
@@ -1027,7 +1044,6 @@ packages:
 
   /lodash/4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-    dev: true
 
   /lru-cache/6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
@@ -1439,6 +1455,16 @@ packages:
     peerDependencies:
       vue: ^2.6.14 || ^3.2.0
     dependencies:
+      vue: 3.2.47
+    dev: false
+
+  /vue-chartjs/5.2.0_chart.js@4.2.1+vue@3.2.47:
+    resolution: {integrity: sha512-d3zpKmGZr2OWHQ1xmxBcAn5ShTG917+/UCLaSpaCDDqT0U7DBsvFzTs69ZnHCgKoXT55GZDW8YEj9Av+dlONLA==}
+    peerDependencies:
+      chart.js: ^4.1.1
+      vue: ^3.0.0-0 || ^2.7.0
+    dependencies:
+      chart.js: 4.2.1
       vue: 3.2.47
     dev: false
 
