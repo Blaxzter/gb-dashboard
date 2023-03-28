@@ -5,10 +5,10 @@
       Arbeitsaufträge
     </div>
 
-    <v-card>
+    <v-card height="500px">
       <v-tabs
         v-model="tab"
-        bg-color="primary"
+        fixed-tabs
       >
         <v-tab value="one">Texte, die Melodie benötigen</v-tab>
         <v-tab value="two">Texte, die Bearbeitung benötigen</v-tab>
@@ -56,10 +56,15 @@
 </template>
 
 <script>
+
+import { mapStores } from 'pinia'
+import {useAppStore} from "@/store/app";
+
 export default {
   name: "WorkOrders",
   data: () => ({
     tab: null,
+    store: useAppStore(),
     desserts: [
       {
         name: 'Frozen Yogurt',
@@ -77,32 +82,14 @@ export default {
         name: 'Cupcake',
         calories: 305,
       },
-      {
-        name: 'Gingerbread',
-        calories: 356,
-      },
-      {
-        name: 'Jelly bean',
-        calories: 375,
-      },
-      {
-        name: 'Lollipop',
-        calories: 392,
-      },
-      {
-        name: 'Honeycomb',
-        calories: 408,
-      },
-      {
-        name: 'Donut',
-        calories: 452,
-      },
-      {
-        name: 'KitKat',
-        calories: 518,
-      },
     ],
   }),
+  computed: {
+    ...mapStores(useAppStore),
+    auftraege() {
+      return this.store.auftraege;
+    }
+  }
 }
 </script>
 
