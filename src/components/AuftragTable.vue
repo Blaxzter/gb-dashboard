@@ -24,6 +24,7 @@
 
 <script>
 
+import moment from "moment";
 import {useAppStore} from "@/store/app";
 
 export default {
@@ -38,6 +39,9 @@ export default {
   computed: {
     arbeitskreis_name(id) {
       return this.store.arbeitskreis_by_id(id)
+    },
+    format_date(date) {
+      return moment(date).format("DD.MM.YYYY")
     }
   }
 }
