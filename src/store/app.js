@@ -2,6 +2,8 @@
 import {defineStore} from 'pinia'
 import axios from 'axios'
 
+import _ from 'lodash'
+
 export const useAppStore = defineStore('app', {
   state: () => ({
     author: [],
@@ -24,6 +26,10 @@ export const useAppStore = defineStore('app', {
     lizenzen: (state) => state.lizens,
     auftraege: (state) => state.auftrag,
     termine: (state) => state.termin,
+
+    arbeitskreis_by_id: (state) => {
+      return (id) => _.find(state.auftrag, (o) => o.id === id)
+    }
   },
   actions: {
     async fetchData() {
@@ -62,7 +68,6 @@ export const useAppStore = defineStore('app', {
       };
     },
 
-
     async loadData() {
 
       const dont_cache = import.meta.env.VITE_BACKEND_URL
@@ -83,7 +88,20 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      const { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin } = data
+      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin } = data
+
+      // Resolve id's to names
+      const arbeitskreisById = {..._.keyBy(arbeitskreis, 'id'), null: 'Keinen'};
+      const textById = {..._.keyBy(text, 'id'), null: 'Keine'};
+      const melodieById = {..._.keyBy(melodie, 'id'), null: 'Keine'};
+      console.log(textById)
+      console.log(auftrag)
+      auftrag = _.map(auftrag, obj => ({
+        ...obj,
+        arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
+        text_name: textById[obj.textId].titel,
+        melodie_name: melodieById[obj.melodieId].titel,
+      }));
 
       this.author = author
       this.text = text
