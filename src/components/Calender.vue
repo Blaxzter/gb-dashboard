@@ -21,7 +21,7 @@
             icon="mdi-calendar-blank"
           />
         </div>
-        <v-divider vertical class="mr-5" />
+        <v-divider vertical class="mr-5"/>
         <div>
           <div class="text-h6">
             {{ event.name }}
@@ -34,17 +34,19 @@
       </div>
     </div>
 
-    <v-divider class="my-10" />
+    <v-divider class="my-10"/>
 
     <div class="text-h4 mb-5">Kalender</div>
     <vue-cal
-      style="height: 500px"
+      style="height: 535px"
       :time-from="9 * 60"
       :time-to="19 * 60"
       :events="events"
-      active-view="month"
+      active-view="week"
       locale="de"
       :on-event-click="onEventClick"
+      :show-all-day-events="true"
+      :events-on-month-view="'short'"
     />
   </v-container>
 
@@ -53,13 +55,13 @@
       <v-card-title class="d-flex w-md-50 justify-center bg-blue-darken-2 align-center pa-4" color="primary">
         <v-icon class="mr-3">{{ selectedEvent.icon }}</v-icon>
         <span>{{ selectedEvent.title }}</span>
-        <v-spacer />
+        <v-spacer/>
         <strong>{{
-          selectedEvent.start && selectedEvent.start.format("DD/MM/YYYY")
-        }}</strong>
+            selectedEvent.start && selectedEvent.start.format("DD/MM/YYYY")
+          }}</strong>
       </v-card-title>
       <v-card-text class="px-12">
-        <p v-html="selectedEvent.contentFull" />
+        <p v-html="selectedEvent.contentFull"/>
         <strong>Event details:</strong>
         <ul>
           <li>
@@ -81,14 +83,15 @@
 
 import _ from "lodash";
 
-import { mapStores } from "pinia";
-import { useAppStore } from "@/store/app";
+import {mapStores} from "pinia";
+import {useAppStore} from "@/store/app";
 
 import VueCal from "vue-cal";
 import "vue-cal/dist/vuecal.css";
+import moment from "moment";
 
 export default {
-  components: { VueCal },
+  components: {VueCal},
   data: () => ({
     date: null,
     showDialog: false,
@@ -110,16 +113,21 @@ export default {
       },
     ],
   }),
-  created() {},
+  created() {
+  },
   computed: {
     ...mapStores(useAppStore),
     events() {
       console.log(this.db_events);
       let test = _.map(this.db_events, (event) => {
+        let event_start = event.start;
+        let event_end = event.ende;
+
         return {
-          start: new Date(event.start),
-          end: new Date(event.ende),
-          class: event.arbeitskreisId,
+          start: moment(event.start).format(event_start === event_end ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm'),
+          end: moment(event.ende).format(event_start === event_end ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm'),
+          allDay: event_start === event_end,
+          class: event.arbeitskreis_name?.replace(' ', '_').toLowerCase(),
           title: event.titel,
           contentFull: event.bemerkung,
           icon: "mdi-calendar-blank",
@@ -151,3 +159,47 @@ export default {
   },
 };
 </script>
+
+<style>
+.vuecal_event {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.text {
+  background-color: #D7BDE2;
+  color: #9B59B6;
+}
+
+.melodie {
+  background-color: #7ca89f;
+  color: #16A085;
+}
+
+.jugend {
+  background-color: #FAD7A0;
+  color: #F39C12;
+}
+
+.kinder {
+  background-color: #E59866;
+  color: #C0392B;
+}
+
+.it {
+  background-color: #AED6F1;
+  color: #3498DB;
+}
+
+.kleiner_kreis {
+  background-color: #86E2D5;
+  color: #27AE60;
+}
+
+.allgemein {
+  background-color: #F5B7B1;
+  color: #E74C3C;
+}
+</style>
