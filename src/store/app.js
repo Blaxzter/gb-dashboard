@@ -102,6 +102,10 @@ export const useAppStore = defineStore('app', {
         text_name: textById[obj.textId].titel,
         melodie_name: melodieById[obj.melodieId].titel,
       }));
+      termin = _.map(termin, obj => ({
+        ...obj,
+        arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
+      }));
 
       this.author = author
       this.text = text
