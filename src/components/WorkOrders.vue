@@ -21,21 +21,21 @@
             <v-table>
               <thead>
               <tr>
-                <th class="text-left">
-                  Name
-                </th>
-                <th class="text-left">
-                  Calories
+                <th class="text-left" v-for="table_head in table_header" :key="table_head">
+                  {{ table_head }}
                 </th>
               </tr>
               </thead>
               <tbody>
               <tr
-                v-for="item in desserts"
-                :key="item.name"
+                v-for="auftrag in auftraege"
+                :key="auftrag.id"
               >
-                <td>{{ item.name }}</td>
-                <td>{{ item.calories }}</td>
+                <td>{{ auftrag.arbeitskreisId }}</td>
+                <td>{{ auftrag.abgabetermin }}</td>
+                <td>{{ auftrag.textId }}</td>
+                <td>{{ auftrag.melodieId }}</td>
+                <td>{{ auftrag.anmerkung }}</td>
               </tr>
               </tbody>
             </v-table>
@@ -65,6 +65,7 @@ export default {
   data: () => ({
     tab: null,
     store: useAppStore(),
+    table_header: ['Arbeitskreis', 'Abgabetermin', 'Text', 'Melodie', 'Anmerkung'],
     desserts: [
       {
         name: 'Frozen Yogurt',
@@ -88,7 +89,8 @@ export default {
     ...mapStores(useAppStore),
     auftraege() {
       return this.store.auftraege;
-    }
+    },
+
   }
 }
 </script>
