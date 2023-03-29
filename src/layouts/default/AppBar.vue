@@ -5,13 +5,13 @@
         gradient="rgba(0,0,0,.5), rgba(100,100,100,.2)"
         aspect-ratio="8"
         cover
-        src="src/assets/header-banner.jpg"
+        src="/src/assets/header-banner.jpg"
       >
         <v-row class="pa-5">
           <v-col cols="2">
             <v-img
               aspect-ratio="1s"
-              src="src/assets/kirchenlogo.png"
+              src="/src/assets/kirchenlogo.png"
             ></v-img>
           </v-col>
           <v-col cols="10">
