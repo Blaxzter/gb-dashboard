@@ -1,5 +1,5 @@
 // Utilities
-import { defineStore } from 'pinia'
+import {defineStore} from 'pinia'
 import axios from 'axios'
 
 export const useAppStore = defineStore('app', {
@@ -12,6 +12,7 @@ export const useAppStore = defineStore('app', {
     kategorie: [],
     lizens: [],
     auftrag: [],
+    termin: [],
   }),
   getters: {
     authors: (state) => state.author,
@@ -22,6 +23,7 @@ export const useAppStore = defineStore('app', {
     kategorien: (state) => state.kategorie,
     lizenzen: (state) => state.lizens,
     auftraege: (state) => state.auftrag,
+    termine: (state) => state.termin,
   },
   actions: {
     async fetchData() {
@@ -34,6 +36,7 @@ export const useAppStore = defineStore('app', {
         kategorieResponse,
         lizenzResponse,
         auftragResponse,
+        terminResponse
       ] = await Promise.all([
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text?limit=-1`),
@@ -43,9 +46,10 @@ export const useAppStore = defineStore('app', {
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/kategorie?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/lizenz?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/auftrag?limit=-1`),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/termin?limit=-1`),
       ]);
 
-      const data = {
+      return {
         author: authorResponse.data.data,
         text: textResponse.data.data,
         melodie: melodieResponse.data.data,
@@ -54,9 +58,8 @@ export const useAppStore = defineStore('app', {
         kategorie: kategorieResponse.data.data,
         lizenz: lizenzResponse.data.data,
         auftrag: auftragResponse.data.data,
-      }
-
-      return data;
+        termin: terminResponse.data.data,
+      };
     },
 
 
@@ -80,7 +83,7 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      const { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag } = data
+      const { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin } = data
 
       this.author = author
       this.text = text
@@ -90,6 +93,7 @@ export const useAppStore = defineStore('app', {
       this.kategorie = kategorie
       this.lizenz = lizenz
       this.auftrag = auftrag
+      this.termin = termin
     }
   },
 })
