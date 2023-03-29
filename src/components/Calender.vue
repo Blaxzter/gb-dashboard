@@ -51,14 +51,14 @@ export default {
         id: 1,
         date: 1679984928,
         name: "Dashboard Creation",
-        description: "Frederic Arrbeitet ganz viel damit das dash board fertig wird.",
+        description: "Startschuss für die Erstellung des Dashboards.",
         type: 'normal'
       },
       {
         id: 2,
         date: 1680192000,
         name: "Dashboard Deadline",
-        description: "Frederic Arbeitet ganz viel, damit das Dash board fertig wird.",
+        description: "IT Task, damit das Dashboard chique ist.",
         type: 'deadline'
       },
     ]
