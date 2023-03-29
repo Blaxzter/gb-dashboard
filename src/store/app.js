@@ -62,15 +62,22 @@ export const useAppStore = defineStore('app', {
 
     async loadData() {
 
-      let data = JSON.parse(localStorage.getItem('data'));
+      const dont_cache = import.meta.env.VITE_BACKEND_URL
 
-      if (!data) {
-        console.log("Load API");
+      let data = {};
+      if (dont_cache) {
+        data = await this.fetchData();
+      } else {
+        let data = JSON.parse(localStorage.getItem('data'));
 
-        // Load data from file or API request
-        data = await this.fetchData(); // replace with your own function to load data
-        // Set the data in localStorage to avoid requesting again
-        localStorage.setItem('data', JSON.stringify(data));
+        if (!data) {
+          console.log("Load API");
+
+          // Load data from file or API request
+          data = await this.fetchData(); // replace with your own function to load data
+          // Set the data in localStorage to avoid requesting again
+          localStorage.setItem('data', JSON.stringify(data));
+        }
       }
 
       const { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag } = data
