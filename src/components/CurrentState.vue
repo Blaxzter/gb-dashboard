@@ -4,23 +4,63 @@
     <div class="text-h4 mb-6">
       Aktueller Stand
     </div>
+
+    <v-row>
+      <v-col cols="3">
+        <v-card title="Songs" height="120px">
+          <v-card-text class="text-center pt-4">
+            <span class="text-h5">
+              # {{songs.length}}
+            </span>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="3">
+        <v-card title="Texte" height="120px">
+          <v-card-text class="text-center pt-4">
+            <span class="text-h5">
+              # {{texts.length}}
+            </span>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="3">
+        <v-card title="Melodien" height="120px">
+          <v-card-text class="text-center pt-4">
+            <span class="text-h5">
+              # {{melodies.length}}
+            </span>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="3">
+        <v-card title="Arbeitsaufträge" height="120px">
+          <v-card-text class="text-center pt-4">
+            <span class="text-h5">
+              # {{auftraege.length}}
+            </span>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
     <v-row>
       <v-col cols="6">
         <v-card class="pa-3">
           <div class="text-h5">
             Lieder
           </div>
-          <div>
+          <div class="mt-3">
             <Doughnut :data="song_chart_data" :options="options"/>
           </div>
         </v-card>
       </v-col>
       <v-col cols="6">
-      <v-card class=" pa-3">
+      <v-card class="pa-3">
         <div class="text-h5">
           Arbeitsaufträge der Arbeitskreise
         </div>
-        <div>
+        <div class="mt-3">
           <Doughnut :data="work_chart_data" :options="options"/>
         </div>
       </v-card>
@@ -61,6 +101,15 @@ export default {
       return this.store.gesangbuchlied;
     },
     work_orders() {
+      return this.store.auftraege;
+    },
+    texts() {
+      return this.store.texts;
+    },
+    melodies() {
+      return this.store.melodies;
+    },
+    auftraege() {
       return this.store.auftraege;
     },
     song_chart_data() {
