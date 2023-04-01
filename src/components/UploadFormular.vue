@@ -1,201 +1,240 @@
 <template>
-  <div class="text-h5">Gesangbuchlied Hochladen</div>
+  <div class="text-h5 mb-2">Gesangbuchlied hochladen</div>
   <v-form v-model="valid">
     <v-container>
       <v-row>
-        <v-col cols="12">
+        <v-col cols="12" class="py-0">
           <v-text-field
             v-model="title"
-            label="Titel des Gesangbuchlied"
+            hide-details="auto"
+            label="Titel des Gesangbuchlieds"
             required
           ></v-text-field>
         </v-col>
       </v-row>
 
-      <v-expansion-panels>
+      <v-row class="pt-4 pb-0">
+        <v-col cols="12" class="py-0">
+          <div class="text-grey text-subtitle-1">Kategorie</div>
+        </v-col>
+      </v-row>
+      <v-row class="pt-0 pb-3">
+        <v-col cols="12">
+          <v-btn-toggle
+            v-model="kategorie"
+            color="primary"
+            multiple
+            class="d-flex flex-row"
+            divided
+          >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-teddy-bear"
+              value="kinder"
+              >kinder</v-btn
+            >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-skateboarding"
+              value="jugend"
+              >jugend</v-btn
+            >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-pine-tree"
+              value="weihnachten"
+              >weihnachten</v-btn
+            >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-cross"
+              value="heimgang"
+              >heimgang</v-btn
+            >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-weather-night"
+              value="abendlied"
+              >abendlied</v-btn
+            >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-candle"
+              value="advent"
+              >advent</v-btn
+            >
+          </v-btn-toggle>
+        </v-col>
+      </v-row>
+
+      <v-expansion-panels class="my-5">
         <v-expansion-panel title="Text des Gesangbuchlieds">
           <v-expansion-panel-text>
-            <v-row>
-              <v-col cols="12" class="pb-0">
-                <v-text-field
-                  v-model="text.title"
-                  label="Text Titel"
-                  hide-details="auto"
-                  class="mb-3"
-                  required
-                ></v-text-field>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="12" md="6" class="py-0">
-                <v-text-field
-                  v-model="text.quelle"
-                  label="Quelle"
-                  hide-details="auto"
-                  class="mb-3"
-                  required
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="6" class="py-0">
-                <v-text-field
-                  v-model="text.quellelink"
-                  label="Quelle Link"
-                  hide-details="auto"
-                  class="mb-3"
-                  required
-                ></v-text-field>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col cols="12" class="pt-0">
-                <v-textarea
-                  v-model="text.anmerkung"
-                  label="Text Anmerkung"
-                  hide-details="auto"
-                  class="mb-3"
-                  required
-                ></v-textarea>
-              </v-col>
-            </v-row>
+            <TextData
+              :anmerkung="text.anmerkung"
+              :quelle="text.quelle"
+              :quellelink="text.quelllink"
+              :title="text.title"
+            />
 
-            <v-expansion-panels class="mb-3">
-              <v-expansion-panel title="Strophen">
-                <v-expansion-panel-text class="pt-3">
-                  <v-row v-for="(strophe, index) in text.strophen" :key="index">
-                    <v-col cols="12" class="py-0">
-                      <v-text-field
-                        v-model="strophe.text"
-                        :label="'Strophe ' + index"
-                        :append-icon="
-                          text.strophen.length > 1 ? 'mdi-minus' : null
-                        "
-                        variant="filled"
-                        clear-icon="mdi-close-circle"
-                        clearable
-                        type="text"
-                        hide-details="auto"
-                        class="mb-3"
-                        @click:append="text.strophen.splice(index, 1)"
-                        @click:clear="strophe.text = ''"
-                      ></v-text-field>
-                    </v-col>
-                  </v-row>
-                  <v-row>
-                    <v-col>
-                      <v-btn
-                        color="primary"
-                        @click="addStrophe"
-                        prepend-icon="mdi-plus"
-                        variant="tonal"
-                      >
-                        Einene weitere Strophe
-                      </v-btn>
-                    </v-col>
-                  </v-row>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
-
-            <v-expansion-panels>
-              <v-expansion-panel title="Autoren">
-                <v-expansion-panel-text>
-                  <div class="d-flex justify-space-between mb-4">
-                    <span class="text-h6"> Autoren: </span>
-                    <v-btn
-                      color="primary"
-                      @click="addAuthor"
-                      prepend-icon="mdi-plus"
-                      variant="tonal"
-                    >
-                      Einen weiteren Author
-                    </v-btn>
-                  </div>
-                  <template
-                    v-for="(author, index) in text.authors"
-                    :key="`author-${index}`"
-                  >
-                    <v-row>
-                      <v-col
-                        cols="12"
-                        class="text-h6 d-flex justify-space-between align-center"
-                      >
-                        <span class="text-grey-darken-1 text-subtitle-1"
-                          >Autor {{ index + 1 }}
-                        </span>
-                        <v-btn
-                          color="error"
-                          @click="removeAuthor(index)"
-                          icon="mdi-minus"
-                          v-if="text.authors.length > 1"
-                          size="small"
-                          density="compact"
-                        />
-                      </v-col>
-                    </v-row>
-                    <v-row>
-                      <v-col cols="6">
-                        <v-text-field
-                          label="Vorname des Autors"
-                          v-model="author.firstName"
-                        ></v-text-field>
-                      </v-col>
-                      <v-col cols="6">
-                        <v-text-field
-                          label="Nachname des Autors"
-                          v-model="author.lastName"
-                        ></v-text-field>
-                      </v-col>
-                    </v-row>
-                    <v-row>
-                      <v-col cols="6">
-                        <VuetifyDatepicker
-                          v-model:date="author.birthdate"
-                          label="Geburtsdatum"
-                        ></VuetifyDatepicker>
-                      </v-col>
-                      <v-col cols="6">
-                        <VuetifyDatepicker
-                          v-model:date="author.deathdate"
-                          label="Sterbedatum"
-                        ></VuetifyDatepicker>
-                      </v-col>
-                    </v-row>
-
-                    <v-divider
-                      class="mt-2 mb-4"
-                      v-if="
-                        text.authors.length > 1 &&
-                        index + 1 < text.authors.length
-                      "
-                    />
-                  </template>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
+            <TextStrophen :strophen="text.strophen" class="mb-3" />
+            <AuthorenFom
+              :label="'Text Autoren'"
+              :authors="text.authors"
+              class="mb-3"
+            />
+            <LizensComponent
+              :label="'Text Lizensen'"
+              :lizenz="text.lizenz"
+              :use_lizenz="text.use_lizenz"
+            />
           </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
+
+      <v-expansion-panels class="mb-5">
+        <v-expansion-panel title="Melodie des Gesangbuchlieds">
+          <v-expansion-panel-text>
+            <MelodieData
+              :anmerkung="melodie.anmerkung"
+              :quelle="melodie.quelle"
+              :noten="melodie.noten"
+              :quellelink="melodie.quelllink"
+              :title="melodie.title"
+            />
+
+            <AuthorenFom
+              :label="'Melodie Autoren'"
+              :authors="melodie.authors"
+              class="mb-3"
+            />
+            <LizensComponent
+              :label="'Melodie Lizensen'"
+              :lizenz="melodie.lizenz"
+              :use_lizenz="melodie.use_lizenz"
+            />
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+
+      <v-row>
+        <v-col cols="6">
+          <v-text-field
+            v-model="externer_link"
+            hide-details="auto"
+            label="Externer Link"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="6">
+          <v-text-field
+            v-model="cloud_link"
+            hide-details="auto"
+            label="Interner Cloud Link"
+          ></v-text-field>
+        </v-col>
+      </v-row>
+
+      <v-row>
+        <v-col cols="12">
+          <v-textarea
+            v-model="anmerkung"
+            hide-details="auto"
+            rows="2"
+            label="Weitere Anmerkungen"
+          ></v-textarea>
+        </v-col>
+      </v-row>
+
+      <v-row>
+        <v-col cols="6">
+          <v-text-field
+            v-model="liednummer2000"
+            hide-details="auto"
+            type="number"
+            label="Liednummer aus dem 2000er GB"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="6">
+          <v-btn-toggle
+            v-model="geandert"
+            color="primary"
+            multiple
+            class="d-flex flex-row"
+            divided
+            variant="outlined"
+          >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-music"
+              value="kinder"
+              >Melodie Geändert</v-btn
+            >
+            <v-btn
+              stacked
+              class="flex-grow-1"
+              prepend-icon="mdi-text-box-edit"
+              value="jugend"
+              >Text Geändert</v-btn
+            >
+          </v-btn-toggle>
+        </v-col>
+      </v-row>
+
+      <v-btn
+        prepend-icon="mdi-send"
+        block
+        class="mt-5 py-5"
+        color="primary"
+        elevated
+        size="x-large"
+        @click="send_data"
+      >
+        Senden
+      </v-btn>
     </v-container>
   </v-form>
 </template>
 
 <script>
-import VuetifyDatepicker from "@/components/upload/VuetifyDatepicker.vue";
+import TextStrophen from "@/components/upload/TextStrophen.vue";
+import AuthorenFom from "@/components/upload/AuthorenFom.vue";
+import LizensComponent from "@/components/upload/LizensComponent.vue";
+import TextData from "@/components/upload/TextData.vue";
+import MelodieData from "@/components/upload/MelodieData.vue";
 
 export default {
   components: {
-    VuetifyDatepicker,
+    MelodieData,
+    TextData,
+    LizensComponent,
+    AuthorenFom,
+    TextStrophen,
   },
   data: () => ({
     valid: false,
     title: "",
+    kategorie: [],
+    externer_link: "",
+    cloud_link: "",
     text: {
       title: "",
       strophen: [{ text: "" }],
       quelle: "",
       quelllink: "",
       anmerkung: "",
-      lizens: {},
+      lizenz: {
+        name: "",
+        digital: false,
+        print: false,
+      },
+      use_lizenz: true,
       authors: [
         {
           firstName: "",
@@ -205,22 +244,35 @@ export default {
         },
       ],
     },
+    melodie: {
+      title: "",
+      quelle: "",
+      quelllink: "",
+      anmerkung: "",
+      noten: null,
+      lizenz: {
+        name: "",
+        digital: false,
+        print: false,
+      },
+      use_lizenz: true,
+      authors: [
+        {
+          firstName: "",
+          lastName: "",
+          birthdate: null,
+          deathdate: null,
+        },
+      ],
+    },
+    anmerkung: "",
+    liednummer2000: "",
+    geandert: [],
   }),
   methods: {
-    addAuthor() {
-      this.text.authors.push({
-        firstName: "",
-        lastName: "",
-        birthdate: null,
-        deathdate: null,
-      });
-    },
-    removeAuthor(author_index) {
-      this.text.authors.splice(author_index, 1);
-    },
-    addStrophe(index) {
-      console.log("Test");
-      this.text.strophen.push({ text: "" });
+    send_data() {
+      console.dir(this.text);
+      console.dir(this.melodie);
     },
   },
 };
