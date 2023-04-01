@@ -4,6 +4,9 @@ dependencies:
   '@mdi/font':
     specifier: 7.0.96
     version: 7.0.96
+  '@popperjs/core':
+    specifier: ^2.11.7
+    version: 2.11.7
   axios:
     specifier: ^1.3.4
     version: 1.3.4
@@ -25,6 +28,9 @@ dependencies:
   roboto-fontface:
     specifier: '*'
     version: 0.10.0
+  v-calendar:
+    specifier: ^3.0.3
+    version: 3.0.3(@popperjs/core@2.11.7)(vue@3.2.47)
   vue:
     specifier: ^3.2.13
     version: 3.2.47
@@ -38,8 +44,8 @@ dependencies:
     specifier: ^4.0.0
     version: 4.1.6(vue@3.2.47)
   vuetify:
-    specifier: ^3.0.0
-    version: 3.1.11(vite-plugin-vuetify@1.0.2)(vue@3.2.47)
+    specifier: ^3.1.12
+    version: 3.1.12(vite-plugin-vuetify@1.0.2)(vue@3.2.47)
   webfontloader:
     specifier: ^1.0.0
     version: 1.6.28
@@ -68,7 +74,7 @@ devDependencies:
     version: 3.2.5(sass@1.60.0)
   vite-plugin-vuetify:
     specifier: ^1.0.0-alpha.12
-    version: 1.0.2(vite@3.2.5)(vue@3.2.47)(vuetify@3.1.11)
+    version: 1.0.2(vite@3.2.5)(vue@3.2.47)(vuetify@3.1.12)
 
 packages:
 
@@ -197,6 +203,18 @@ packages:
       fastq: 1.15.0
     dev: true
 
+  /@popperjs/core@2.11.7:
+    resolution: {integrity: sha512-Cr4OjIkipTtcXKjAsm8agyleBuDHvxzeBoa1v543lbv1YaIwQjESsVcmjiWiPEbC1FIeHOG/Op9kdCmAmiS3Kw==}
+    dev: false
+
+  /@types/lodash@4.14.192:
+    resolution: {integrity: sha512-km+Vyn3BYm5ytMO13k9KTp27O75rbQ0NFw+U//g+PX7VZyjCioXaRFisqSIJRECljcTv73G3i6BpglNGHgUQ5A==}
+    dev: false
+
+  /@types/resize-observer-browser@0.1.7:
+    resolution: {integrity: sha512-G9eN0Sn0ii9PWQ3Vl72jDPgeJwRWhv2Qk/nQkJuWmRmOB4HX3/BhD5SE1dZs/hzPZL/WKnvF0RHdTSG54QJFyg==}
+    dev: false
+
   /@vitejs/plugin-vue@3.2.0(vite@3.2.5)(vue@3.2.47):
     resolution: {integrity: sha512-E0tnaL4fr+qkdCNxJ+Xd0yM31UwMkQje76fsDVBBUCoGOUPexu2VDUYHL8P4CwV+zMvWw6nlRw19OnRKmYAJpw==}
     engines: {node: ^14.18.0 || >=16.0.0}
@@ -285,7 +303,7 @@ packages:
   /@vue/shared@3.2.47:
     resolution: {integrity: sha512-BHGyyGN3Q97EZx0taMQ+OLNuZcW3d37ZEVmEAyeoA9ERdGvm9Irc/0Fua8SNyOtV1w6BS4q25wbMzJujO9HIfQ==}
 
-  /@vuetify/loader-shared@1.7.1(vue@3.2.47)(vuetify@3.1.11):
+  /@vuetify/loader-shared@1.7.1(vue@3.2.47)(vuetify@3.1.12):
     resolution: {integrity: sha512-kLUvuAed6RCvkeeTNJzuy14pqnkur8lTuner7v7pNE/kVhPR97TuyXwBSBMR1cJeiLiOfu6SF5XlCYbXByEx1g==}
     peerDependencies:
       vue: ^3.0.0
@@ -294,7 +312,7 @@ packages:
       find-cache-dir: 3.3.2
       upath: 2.0.1
       vue: 3.2.47
-      vuetify: 3.1.11(vite-plugin-vuetify@1.0.2)(vue@3.2.47)
+      vuetify: 3.1.12(vite-plugin-vuetify@1.0.2)(vue@3.2.47)
 
   /acorn-jsx@5.3.2(acorn@8.8.2):
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -462,6 +480,19 @@ packages:
 
   /csstype@2.6.21:
     resolution: {integrity: sha512-Z1PhmomIfypOpoMjRQB70jfvy/wxT50qW08YXO5lMIJkrdq4yOTR+AW7FqutScmB9NkLwxo+jU+kZLbofZZq/w==}
+
+  /date-fns-tz@1.3.8(date-fns@2.29.3):
+    resolution: {integrity: sha512-qwNXUFtMHTTU6CFSFjoJ80W8Fzzp24LntbjFFBgL/faqds4e5mo9mftoRLgr3Vi1trISsg4awSpYVsOQCRnapQ==}
+    peerDependencies:
+      date-fns: '>=2.0.0'
+    dependencies:
+      date-fns: 2.29.3
+    dev: false
+
+  /date-fns@2.29.3:
+    resolution: {integrity: sha512-dDCnyH2WnnKusqvZZ6+jA1O51Ibt8ZMRNkDZdyAyK4YfbDwa/cEmuztzG5pk6hqlp9aSBPYcjOlktquahGwGeA==}
+    engines: {node: '>=0.11'}
+    dev: false
 
   /debug@4.3.4:
     resolution: {integrity: sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ==}
@@ -1427,18 +1458,34 @@ packages:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
 
-  /vite-plugin-vuetify@1.0.2(vite@3.2.5)(vue@3.2.47)(vuetify@3.1.11):
+  /v-calendar@3.0.3(@popperjs/core@2.11.7)(vue@3.2.47):
+    resolution: {integrity: sha512-Skpp/nMoFqFadm94aWj0oOfazoux5T5Ug3/pbRbdolkoDrnVcL7Ronw1/SGFRUPGOwnLdYwhKPhrhSE1segW6w==}
+    peerDependencies:
+      '@popperjs/core': ^2.0.0
+      vue: ^3.2.0
+    dependencies:
+      '@popperjs/core': 2.11.7
+      '@types/lodash': 4.14.192
+      '@types/resize-observer-browser': 0.1.7
+      date-fns: 2.29.3
+      date-fns-tz: 1.3.8(date-fns@2.29.3)
+      lodash: 4.17.21
+      vue: 3.2.47
+      vue-screen-utils: 1.0.0-beta.13(vue@3.2.47)
+    dev: false
+
+  /vite-plugin-vuetify@1.0.2(vite@3.2.5)(vue@3.2.47)(vuetify@3.1.12):
     resolution: {integrity: sha512-MubIcKD33O8wtgQXlbEXE7ccTEpHZ8nPpe77y9Wy3my2MWw/PgehP9VqTp92BLqr0R1dSL970Lynvisx3UxBFw==}
     engines: {node: '>=12'}
     peerDependencies:
       vite: ^2.7.0 || ^3.0.0 || ^4.0.0
       vuetify: ^3.0.0-beta.4
     dependencies:
-      '@vuetify/loader-shared': 1.7.1(vue@3.2.47)(vuetify@3.1.11)
+      '@vuetify/loader-shared': 1.7.1(vue@3.2.47)(vuetify@3.1.12)
       debug: 4.3.4
       upath: 2.0.1
       vite: 3.2.5(sass@1.60.0)
-      vuetify: 3.1.11(vite-plugin-vuetify@1.0.2)(vue@3.2.47)
+      vuetify: 3.1.12(vite-plugin-vuetify@1.0.2)(vue@3.2.47)
     transitivePeerDependencies:
       - supports-color
       - vue
@@ -1536,6 +1583,14 @@ packages:
       vue: 3.2.47
     dev: false
 
+  /vue-screen-utils@1.0.0-beta.13(vue@3.2.47):
+    resolution: {integrity: sha512-EJ/8TANKhFj+LefDuOvZykwMr3rrLFPLNb++lNBqPOpVigT2ActRg6icH9RFQVm4nHwlHIHSGm5OY/Clar9yIg==}
+    peerDependencies:
+      vue: ^3.2.0
+    dependencies:
+      vue: 3.2.47
+    dev: false
+
   /vue@3.2.47:
     resolution: {integrity: sha512-60188y/9Dc9WVrAZeUVSDxRQOZ+z+y5nO2ts9jWXSTkMvayiWxCWOWtBQoYjLeccfXkiiPZWAHcV+WTPhkqJHQ==}
     dependencies:
@@ -1545,8 +1600,8 @@ packages:
       '@vue/server-renderer': 3.2.47(vue@3.2.47)
       '@vue/shared': 3.2.47
 
-  /vuetify@3.1.11(vite-plugin-vuetify@1.0.2)(vue@3.2.47):
-    resolution: {integrity: sha512-EAR/7vdYY0jCYW+sn9owl6CC5QsWFw100KJnK0ahdHnFj9B93PR5xetekge8BsEWx6bSnsRIOdPyvud+p29wow==}
+  /vuetify@3.1.12(vite-plugin-vuetify@1.0.2)(vue@3.2.47):
+    resolution: {integrity: sha512-6SOMWzNtziDdi/Noeg0l9Q5o20amIuqmj9V5W8fV1nCNdQUZsi6mt9iN+UcfjqwAaALS/z5Nbd4v5OJxy8M4Rw==}
     engines: {node: ^12.20 || >=14.13}
     peerDependencies:
       vite-plugin-vuetify: ^1.0.0-alpha.12
@@ -1561,7 +1616,7 @@ packages:
       webpack-plugin-vuetify:
         optional: true
     dependencies:
-      vite-plugin-vuetify: 1.0.2(vite@3.2.5)(vue@3.2.47)(vuetify@3.1.11)
+      vite-plugin-vuetify: 1.0.2(vite@3.2.5)(vue@3.2.47)(vuetify@3.1.12)
       vue: 3.2.47
 
   /webfontloader@1.6.28:
