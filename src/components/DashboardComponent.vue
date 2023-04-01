@@ -1,6 +1,9 @@
 <template>
   <v-container class="fill-height">
     <v-responsive>
+      <UploadFormular/>
+
+      <v-divider class="my-8"/>
 
       <CurrentState/>
 
@@ -11,10 +14,6 @@
       <v-divider class="my-8"/>
 
       <WorkOrders/>
-
-      <v-divider class="my-8"/>
-
-      <UploadFormular/>
 
     </v-responsive>
   </v-container>
