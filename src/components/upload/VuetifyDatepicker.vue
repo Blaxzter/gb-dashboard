@@ -44,8 +44,11 @@ export default {
       return this.hidden_date
     },
   },
+  mounted() {
+    if (this.date)
+      this.visible_date = moment(this.date).format("DD.MM.YYYY");
+  },
   methods: {
-
     async date_changed(event) {
       let dateString = event.target.value;
       if (dateString.length === 10) {
