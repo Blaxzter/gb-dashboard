@@ -7,20 +7,19 @@
         cover
         src="/src/assets/header-banner.jpg"
       >
-        <v-row class="pa-5">
-          <v-col cols="2">
+        <div class="d-flex justify-center pa-5">
+          <div style="width: 200px"  class="mr-10">
             <v-img
+              height="220px"
               aspect-ratio="1s"
               src="/src/assets/kirchenlogo.png"
             ></v-img>
-          </v-col>
-          <v-col cols="10">
-            <div class="d-flex justify-center flex-column h-100 text-white">
-              <div class="text-h2 mb-6 mt-7 font-weight-light">Gesangbuch 2026</div>
-              <div class="text-h4 font-italic font-weight-light">Einstiegs- und Übersichtsseite für den AK Gesangbuch</div>
-            </div>
-          </v-col>
-        </v-row>
+          </div>
+          <div class="d-flex justify-center flex-column h-100 text-white pt-8">
+            <div class="text-h2 mb-6 mt-7 font-weight-light">Gesangbuch 2026</div>
+            <div class="text-h4 font-italic font-weight-light">Einstiegs- und Übersichtsseite für den AK Gesangbuch</div>
+          </div>
+        </div>
       </v-img>
     </v-responsive>
   </v-container>
