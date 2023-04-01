@@ -6,7 +6,7 @@
     </div>
 
     <v-row>
-      <v-col cols="3">
+      <v-col cols="12" sm="6" md="3">
         <v-card title="Songs" height="120px">
           <v-card-text class="text-center pt-4">
             <span class="text-h5">
@@ -15,7 +15,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col cols="3">
+      <v-col cols="12" sm="6" md="3">
         <v-card title="Texte" height="120px">
           <v-card-text class="text-center pt-4">
             <span class="text-h5">
@@ -24,7 +24,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col cols="3">
+      <v-col cols="12" sm="6" md="3">
         <v-card title="Melodien" height="120px">
           <v-card-text class="text-center pt-4">
             <span class="text-h5">
@@ -33,7 +33,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      <v-col cols="3">
+      <v-col cols="12" sm="6" md="3">
         <v-card title="Arbeitsaufträge" height="120px">
           <v-card-text class="text-center pt-4">
             <span class="text-h5">
@@ -45,7 +45,7 @@
     </v-row>
 
     <v-row>
-      <v-col cols="6">
+      <v-col cols="12" md="6">
         <v-card class="pa-3">
           <div class="text-h5">
             Lieder
@@ -55,7 +55,7 @@
           </div>
         </v-card>
       </v-col>
-      <v-col cols="6">
+      <v-col cols="12" md="6">
       <v-card class="pa-3">
         <div class="text-h5">
           Arbeitsaufträge der Arbeitskreise
