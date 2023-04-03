@@ -70,10 +70,10 @@ export const useAppStore = defineStore('app', {
 
     async loadData() {
 
-      const dont_cache = import.meta.env.VITE_BACKEND_URL
+      const dont_cache = import.meta.env.VITE_CACHE_BACKEND
 
       let data = {};
-      if (dont_cache) {
+      if (dont_cache !== 'ON') {
         data = await this.fetchData();
       } else {
         let data = JSON.parse(localStorage.getItem('data'));
@@ -105,6 +105,11 @@ export const useAppStore = defineStore('app', {
       termin = _.map(termin, obj => ({
         ...obj,
         arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
+      }));
+
+      author = _.map(author, obj => ({
+        ...obj,
+        author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsdatum}-${obj.sterbedatum}`,
       }));
 
       this.author = author
