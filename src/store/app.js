@@ -94,8 +94,6 @@ export const useAppStore = defineStore('app', {
       const arbeitskreisById = {..._.keyBy(arbeitskreis, 'id'), null: 'Keinen'};
       const textById = {..._.keyBy(text, 'id'), null: 'Keine'};
       const melodieById = {..._.keyBy(melodie, 'id'), null: 'Keine'};
-      console.log(textById)
-      console.log(auftrag)
       auftrag = _.map(auftrag, obj => ({
         ...obj,
         arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
@@ -109,8 +107,16 @@ export const useAppStore = defineStore('app', {
 
       author = _.map(author, obj => ({
         ...obj,
-        author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsdatum}-${obj.sterbedatum}`,
+        author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsjahr ? obj.geburtsjahr : '?'}-${obj.sterbejahr ? obj.sterbejahr : '?'}`,
       }));
+
+      gesangbuchlied = _.map(gesangbuchlied, obj => ({
+        ...obj,
+        text: textById[obj.textId],
+        melodie: melodieById[obj.melodieId],
+      }));
+
+      console.log(kategorie)
 
       this.author = author
       this.text = text
