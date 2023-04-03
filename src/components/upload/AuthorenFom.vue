@@ -3,7 +3,7 @@
     <v-expansion-panel :title="label">
       <v-expansion-panel-text>
         <v-row>
-          <v-col cols="12" class="text-grey text-subtitle-1 pt-0 pb-2">
+          <v-col cols="12" class="text-grey text-subtitle-1 pt-3 pb-1">
             Vorhandenen Autor suchen
           </v-col>
         </v-row>
@@ -12,20 +12,22 @@
             <v-autocomplete
               label="Suche nach existierende Autoren"
               :items="store_authors"
-              item-text="author_str"
+              item-title="author_str"
               item-value="id"
+              hide-details="auto"
+              class="mb-0"
               return-object
+              chips
+              closable-chips
+              multiple
               v-model="selected_author"
             ></v-autocomplete>
           </v-col>
         </v-row>
         <v-row>
-          <v-col cols="12" class="text-grey text-subtitle-1">
-
+          <v-col cols="12" class="text-grey text-subtitle-1 py-0 pt-3">
+            Neuen Autor hinzufügen
           </v-col>
-          Neuen Autor hinzufügen
-          <div >
-          </div>
         </v-row>
         <template
           v-for="(author, index) in author_model"
@@ -34,7 +36,7 @@
           <v-row>
             <v-col
               cols="12"
-              class="text-h6 d-flex justify-space-between align-center"
+              class="text-h6 d-flex justify-space-between align-center pt-3 pb-0"
             >
               <span class="text-grey-darken-1 text-subtitle-2"
                 >Autor {{ index + 1 }}
@@ -50,27 +52,31 @@
             </v-col>
           </v-row>
           <v-row>
-            <v-col cols="6">
+            <v-col cols="12" md="6">
               <v-text-field
                 label="Vorname des Autors"
                 v-model="author.firstName"
+                hide-details="auto"
+                class="mb-0"
               ></v-text-field>
             </v-col>
-            <v-col cols="6">
+            <v-col cols="12" md="6">
               <v-text-field
                 label="Nachname des Autors"
                 v-model="author.lastName"
+                hide-details="auto"
+                class="mb-0"
               ></v-text-field>
             </v-col>
           </v-row>
           <v-row>
-            <v-col cols="6">
+            <v-col cols="12" md="6">
               <VuetifyDatepicker
                 v-model:date="author.birthdate"
                 label="Geburtsdatum"
               ></VuetifyDatepicker>
             </v-col>
-            <v-col cols="6">
+            <v-col cols="12" md="6">
               <VuetifyDatepicker
                 v-model:date="author.deathdate"
                 label="Sterbedatum"
@@ -89,6 +95,7 @@
           @click="addAuthor"
           prepend-icon="mdi-plus"
           variant="tonal"
+          class="mt-4"
         >
           Einen weiteren Author
         </v-btn>
@@ -118,7 +125,6 @@ export default {
         return this.authors;
       },
       set(value) {
-        console.log("Authos emit.");
         this.$emit("update:authors", value);
       },
     },
