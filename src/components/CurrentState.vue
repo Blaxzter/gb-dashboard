@@ -143,9 +143,7 @@ export default {
       ]
     },
     work_orders_data_list() {
-      console.log(this.work_orders)
       const work_orders_data = _.countBy(this.work_orders, (ele) => ele.arbeitskreisId)
-      console.log(work_orders_data)
       return [
         _.get(work_orders_data, '1', 0),
         _.get(work_orders_data, '2', 0),

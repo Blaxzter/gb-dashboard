@@ -118,7 +118,6 @@ export default {
   computed: {
     ...mapStores(useAppStore),
     events() {
-      console.log(this.db_events);
       let test = _.map(this.db_events, (event) => {
         let event_start = event.start;
         let event_end = event.ende;
@@ -133,7 +132,6 @@ export default {
           icon: "mdi-calendar-blank",
         };
       });
-      console.log(test);
       return test;
     },
     db_events() {
@@ -148,8 +146,6 @@ export default {
       return new Date(unix_timestamp * 1000).toLocaleDateString("de");
     },
     onEventClick(event, e) {
-      console.log(event);
-
       this.selectedEvent = event;
       this.showDialog = true;
 
