@@ -16,6 +16,15 @@ dependencies:
   core-js:
     specifier: ^3.8.3
     version: 3.29.1
+  datatables.net:
+    specifier: ^1.13.1
+    version: 1.13.4
+  datatables.net-vue3:
+    specifier: ^2.1.0
+    version: 2.1.0(datatables.net@1.13.4)(jquery@3.6.4)(vue@3.2.47)
+  jquery:
+    specifier: ^3.6.0
+    version: 3.6.4
   lodash:
     specifier: ^4.17.21
     version: 4.17.21
@@ -480,6 +489,48 @@ packages:
 
   /csstype@2.6.21:
     resolution: {integrity: sha512-Z1PhmomIfypOpoMjRQB70jfvy/wxT50qW08YXO5lMIJkrdq4yOTR+AW7FqutScmB9NkLwxo+jU+kZLbofZZq/w==}
+
+  /datatables.net-dt@1.13.4:
+    resolution: {integrity: sha512-QAvuEej/qKSiaSmSeDQ36wWO72XzFGKkd0jdiqbp+2FHAAzIk+ffsqQAwylystMoBSiO0zlcdaqHoAPa5Dy7Pg==}
+    dependencies:
+      datatables.net: 1.13.4
+      jquery: 3.6.4
+    dev: false
+
+  /datatables.net-responsive-dt@2.4.1:
+    resolution: {integrity: sha512-RukGH2DBFtuQKJgN7GVK6Brhue1zuJRdDVLZiwxhZmSXd2zpr+x6n7tH5vqDfYD75GCy4ZEULcDFnWpRWSyZIA==}
+    dependencies:
+      datatables.net-dt: 1.13.4
+      datatables.net-responsive: 2.4.1
+      jquery: 3.6.4
+    dev: false
+
+  /datatables.net-responsive@2.4.1:
+    resolution: {integrity: sha512-6aGZybNb65lRPtd+hPHRyaBgs7D3R2Hw+RQP7he3qH5BTpMH9BG4FxVvyAud0Q4gyopO9I52uf60p2GT++4qOA==}
+    dependencies:
+      datatables.net: 1.13.4
+      jquery: 3.6.4
+    dev: false
+
+  /datatables.net-vue3@2.1.0(datatables.net@1.13.4)(jquery@3.6.4)(vue@3.2.47):
+    resolution: {integrity: sha512-1SUyco6ZaA41egobTVmD0BtcnMeBn1LlqfBksGO2WCo9m9dMt+i2Yo8jy25Z1YBjbW/ACXt5i+Q9cfJY1Nh0Uw==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      datatables.net: ^1.13.1
+      jquery: ^3.6.0
+      vue: ^3.0.5
+    dependencies:
+      datatables.net: 1.13.4
+      datatables.net-responsive-dt: 2.4.1
+      jquery: 3.6.4
+      vue: 3.2.47
+    dev: false
+
+  /datatables.net@1.13.4:
+    resolution: {integrity: sha512-yzhArTOB6tPO2QFKm1z3hA4vabtt2hRvgw8XLsT1xqEirinfGYqWDiWXlkTPTaJv2e7gG+Kf985sXkzBFlGrGQ==}
+    dependencies:
+      jquery: 3.6.4
+    dev: false
 
   /date-fns-tz@1.3.8(date-fns@2.29.3):
     resolution: {integrity: sha512-qwNXUFtMHTTU6CFSFjoJ80W8Fzzp24LntbjFFBgL/faqds4e5mo9mftoRLgr3Vi1trISsg4awSpYVsOQCRnapQ==}
@@ -1050,6 +1101,10 @@ packages:
   /isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
     dev: true
+
+  /jquery@3.6.4:
+    resolution: {integrity: sha512-v28EW9DWDFpzcD9O5iyJXg3R3+q+mET5JhnjJzQUZMHOv67bpSIHq81GEYpPNZHG+XXHsfSme3nxp/hndKEcsQ==}
+    dev: false
 
   /js-sdsl@4.4.0:
     resolution: {integrity: sha512-FfVSdx6pJ41Oa+CF7RDaFmTnCaFhua+SNYQX74riGOpl96x+2jQCqEfQ2bnXu/5DPCqlRuiqyvTJM0Qjz26IVg==}

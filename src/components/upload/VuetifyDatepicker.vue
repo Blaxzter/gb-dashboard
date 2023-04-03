@@ -1,6 +1,6 @@
 <template>
   <div class="text-center">
-    <v-menu v-model="menu" :close-on-content-click="false" location="top">
+    <v-menu v-model="menu" :close-on-content-click="false" location="top" class="mb-0">
       <template v-slot:activator="{ props }">
         <v-text-field
           v-bind="props"
@@ -9,6 +9,8 @@
           v-model="visible_date"
           @input="date_changed"
           append-icon="mdi-calendar"
+          hide-details="auto"
+          class="mb-0"
         ></v-text-field>
       </template>
 
@@ -50,6 +52,8 @@ export default {
   },
   methods: {
     async date_changed(event) {
+      if (!this.disabled) return;
+
       let dateString = event.target.value;
       if (dateString.length === 10) {
         const [day, month, year] = dateString.split(".");
@@ -59,6 +63,7 @@ export default {
       }
     },
     day_clicked(event) {
+      if (!this.disabled) return;
       let visibleDate = moment(event.startDate).format("DD.MM.YYYY");
       this.$emit("update:date",  new Date(event.startDate));
       this.visible_date = visibleDate;
