@@ -2,6 +2,31 @@
   <v-expansion-panels>
     <v-expansion-panel :title="label">
       <v-expansion-panel-text>
+        <v-row>
+          <v-col cols="12" class="text-grey text-subtitle-1 pt-0 pb-2">
+            Vorhandenen Autor suchen
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col>
+            <v-autocomplete
+              label="Suche nach existierende Autoren"
+              :items="store_authors"
+              item-text="author_str"
+              item-value="id"
+              return-object
+              v-model="selected_author"
+            ></v-autocomplete>
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" class="text-grey text-subtitle-1">
+
+          </v-col>
+          Neuen Autor hinzufügen
+          <div >
+          </div>
+        </v-row>
         <template
           v-for="(author, index) in author_model"
           :key="`author-${index}`"
@@ -11,7 +36,7 @@
               cols="12"
               class="text-h6 d-flex justify-space-between align-center"
             >
-              <span class="text-grey-darken-1 text-subtitle-1"
+              <span class="text-grey-darken-1 text-subtitle-2"
                 >Autor {{ index + 1 }}
               </span>
               <v-btn
@@ -74,10 +99,15 @@
 
 <script>
 import VuetifyDatepicker from "@/components/upload/VuetifyDatepicker.vue";
+import {useAppStore} from "@/store/app";
 
 export default {
   name: "AuthorenFom",
   components: { VuetifyDatepicker },
+  data: () => ({
+    store: useAppStore(),
+    selected_author: null
+  }),
   props: {
     authors: Array,
     label: String,
@@ -91,6 +121,9 @@ export default {
         console.log("Authos emit.");
         this.$emit("update:authors", value);
       },
+    },
+    store_authors() {
+      return this.store.authors
     },
   },
 
