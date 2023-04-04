@@ -8,7 +8,6 @@
           label="Melodie Titel"
           hide-details="auto"
           class="mb-3"
-          required
         ></v-text-field>
       </v-col>
     </v-row>
@@ -27,7 +26,6 @@
           label="Quelle"
           hide-details="auto"
           class="mb-3"
-          required
         ></v-text-field>
       </v-col>
       <v-col cols="12" md="6" class="py-0">
@@ -37,7 +35,6 @@
           label="Melodie Quelle Link"
           hide-details="auto"
           class="mb-3"
-          required
         ></v-text-field>
       </v-col>
     </v-row>
@@ -49,7 +46,6 @@
           label="Melodie Anmerkung"
           hide-details="auto"
           class="mb-3"
-          required
         ></v-textarea>
       </v-col>
     </v-row>
