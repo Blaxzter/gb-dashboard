@@ -20,7 +20,7 @@
               chips
               closable-chips
               multiple
-              v-model="selected_author"
+              v-model="selected_author_model"
             ></v-autocomplete>
           </v-col>
         </v-row>
@@ -106,16 +106,18 @@
 
 <script>
 import VuetifyDatepicker from "@/components/upload/VuetifyDatepicker.vue";
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
+
+import _ from "lodash";
 
 export default {
   name: "AuthorenFom",
   components: { VuetifyDatepicker },
   data: () => ({
-    store: useAppStore(),
-    selected_author: null
+    store: useAppStore()
   }),
   props: {
+    selected_author: Array,
     authors: Array,
     label: String,
   },
@@ -128,8 +130,16 @@ export default {
         this.$emit("update:authors", value);
       },
     },
+    selected_author_model: {
+      get() {
+        return this.selected_author;
+      },
+      set(value) {
+        this.$emit("update:selected_author", value);
+      },
+    },
     store_authors() {
-      return this.store.authors
+      return this.store.authors;
     },
   },
 
