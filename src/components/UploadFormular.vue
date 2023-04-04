@@ -1,6 +1,6 @@
 <template>
   <div class="text-h5 mb-2">Gesangbuchlied hochladen</div>
-  <v-form v-model="valid">
+  <v-form ref="form">
     <v-container>
       <v-row>
         <v-col cols="12" class="py-0">
@@ -89,7 +89,8 @@
               prepend-icon="mdi-image-filter-hdr"
               value="Joseph Weißenberg – Geburtstag"
             >
-              Weißenberg <br> B-Day
+              Weißenberg <br />
+              B-Day
             </v-btn>
           </v-btn-toggle>
         </v-col>
@@ -102,16 +103,20 @@
         <v-card-text class="pb-0">
           <v-row class="my-0">
             <v-col cols="12" class="d-flex align-center py-0">
-          <span class="mr-4">
-            Nach Text in Datenbank suchen oder neuen Anlegen:
-          </span>
+              <span class="mr-4">
+                Nach Text in Datenbank suchen oder neuen Anlegen:
+              </span>
               <v-switch
                 v-model="existing_text"
                 class="ps-5"
                 color="primary"
                 density="compact"
                 hide-details
-                :label="existing_text ? 'Bestehenden Text verwenden' : 'Neuen Text anlegen'"
+                :label="
+                  existing_text
+                    ? 'Bestehenden Text verwenden'
+                    : 'Neuen Text anlegen'
+                "
               ></v-switch>
             </v-col>
           </v-row>
@@ -132,7 +137,11 @@
           </v-row>
 
           <v-expansion-panels class="mt-0 mb-5" :disabled="existing_text">
-            <v-expansion-panel title="Neuer Text des Gesangbuchlieds" ref="text_expansion_panel" :value="existing_text">
+            <v-expansion-panel
+              title="Neuer Text des Gesangbuchlieds"
+              ref="text_expansion_panel"
+              :value="existing_text"
+            >
               <v-expansion-panel-text>
                 <TextData
                   :anmerkung="text.anmerkung"
@@ -141,9 +150,10 @@
                   :title="text.title"
                 />
 
-                <TextStrophen :strophen="text.strophen" class="mb-3"/>
+                <TextStrophen :strophen="text.strophen" class="mb-3" />
                 <AuthorenFom
                   :label="'Text Autoren'"
+                  :selected_author="text.selected_authors"
                   :authors="text.authors"
                   class="mb-3"
                 />
@@ -157,7 +167,6 @@
           </v-expansion-panels>
         </v-card-text>
       </v-card>
-
 
       <v-card class="mb-5">
         <v-card-title class="text-grey text-subtitle-1">
@@ -175,7 +184,11 @@
                 color="primary"
                 density="compact"
                 hide-details
-                :label="existing_melodie ? 'Bestehenden Melodie verwenden' : 'Neue Melodie anlegen'"
+                :label="
+                  existing_melodie
+                    ? 'Bestehenden Melodie verwenden'
+                    : 'Neue Melodie anlegen'
+                "
               ></v-switch>
             </v-col>
           </v-row>
@@ -197,7 +210,10 @@
           </v-row>
 
           <v-expansion-panels class="mb-5" :disabled="existing_melodie">
-            <v-expansion-panel title="Neue Melodie des Gesangbuchlieds" :value="existing_melodie">
+            <v-expansion-panel
+              title="Neue Melodie des Gesangbuchlieds"
+              :value="existing_melodie"
+            >
               <v-expansion-panel-text>
                 <MelodieData
                   :anmerkung="melodie.anmerkung"
@@ -210,6 +226,7 @@
                 <AuthorenFom
                   :disabled="true"
                   :label="'Melodie Autoren'"
+                  :selected_author="melodie.selected_authors"
                   :authors="melodie.authors"
                   class="mb-3"
                 />
@@ -223,7 +240,6 @@
           </v-expansion-panels>
         </v-card-text>
       </v-card>
-
 
       <v-row>
         <v-col cols="6">
@@ -313,7 +329,8 @@ import AuthorenFom from "@/components/upload/AuthorenFom.vue";
 import TextData from "@/components/upload/TextData.vue";
 import MelodieData from "@/components/upload/MelodieData.vue";
 
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
+// import axios from "axios";
 
 export default {
   components: {
@@ -326,7 +343,6 @@ export default {
   data: () => ({
     store: useAppStore(),
 
-    valid: false,
     title: "",
     kategorie: [],
     externer_link: "",
@@ -337,7 +353,7 @@ export default {
     selected_melodie: null,
     text: {
       title: "",
-      strophen: [{text: ""}],
+      strophen: [{ text: "" }],
       quelle: "",
       quelllink: "",
       anmerkung: "",
@@ -347,6 +363,7 @@ export default {
         print: false,
       },
       use_lizenz: true,
+      selected_authors: [],
       authors: [
         {
           firstName: "",
@@ -368,6 +385,7 @@ export default {
         print: false,
       },
       use_lizenz: true,
+      selected_authors: [],
       authors: [
         {
           firstName: "",
@@ -383,17 +401,47 @@ export default {
   }),
   computed: {
     store_text() {
-      return this.store.texts
+      return this.store.texts;
     },
     store_melodie() {
-      return this.store.melodies
-    }
+      return this.store.melodies;
+    },
   },
   methods: {
-    send_data() {
+    async send_data() {
+      let created_author = [];
+
+      for (let author of this.text.authors) {
+        if (!this.validate_author(author)) {
+          alert("Ein Autor hat keinen Nachnamen.")
+          return
+        }
+      }
+
+      for (let author of this.text.authors) {
+        let author_data = {
+          vorname: author.firstName,
+          nachname: author.lastName,
+          birthdate: author.birthdate,
+          sterbejahr: author.deathdate,
+        };
+        console.log(author_data)
+        // axios
+        //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
+        //   .then((resp) => created_author.push(resp));
+      }
+
+      // this.$refs.form.reset();
+
       console.dir(this.selected_text);
       console.dir(this.text);
       console.dir(this.melodie);
+    },
+
+    validate_author(author) {
+      console.log("Validate Author")
+
+      return !(author.lastName === "" && (author.firstName !== "" || author.birthdate != null || author.deathdate != null))
     },
   },
 };
