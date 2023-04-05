@@ -14,7 +14,13 @@
 
     <v-row>
       <v-col cols="12" class="pb-0">
-        <v-file-input show-size label="Noten Datein"> </v-file-input>
+        <v-file-input
+          show-size
+          label="Noten Datein"
+          multiple
+          chips
+          @change="$emit('update:noten', $event.target.value)"
+        > </v-file-input>
       </v-col>
     </v-row>
 
