@@ -108,13 +108,12 @@
 import VuetifyDatepicker from "@/components/upload/VuetifyDatepicker.vue";
 import { useAppStore } from "@/store/app";
 
-import _ from "lodash";
-
 export default {
   name: "AuthorenFom",
   components: { VuetifyDatepicker },
   data: () => ({
-    store: useAppStore()
+    store: useAppStore(),
+    selected_author_model: []
   }),
   props: {
     selected_author: Array,
@@ -130,17 +129,16 @@ export default {
         this.$emit("update:authors", value);
       },
     },
-    selected_author_model: {
-      get() {
-        return this.selected_author;
-      },
-      set(value) {
-        this.$emit("update:selected_author", value);
-      },
-    },
     store_authors() {
       return this.store.authors;
     },
+  },
+
+  watch: {
+    selected_author_model() {
+      console.log("Changed", this.selected_author_model)
+      this.$emit("update:selected_author", this.selected_author_model)
+    }
   },
 
   methods: {
