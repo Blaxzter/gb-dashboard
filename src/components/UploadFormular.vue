@@ -24,14 +24,14 @@
             v-model="kategorie"
             color="primary"
             multiple
-            class="d-flex flex-row h-100"
+            class="d-flex flex-row h-100 overflow-x-auto"
             divided
           >
             <v-btn
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-teddy-bear"
-              value="kinder"
+              value="Kinder"
             >
               kinder
             </v-btn>
@@ -39,7 +39,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-skateboarding"
-              value="jugend"
+              value="Jugend"
             >
               jugend
             </v-btn>
@@ -47,7 +47,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-pine-tree"
-              value="weihnachten"
+              value="Weihnachten"
             >
               weihnachten
             </v-btn>
@@ -55,7 +55,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-cross"
-              value="heimgang"
+              value="Heimgang"
             >
               heimgang
             </v-btn>
@@ -63,7 +63,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-weather-night"
-              value="abendlied"
+              value="Abendlied"
             >
               abendlied
             </v-btn>
@@ -71,7 +71,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-candle"
-              value="advent"
+              value="Advent"
             >
               advent
             </v-btn>
@@ -153,8 +153,8 @@
                 <TextStrophen :strophen="text.strophen" class="mb-3" />
                 <AuthorenFom
                   :label="'Text Autoren'"
-                  :selected_author="text.selected_authors"
-                  :authors="text.authors"
+                  v-model:selected_author="text.selected_authors"
+                  v-model:authors="text.authors"
                   class="mb-3"
                 />
                 <!--                <LizensComponent-->
@@ -275,6 +275,7 @@
             v-model="liednummer2000"
             hide-details="auto"
             type="number"
+            clearable
             label="Liednummer aus dem 2000er GB"
           ></v-text-field>
         </v-col>
@@ -291,7 +292,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-music"
-              value="kinder"
+              value="melodie_geaendert"
             >
               Melodie Geändert
             </v-btn>
@@ -299,7 +300,7 @@
               stacked
               class="flex-grow-1"
               prepend-icon="mdi-text-box-edit"
-              value="jugend"
+              value="text_geaendert"
             >
               Text Geändert
             </v-btn>
@@ -330,8 +331,9 @@ import TextData from "@/components/upload/TextData.vue";
 import MelodieData from "@/components/upload/MelodieData.vue";
 
 import { useAppStore } from "@/store/app";
-// import axios from "axios";
+import axios from "axios";
 import _ from "lodash";
+import moment from "moment";
 
 export default {
   components: {
@@ -397,7 +399,7 @@ export default {
       ],
     },
     anmerkung: "",
-    liednummer2000: "",
+    liednummer2000: null,
     geandert: [],
   }),
   computed: {
@@ -410,92 +412,284 @@ export default {
   },
   methods: {
     async send_data() {
-      let to_be_created_text_author = [];
-
-      for (let author of this.text.authors) {
-        if (!this.validate_author(author)) {
-          alert("Ein Text Autor hat keinen Nachnamen.");
-          return;
+      // VALIDATE TEXT AUTHORS
+      console.log("VALIDATE TEXT AUTHORS");
+      let to_be_created_text_authors = [];
+      if (!this.existing_text) {
+        for (let author of this.text.authors) {
+          if (!this.validate_author(author)) {
+            alert("Ein Text Autor hat keinen Nachnamen.");
+            return;
+          }
+          let to_be_created_text_author = {
+            vorname: author.firstName == "" ? null : author.firstName,
+            nachname: author.lastName == "" ? null : author.lastName,
+            geburtsjahr: moment(author.birthdate).format('YYYY'),
+            sterbejahr: moment(author.deathdate).format('YYYY'),
+          };
+          if (!_.every(to_be_created_text_author, (val) => val === null))
+            to_be_created_text_authors.push(to_be_created_text_author);
         }
-        to_be_created_text_author.push({
-          vorname: author.firstName,
-          nachname: author.lastName,
-          birthdate: author.birthdate,
-          sterbejahr: author.deathdate,
-        });
       }
 
-      let to_be_created_melodie_author = [];
-
-      for (let author of this.melodie.authors) {
-        if (!this.validate_author(author)) {
-          alert("Ein Melodie Autor hat keinen Nachnamen.");
-          return;
+      // VALIDATE MELODIE AUTHORS
+      console.log("VALIDATE MELODIE AUTHORS");
+      let to_be_created_melodie_authors = [];
+      if (!this.existing_melodie) {
+        for (let author of this.melodie.authors) {
+          if (!this.validate_author(author)) {
+            alert("Ein Melodie Autor hat keinen Nachnamen.");
+            return;
+          }
+          let to_be_created_melodie_author = {
+            vorname: author.firstName === "" ? null : author.firstName,
+            nachname: author.lastName === "" ? null : author.lastName,
+            geburtsjahr: moment(author.birthdate).format('YYYY'),
+            sterbejahr: moment(author.deathdate).format('YYYY'),
+          };
+          if (!_.every(to_be_created_melodie_author, (val) => val === null))
+            to_be_created_melodie_authors.push(to_be_created_melodie_author);
         }
-        to_be_created_melodie_author.push({
-          vorname: author.firstName,
-          nachname: author.lastName,
-          birthdate: author.birthdate,
-          sterbejahr: author.deathdate,
-        });
       }
 
-      console.log(to_be_created_text_author);
-      console.log(to_be_created_melodie_author);
-      let created_text_author = [];
-      // await axios
-      //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
-      //   .then((resp) => created_text_author.push(resp.data.data));
+      if (!Number.isInteger(Number(this.liednummer2000))) {
+        alert("LIed Nummer 2000 ist keine Zahl.")
+        this.liednummer2000 = null;
+        return
+      }
 
-      let created_melodie_author = [];
-      // await axios
-      //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
-      //   .then((resp) => created_melodie_author.push(resp.data.data));
-
-      let create_text = {
-        titel: this.text.title === "" ? null : this.text.title,
-        strophen:
-          this.text.strophen[0].text === ""
-            ? null
-            : _.map(this.text.strophen, "text").join("\n\n"),
-        quelle: this.text.quelle === "" ? null : this.text.quelle,
-        quelllink: this.text.quelllink === "" ? null : this.text.quelllink,
-        anmerkung: this.text.anmerkung === "" ? null : this.text.anmerkung,
+      // CREATE GESANGBUCHLIED
+      console.log("CREATE GESANGBUCHLIED");
+      let create_gesangbuchlied = {
+        titel: this.title === "" ? null : this.title,
+        externerLink: this.externer_link === "" ? null : this.externer_link,
+        linkCloud: this.cloud_link === "" ? null : this.cloud_link,
+        anmerkung: this.anmerkung === "" ? null : this.anmerkung,
+        liednummer2000: this.liednummer2000 === '' ? null : Number(this.liednummer2000),
       };
-      console.log(create_text);
-      let created_text = -1;
-      // await axios
-      //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
-      //   .then((resp) => created_text = resp.data.data);
 
-      let to_be_created_text_author_mapping = [];
-      for(let created_author of created_text_author) {
-        let create_author_text = {
-          text_id: created_text,
-          autor_id: created_author.id,
+      if (!_.every(create_gesangbuchlied, (val) => val === null)) {
+        create_gesangbuchlied["melodieGeaendert"] =
+          _.find(this.geandert, (elem) => elem == "melodie_geaendert") !==
+          undefined;
+        create_gesangbuchlied["textGeaendert"] =
+          _.find(this.geandert, (elem) => elem == "text_geaendert") !==
+          undefined;
+
+        console.log(create_gesangbuchlied);
+        let created_gesangbuchlied = null;
+        await axios
+          .post(
+            `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied`,
+            create_gesangbuchlied
+          )
+          .then((resp) => (created_gesangbuchlied = resp.data.data));
+
+        if (created_gesangbuchlied !== null) {
+          // CREATE KATEGORIE GESANGBUCHLIED
+          console.log("CREATE KATEGORIE GESANGBUCHLIED");
+          let to_be_created_category_lied_mapping = [];
+          for (let current_category of this.kategorie) {
+            let category_lied = {
+              gesangbuchlied_id: created_gesangbuchlied.id,
+              kategorie_id: _.find(
+                this.store.kategorie,
+                (elem) => elem.name === current_category
+              )?.id,
+            };
+            if (!_.every(category_lied, (val) => val === null))
+              to_be_created_category_lied_mapping.push(category_lied);
+          }
+          if (to_be_created_category_lied_mapping.length !== 0) {
+            console.log(
+              "to_be_created_category_lied_mapping",
+              to_be_created_category_lied_mapping
+            );
+            // await axios
+            //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`, to_be_created_category_lied_mapping)
+            //   .then((resp) => created_text = resp.data.data);
+          }
         }
-        to_be_created_text_author_mapping.push(create_author_text);
+
+        // CREATE TEXT
+        console.log("CREATE TEXT");
+        let created_text = null;
+        if (!this.existing_text) {
+          let create_text = {
+            titel: this.text.title === "" ? null : this.text.title,
+            strophen:
+              this.text.strophen[0].text === ""
+                ? null
+                : _.map(this.text.strophen, "text").join("\n\n"),
+            quelle: this.text.quelle === "" ? null : this.text.quelle,
+            quelllink: this.text.quelllink === "" ? null : this.text.quelllink,
+            anmerkung: this.text.anmerkung === "" ? null : this.text.anmerkung,
+          };
+
+          // Check if a value is set
+          if (!_.every(create_text, (val) => val === null)) {
+            console.log("create_text", create_text);
+            // await axios
+            //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, author_data)
+            //   .then((resp) => created_text = resp.data.data);
+
+            // CREATE NEW TEXT AUTHORS
+            console.log("CREATE NEW TEXT AUTHORS");
+            let created_text_authors = [];
+            if (
+              !this.existing_text &&
+              to_be_created_text_authors.length !== 0
+            ) {
+              console.log(
+                "to_be_created_text_authors",
+                to_be_created_text_authors
+              );
+              // await axios
+              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_text_authors)
+              //   .then((resp) => created_text_authors = resp.data.data);
+            }
+
+            // CRATE TEXT AUTHOR MAPPING N:M
+            created_text_authors.push(...this.text.selected_authors);
+            let to_be_created_text_author_mapping = [];
+            for (let created_author of created_text_authors) {
+              let create_author_text = {
+                text_id: created_text,
+                autor_id: created_author.id,
+              };
+              if (!_.every(create_author_text, (val) => val === null))
+                to_be_created_text_author_mapping.push(create_author_text);
+            }
+
+            if (to_be_created_text_author_mapping.length !== 0) {
+              console.log(
+                "to_be_created_text_author_mapping",
+                to_be_created_text_author_mapping
+              );
+              // await axios
+              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, to_be_created_text_author_mapping)
+            }
+          }
+        }
+
+        // CREATE MELODIE
+        console.log("CREATE MELODIE");
+        let created_melodie = -1;
+        if (!this.existing_melodie) {
+          let create_melodie = {
+            titel: this.melodie.title === "" ? null : this.melodie.title,
+            quelle: this.melodie.quelle === "" ? null : this.melodie.quelle,
+            quelllink:
+              this.melodie.quelllink === "" ? null : this.melodie.quelllink,
+            anmerkung:
+              this.melodie.anmerkung === "" ? null : this.melodie.anmerkung,
+          };
+
+          if (!_.every(create_melodie, (val) => val === null)) {
+            console.log("create_melodie", create_melodie);
+
+            // await axios
+            //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie`, author_data)
+            //   .then((resp) => created_text = resp.data.data);
+
+            // CREATE NEW MELODIE AUTHORS
+            console.log("CREATE NEW MELODIE AUTHORS");
+            let created_melodie_authors = [];
+            if (
+              !this.existing_melodie &&
+              to_be_created_melodie_authors.length !== 0
+            ) {
+              console.log(
+                "created_melodie_author",
+                to_be_created_melodie_authors
+              );
+              // await axios
+              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_melodie_authors)
+              //   .then((resp) => created_melodie_author = resp.data.data);
+            }
+
+            // MELODIE AUTHOR N TO M MAPPING
+            created_melodie_authors.push(...this.melodie.selected_authors);
+
+            let to_be_created_melodie_author_mapping = [];
+            for (let created_author of created_melodie_authors) {
+              let create_author_melodie = {
+                melodie_id: created_melodie,
+                autor_id: created_author.id,
+              };
+              if (!_.every(create_author_melodie, (val) => val === null))
+                to_be_created_melodie_author_mapping.push(
+                  create_author_melodie
+                );
+            }
+            if (to_be_created_melodie_author_mapping.length !== 0) {
+              console.log(
+                "to_be_created_melodie_author_mapping",
+                to_be_created_melodie_author_mapping
+              );
+              // await axios
+              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, to_be_created_melodie_author_mapping)
+              //   .then((resp) => created_text = resp.data.data);
+            }
+
+            // MELODIE TO FILE MELODIE MAPPING
+            const created_files = await this.upload_file();
+            let to_be_created_melodie_file_mapping = [];
+            for (let created_author of created_files) {
+              let create_file_melodie = {
+                melodie_id: created_melodie,
+                autor_id: created_author.id,
+              };
+              to_be_created_melodie_file_mapping.push(create_file_melodie);
+            }
+
+            if (to_be_created_melodie_author_mapping.length !== 0) {
+              console.log(
+                "to_be_created_melodie_file_mapping",
+                to_be_created_melodie_file_mapping
+              );
+              // await axios
+              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
+              //   .then((resp) => created_text = resp.data.data);
+            }
+          }
+        }
+
+        // UPDATE AUTHOR WITH TEXT AND MELODIE
+        let update_gesangbuchlied = {
+          // text und melodie
+          textId: this.existing_text
+            ? this.selected_text?.id
+            : created_text === -1
+            ? null
+            : created_text,
+          melodieId: this.existing_melodie
+            ? this.selected_melodie?.id
+            : created_melodie === -1
+            ? null
+            : created_melodie,
+        };
+        if (!_.every(update_gesangbuchlied, (val) => val === null)) {
+          console.log("update_gesangbuchlied", update_gesangbuchlied);
+          await axios
+            .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${created_gesangbuchlied.id}`, update_gesangbuchlied)
+        }
       }
-      console.log(to_be_created_text_author_mapping)
-
-
-      // this.$refs.form.reset();
     },
     async upload_file() {
-      import axios from 'axios';
+      console.log("File Upload");
+      console.log("this.melodie.noten", this.melodie.noten);
 
-      const fileInput = document.querySelector('input[type="file"]');
       const formData = new FormData();
+      formData.append("title", "My First File");
+      // formData.append('file', fileInput.files[0]);
 
-      formData.append('title', 'My First File');
-      formData.append('file', fileInput.files[0]);
-
-      await axios.post('/files', formData);
+      let created_file = [];
+      // await axios.post('/files', formData).then((resp) => created_file = resp.data.data);
+      return created_file;
     },
 
     validate_author(author) {
-      console.log("Validate Author");
-
       return !(
         author.lastName === "" &&
         (author.firstName !== "" ||
