@@ -84,7 +84,7 @@ export default {
         titel: obj.titel,
         melodie_titel: obj.melodie?.titel,
         text_titel: obj.text?.titel,
-        text_strophen: obj.text?.strophen.substring(0, 50) + '...',
+        text_strophen: obj.text?.strophen?.substring(0, 50) + '...',
       }));
     },
   },

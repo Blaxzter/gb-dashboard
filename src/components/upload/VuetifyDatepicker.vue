@@ -52,7 +52,6 @@ export default {
   },
   methods: {
     async date_changed(event) {
-      if (!this.disabled) return;
 
       let dateString = event.target.value;
       if (dateString.length === 10) {
@@ -63,7 +62,6 @@ export default {
       }
     },
     day_clicked(event) {
-      if (!this.disabled) return;
       let visibleDate = moment(event.startDate).format("DD.MM.YYYY");
       this.$emit("update:date",  new Date(event.startDate));
       this.visible_date = visibleDate;
