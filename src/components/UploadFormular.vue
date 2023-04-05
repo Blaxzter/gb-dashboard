@@ -331,6 +331,7 @@ import MelodieData from "@/components/upload/MelodieData.vue";
 
 import { useAppStore } from "@/store/app";
 // import axios from "axios";
+import _ from "lodash";
 
 export default {
   components: {
@@ -409,39 +410,98 @@ export default {
   },
   methods: {
     async send_data() {
-      let created_author = [];
+      let to_be_created_text_author = [];
 
       for (let author of this.text.authors) {
         if (!this.validate_author(author)) {
-          alert("Ein Autor hat keinen Nachnamen.")
-          return
+          alert("Ein Text Autor hat keinen Nachnamen.");
+          return;
         }
-      }
-
-      for (let author of this.text.authors) {
-        let author_data = {
+        to_be_created_text_author.push({
           vorname: author.firstName,
           nachname: author.lastName,
           birthdate: author.birthdate,
           sterbejahr: author.deathdate,
-        };
-        console.log(author_data)
-        // axios
-        //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
-        //   .then((resp) => created_author.push(resp));
+        });
       }
 
-      // this.$refs.form.reset();
+      let to_be_created_melodie_author = [];
 
-      console.dir(this.selected_text);
-      console.dir(this.text);
-      console.dir(this.melodie);
+      for (let author of this.melodie.authors) {
+        if (!this.validate_author(author)) {
+          alert("Ein Melodie Autor hat keinen Nachnamen.");
+          return;
+        }
+        to_be_created_melodie_author.push({
+          vorname: author.firstName,
+          nachname: author.lastName,
+          birthdate: author.birthdate,
+          sterbejahr: author.deathdate,
+        });
+      }
+
+      console.log(to_be_created_text_author);
+      console.log(to_be_created_melodie_author);
+      let created_text_author = [];
+      // await axios
+      //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
+      //   .then((resp) => created_text_author.push(resp.data.data));
+
+      let created_melodie_author = [];
+      // await axios
+      //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
+      //   .then((resp) => created_melodie_author.push(resp.data.data));
+
+      let create_text = {
+        titel: this.text.title === "" ? null : this.text.title,
+        strophen:
+          this.text.strophen[0].text === ""
+            ? null
+            : _.map(this.text.strophen, "text").join("\n\n"),
+        quelle: this.text.quelle === "" ? null : this.text.quelle,
+        quelllink: this.text.quelllink === "" ? null : this.text.quelllink,
+        anmerkung: this.text.anmerkung === "" ? null : this.text.anmerkung,
+      };
+      console.log(create_text);
+      let created_text = -1;
+      // await axios
+      //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`, author_data)
+      //   .then((resp) => created_text = resp.data.data);
+
+      let to_be_created_text_author_mapping = [];
+      for(let created_author of created_text_author) {
+        let create_author_text = {
+          text_id: created_text,
+          autor_id: created_author.id,
+        }
+        to_be_created_text_author_mapping.push(create_author_text);
+      }
+      console.log(to_be_created_text_author_mapping)
+
+
+      // this.$refs.form.reset();
+    },
+    async upload_file() {
+      import axios from 'axios';
+
+      const fileInput = document.querySelector('input[type="file"]');
+      const formData = new FormData();
+
+      formData.append('title', 'My First File');
+      formData.append('file', fileInput.files[0]);
+
+      await axios.post('/files', formData);
     },
 
     validate_author(author) {
-      console.log("Validate Author")
+      console.log("Validate Author");
 
-      return !(author.lastName === "" && (author.firstName !== "" || author.birthdate != null || author.deathdate != null))
+      return !(
+        author.lastName === "" &&
+        (author.firstName !== "" ||
+          author.birthdate != null ||
+          author.deathdate != null)
+      );
     },
   },
 };
