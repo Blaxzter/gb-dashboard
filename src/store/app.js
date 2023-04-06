@@ -15,6 +15,8 @@ export const useAppStore = defineStore('app', {
     lizens: [],
     auftrag: [],
     termin: [],
+    text_autor: [],
+    melodie_autor: [],
   }),
   getters: {
     authors: (state) => state.author,
@@ -26,6 +28,8 @@ export const useAppStore = defineStore('app', {
     lizenzen: (state) => state.lizens,
     auftraege: (state) => state.auftrag,
     termine: (state) => state.termin,
+    text_autors: (state) => state.text_autor,
+    melodie_autors: (state) => state.melodie_autor,
 
     arbeitskreis_by_id: (state) => {
       return (id) => _.find(state.auftrag, (o) => o.id === id)
@@ -42,7 +46,9 @@ export const useAppStore = defineStore('app', {
         kategorieResponse,
         lizenzResponse,
         auftragResponse,
-        terminResponse
+        terminResponse,
+        textautorResponse,
+        melodieautorResponse,
       ] = await Promise.all([
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text?limit=-1`),
@@ -53,6 +59,9 @@ export const useAppStore = defineStore('app', {
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/lizenz?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/auftrag?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/termin?limit=-1`),
+        // N M tabelle
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor?limit=-1`),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor?limit=-1`),
       ]);
 
       return {
@@ -65,6 +74,8 @@ export const useAppStore = defineStore('app', {
         lizenz: lizenzResponse.data.data,
         auftrag: auftragResponse.data.data,
         termin: terminResponse.data.data,
+        text_autor: textautorResponse.data.data,
+        melodie_autor: melodieautorResponse.data.data,
       };
     },
 
@@ -88,12 +99,13 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin } = data
+      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, text_autor, melodie_autor } = data
 
       // Resolve id's to names
       const arbeitskreisById = {..._.keyBy(arbeitskreis, 'id'), null: 'Keinen'};
       const textById = {..._.keyBy(text, 'id'), null: 'Keine'};
       const melodieById = {..._.keyBy(melodie, 'id'), null: 'Keine'};
+      const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
       auftrag = _.map(auftrag, obj => ({
         ...obj,
         arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
@@ -108,6 +120,35 @@ export const useAppStore = defineStore('app', {
       author = _.map(author, obj => ({
         ...obj,
         author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsjahr ? obj.geburtsjahr : '?'}-${obj.sterbejahr ? obj.sterbejahr : '?'}`,
+      }));
+
+      const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
+      text  = _.map(text, obj => ({
+        ...obj,
+        authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+      }));
+      text  = _.map(text, obj => ({
+        ...obj,
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
+        strophe_short: _.map(obj.strophen?.split('\n\n').slice(0, 3), (elem, idx) => `${idx + 1}. ${elem.substring(0, 30)}${elem.length > 15 ? '...' : ''}`).join(" "),
+      }));
+      text  = _.map(text, obj => ({
+        ...obj,
+        autocomplete: obj.titel + obj.author_name + obj.strophe_short
+      }));
+
+      const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: 'Keine'};
+      melodie  = _.map(melodie, obj => ({
+        ...obj,
+        authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+      }));
+      melodie  = _.map(melodie, obj => ({
+        ...obj,
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
+      }));
+      melodie  = _.map(melodie, obj => ({
+        ...obj,
+        autocomplete: obj.titel + obj.author_name
       }));
 
       gesangbuchlied = _.map(gesangbuchlied, obj => ({
@@ -127,6 +168,8 @@ export const useAppStore = defineStore('app', {
       this.lizenz = lizenz
       this.auftrag = auftrag
       this.termin = termin
+      this.text_autor = text_autor
+      this.melodie_autor = melodie_autor
     }
   },
 })
