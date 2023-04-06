@@ -6,7 +6,7 @@
           <v-col cols="12" class="py-0">
             <v-textarea
               v-model="strophe.text"
-              :label="'Strophe ' + index + 1"
+              :label="'Strophe ' + (index + 1)"
               :append-icon="strophen_model.length > 1 ? 'mdi-minus' : null"
               variant="filled"
               clear-icon="mdi-close-circle"
