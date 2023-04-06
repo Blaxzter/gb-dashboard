@@ -13,86 +13,37 @@
         </v-col>
       </v-row>
 
-      <v-row class="mt-7 mb-0">
-        <v-col cols="12" class="py-0">
-          <div class="text-grey text-subtitle-1">Kategorie</div>
-        </v-col>
-      </v-row>
-      <v-row class="mt-0 mb-3">
-        <v-col cols="12">
-          <v-btn-toggle
-            v-model="kategorie"
-            color="primary"
+
+      <v-row>
+        <v-col cols="12" class="pb-6">
+          <v-autocomplete
+            label="Zugehörige Kategorie"
+            :items="this.store.kategorie"
+            item-title="name"
+            item-value="id"
+            hide-details="auto"
+            return-object
             multiple
-            class="d-flex flex-row h-100 overflow-x-auto"
-            divided
+            chips
+            closable-chips
+            v-model="kategorie"
           >
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-teddy-bear"
-              value="Kinder"
-            >
-              kinder
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-skateboarding"
-              value="Jugend"
-            >
-              jugend
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-pine-tree"
-              value="Weihnachten"
-            >
-              weihnachten
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-cross"
-              value="Heimgang"
-            >
-              heimgang
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-weather-night"
-              value="Abendlied"
-            >
-              abendlied
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-candle"
-              value="Advent"
-            >
-              advent
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-glass-wine"
-              value="Abendmahl"
-            >
-              Abendmahl
-            </v-btn>
-            <v-btn
-              stacked
-              class="flex-grow-1"
-              prepend-icon="mdi-image-filter-hdr"
-              value="Joseph Weißenberg – Geburtstag"
-            >
-              Weißenberg <br />
-              B-Day
-            </v-btn>
-          </v-btn-toggle>
+            <template v-slot:chip="{ props, item }">
+              <v-chip
+                v-bind="props"
+                :prepend-icon="get_icon(item)"
+                :text="item.raw.name"
+              ></v-chip>
+            </template>
+
+            <template v-slot:item="{ props, item }">
+              <v-list-item
+                v-bind="props"
+                :prepend-icon="get_icon(item)"
+                :title="item?.raw?.name"
+              ></v-list-item>
+            </template>
+          </v-autocomplete>
         </v-col>
       </v-row>
 
@@ -126,13 +77,25 @@
                 :disabled="!existing_text"
                 label="Suche nach existierenden Texten"
                 :items="store_text"
+                :custom-filter="custom_filter"
                 item-title="titel"
                 item-value="id"
                 hide-details="auto"
                 class="py-0"
                 return-object
                 v-model="selected_text"
-              ></v-autocomplete>
+              >
+                <template v-slot:item="{ props, item }">
+                  <v-list-item
+                    v-bind="props"
+                    :title="item?.raw?.titel"
+                    :subtitle="item?.raw?.author_name"
+                  >
+                    {{ item?.raw?.strophe_short }}
+                  </v-list-item>
+                </template>
+
+              </v-autocomplete>
             </v-col>
           </v-row>
 
@@ -199,13 +162,23 @@
                 :disabled="!existing_melodie"
                 label="Suche nach existierenden Melodien"
                 :items="store_melodie"
+                :custom-filter="custom_filter"
                 item-title="titel"
                 item-value="id"
                 hide-details="auto"
                 class="py-0"
                 return-object
                 v-model="selected_melodie"
-              ></v-autocomplete>
+              >
+
+                <template v-slot:item="{ props, item }">
+                  <v-list-item
+                    v-bind="props"
+                    :title="item?.raw?.titel"
+                    :subtitle="item?.raw?.author_name"
+                  ></v-list-item>
+                </template>
+              </v-autocomplete>
             </v-col>
           </v-row>
 
@@ -224,7 +197,6 @@
                 />
 
                 <AuthorenFom
-                  :disabled="true"
                   :label="'Melodie Autoren'"
                   :selected_author="melodie.selected_authors"
                   :authors="melodie.authors"
@@ -319,6 +291,19 @@
       >
         Senden
       </v-btn>
+
+      <v-btn
+        prepend-icon="mdi-undo"
+        block
+        class="mt-5 py-5"
+        color="error"
+        elevated
+        size="x-large"
+        @click="delete_created_stuff"
+        v-if="show_undo_button"
+      >
+        Undo
+      </v-btn>
     </v-container>
   </v-form>
 </template>
@@ -346,20 +331,31 @@ export default {
   data: () => ({
     store: useAppStore(),
 
-    title: "",
+    successfully_created: {
+      gesangbuchlied: null,
+      text: null,
+      melodie: null,
+      category_gesangbuchlied_mapping: null,
+      authors: [],
+      text_author_mapping: [],
+      melodie_author_mapping: [],
+      melodie_files: [],
+    },
+
+    title: "Ftest",
     kategorie: [],
-    externer_link: "",
-    cloud_link: "",
+    externer_link: "FTest",
+    cloud_link: "Ftest",
     existing_text: false,
     selected_text: null,
     existing_melodie: false,
     selected_melodie: null,
     text: {
-      title: "",
-      strophen: [{ text: "" }],
-      quelle: "",
-      quelllink: "",
-      anmerkung: "",
+      title: "F Neuer Text",
+      strophen: [{ text: "Erste Strophe" }, { text: "Zweite Strophe"}],
+      quelle: "Frederic",
+      quelllink: "Frederic",
+      anmerkung: "Test Eintrag",
       lizenz: {
         name: "",
         digital: false,
@@ -369,18 +365,18 @@ export default {
       selected_authors: [],
       authors: [
         {
-          firstName: "",
-          lastName: "",
+          firstName: "Erster Author",
+          lastName: "Wub Wub",
           birthdate: null,
           deathdate: null,
         },
       ],
     },
     melodie: {
-      title: "",
-      quelle: "",
-      quelllink: "",
-      anmerkung: "",
+      title: "Neue Melodie",
+      quelle: "Quelle Fielmann",
+      quelllink: "Test Link",
+      anmerkung: "Anmerkungen?",
       noten: null,
       lizenz: {
         name: "",
@@ -391,15 +387,15 @@ export default {
       selected_authors: [],
       authors: [
         {
-          firstName: "",
-          lastName: "",
+          firstName: "Melodie Test Author",
+          lastName: "Test",
           birthdate: null,
           deathdate: null,
         },
       ],
     },
-    anmerkung: "",
-    liednummer2000: null,
+    anmerkung: "Lied Anmerkung",
+    liednummer2000: 5,
     geandert: [],
   }),
   computed: {
@@ -409,8 +405,130 @@ export default {
     store_melodie() {
       return this.store.melodies;
     },
+    show_undo_button() {
+      return this.successfully_created.gesangbuchlied  !== null ||
+        this.successfully_created.text  !== null ||
+        this.successfully_created.melodie  !== null ||
+        this.successfully_created.category_gesangbuchlied_mapping  !== null ||
+        this.successfully_created.authors.length !== 0 ||
+        this.successfully_created.text_author_mapping.length !== 0 ||
+        this.successfully_created.melodie_author_mapping.length !== 0;
+    }
   },
   methods: {
+    get_icon(item) {
+      if (item.raw.name === "Kinder")
+        return "mdi-teddy-bear"
+      if (item.raw.name === "Jugend")
+        return "mdi-skateboarding"
+      if (item.raw.name === "Weihnachten")
+        return "mdi-pine-tree"
+      if (item.raw.name === "Heimgang")
+        return "mdi-grave-stone"
+      if (item.raw.name === "Abendlied")
+        return "mdi-weather-night"
+      if (item.raw.name === "Advent")
+        return "mdi-candle"
+      if (item.raw.name === "Abendmahl")
+        return "mdi-glass-wine"
+      if (item.raw.name === "Heiligabend")
+        return "mdi-string-lights"
+      if (item.raw.name === "Joseph Weißenberg – Geburtstag")
+        return "mdi-image-filter-hdr"
+      if (item.raw.name === "Sakrament des Sterbens / Abschiedsfeie")
+        return ""
+      if (item.raw.name === "Sakrament des Abendmahls")
+        return ""
+      if (item.raw.name === "Joseph Weißenberg – Geburtstag (24.08.)")
+        return ""
+      if (item.raw.name === "Palmsonntag")
+        return "mdi-palm-tree"
+      if (item.raw.name === "Karfreitag")
+        return "mdi-cross"
+      if (item.raw.name === "Ostersonntag")
+        return "mdi-egg-easter"
+      if (item.raw.name === "Kirchentag")
+        return "mdi-balloon"
+      if (item.raw.name === "Jahreswechsel")
+        return "mdi-firework"
+      if (item.raw.name === "Sakrament der Taufe")
+        return "mdi-human-baby-changing-table"
+      if (item.raw.name === "Konfirmation")
+        return "mdi-account-group"
+      if (item.raw.name === "Trauung")
+        return ""
+      if (item.raw.name === "Verpflichtung")
+        return ""
+      if (item.raw.name === "Freundschaft")
+        return ""
+      if (item.raw.name === "Friedensstadt")
+        return ""
+      if (item.raw.name === "Joseph Weißenberg – Verurteilung (13.08.)")
+        return ""
+      if (item.raw.name === "Joseph Weißenberg – Heimgang (06.03.)")
+        return ""
+      if (item.raw.name === "Pfingsten")
+        return ""
+      if (item.raw.name === "Erntedank")
+        return ""
+      if (item.raw.name === "Ewigkeitssonntag (Totensonntag)")
+        return ""
+      if (item.raw.name === "Passion")
+        return ""
+      if (item.raw.name === "Gemeinschaft")
+        return ""
+      if (item.raw.name === "Loblied")
+        return ""
+      if (item.raw.name === "Stille")
+        return ""
+      if (item.raw.name === "Christi Himmelfahrt")
+        return ""
+
+      return null
+    },
+    custom_filter(item, queryText, itemText) {
+      return itemText.value.autocomplete.includes(queryText)
+    },
+    async delete_created_stuff() {
+      if (this.successfully_created.gesangbuchlied) {
+        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${this.successfully_created.gesangbuchlied.id}`)
+          .then((resp) => console.log("Deleted gesangbuchlied: ", resp))
+      }
+
+      if (this.successfully_created.text) {
+        await axios
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/text/${this.successfully_created.text}`)
+          .then((resp) => console.log("Deleted text: ", resp))
+      }
+      if (this.successfully_created.authors.length !== 0) {
+        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, {
+          data: {source: _.map(this.successfully_created.authors, 'id')}
+        }).then((resp) => console.log("Deleted autor: ", resp))
+      }
+      if (this.successfully_created.text_author_mapping.length !== 0) {
+        await axios
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, {
+            data: {source: _.map(this.successfully_created.text_author_mapping, 'id')}
+          }).then((resp) => console.log("Deleted text_autor: ", resp))
+      }
+      if (this.successfully_created.melodie) {
+        await axios
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie/${this.successfully_created.melodie.id}`)
+          .then((resp) => console.log("Deleted melodie: ", resp))
+      }
+      if (this.successfully_created.melodie_author_mapping.length !== 0) {
+        await axios
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, {
+            data: {source: _.map(this.successfully_created.melodie_author_mapping, 'id')}
+          }).then((resp) => console.log("Deleted melodie_autor: ", resp))
+      }
+      if (this.successfully_created.melodie_files.length !== 0) {
+        await axios
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, {
+            data: {source: _.map(this.successfully_created.melodie_files, 'id')}
+          }).then((resp) => console.log("Deleted melodie_files: ", resp))
+      }
+    },
     async send_data() {
       // VALIDATE TEXT AUTHORS
       console.log("VALIDATE TEXT AUTHORS");
@@ -424,8 +542,8 @@ export default {
           let to_be_created_text_author = {
             vorname: author.firstName == "" ? null : author.firstName,
             nachname: author.lastName == "" ? null : author.lastName,
-            geburtsjahr: moment(author.birthdate).format('YYYY'),
-            sterbejahr: moment(author.deathdate).format('YYYY'),
+            geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
+            sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
           };
           if (!_.every(to_be_created_text_author, (val) => val === null))
             to_be_created_text_authors.push(to_be_created_text_author);
@@ -444,8 +562,8 @@ export default {
           let to_be_created_melodie_author = {
             vorname: author.firstName === "" ? null : author.firstName,
             nachname: author.lastName === "" ? null : author.lastName,
-            geburtsjahr: moment(author.birthdate).format('YYYY'),
-            sterbejahr: moment(author.deathdate).format('YYYY'),
+            geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
+            sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
           };
           if (!_.every(to_be_created_melodie_author, (val) => val === null))
             to_be_created_melodie_authors.push(to_be_created_melodie_author);
@@ -483,7 +601,10 @@ export default {
             `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied`,
             create_gesangbuchlied
           )
-          .then((resp) => (created_gesangbuchlied = resp.data.data));
+          .then((resp) => {
+            created_gesangbuchlied = resp.data.data;
+            this.successfully_created.gesangbuchlied = resp.data.data;
+          });
 
         if (created_gesangbuchlied !== null) {
           // CREATE KATEGORIE GESANGBUCHLIED
@@ -492,10 +613,7 @@ export default {
           for (let current_category of this.kategorie) {
             let category_lied = {
               gesangbuchlied_id: created_gesangbuchlied.id,
-              kategorie_id: _.find(
-                this.store.kategorie,
-                (elem) => elem.name === current_category
-              )?.id,
+              kategorie_id: current_category.id,
             };
             if (!_.every(category_lied, (val) => val === null))
               to_be_created_category_lied_mapping.push(category_lied);
@@ -505,9 +623,11 @@ export default {
               "to_be_created_category_lied_mapping",
               to_be_created_category_lied_mapping
             );
-            // await axios
-            //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`, to_be_created_category_lied_mapping)
-            //   .then((resp) => created_text = resp.data.data);
+            await axios
+              .post(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`, to_be_created_category_lied_mapping)
+              .then((resp) => {
+                this.successfully_created.category_gesangbuchlied_mapping = resp.data.data;
+              });
           }
         }
 
@@ -529,9 +649,14 @@ export default {
           // Check if a value is set
           if (!_.every(create_text, (val) => val === null)) {
             console.log("create_text", create_text);
-            // await axios
-            //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, author_data)
-            //   .then((resp) => created_text = resp.data.data);
+            await axios
+              .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
+              .then((resp) => {
+                created_text = resp.data.data;
+                this.successfully_created.text = resp.data.data;
+                console.log(resp.data.data);
+              });
+
 
             // CREATE NEW TEXT AUTHORS
             console.log("CREATE NEW TEXT AUTHORS");
@@ -544,9 +669,13 @@ export default {
                 "to_be_created_text_authors",
                 to_be_created_text_authors
               );
-              // await axios
-              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_text_authors)
-              //   .then((resp) => created_text_authors = resp.data.data);
+              await axios
+                .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_text_authors)
+                .then((resp) => {
+                  created_text_authors = resp.data.data;
+                  this.successfully_created.authors.push(...resp.data.data);
+                  console.log(resp.data.data);
+                });
             }
 
             // CRATE TEXT AUTHOR MAPPING N:M
@@ -554,7 +683,7 @@ export default {
             let to_be_created_text_author_mapping = [];
             for (let created_author of created_text_authors) {
               let create_author_text = {
-                text_id: created_text,
+                text_id: created_text?.id,
                 autor_id: created_author.id,
               };
               if (!_.every(create_author_text, (val) => val === null))
@@ -566,15 +695,20 @@ export default {
                 "to_be_created_text_author_mapping",
                 to_be_created_text_author_mapping
               );
-              // await axios
-              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, to_be_created_text_author_mapping)
+              await axios
+                .post(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, to_be_created_text_author_mapping)
+                .then((resp) => {
+                  this.successfully_created.text_author_mapping.push(...resp.data.data);
+                  console.log(resp.data.data);
+                })
+
             }
           }
         }
 
         // CREATE MELODIE
         console.log("CREATE MELODIE");
-        let created_melodie = -1;
+        let created_melodie = null;
         if (!this.existing_melodie) {
           let create_melodie = {
             titel: this.melodie.title === "" ? null : this.melodie.title,
@@ -588,9 +722,13 @@ export default {
           if (!_.every(create_melodie, (val) => val === null)) {
             console.log("create_melodie", create_melodie);
 
-            // await axios
-            //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie`, author_data)
-            //   .then((resp) => created_text = resp.data.data);
+            await axios
+              .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie`, create_melodie)
+              .then((resp) => {
+                created_melodie = resp.data.data;
+                this.successfully_created.melodie = resp.data.data;
+                console.log(resp.data.data);
+              });
 
             // CREATE NEW MELODIE AUTHORS
             console.log("CREATE NEW MELODIE AUTHORS");
@@ -603,9 +741,13 @@ export default {
                 "created_melodie_author",
                 to_be_created_melodie_authors
               );
-              // await axios
-              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_melodie_authors)
-              //   .then((resp) => created_melodie_author = resp.data.data);
+              await axios
+                .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_melodie_authors)
+                .then((resp) => {
+                  created_melodie_authors = resp.data.data;
+                  this.successfully_created.authors.push(...resp.data.data);
+                  console.log(resp.data.data);
+                });
             }
 
             // MELODIE AUTHOR N TO M MAPPING
@@ -614,7 +756,7 @@ export default {
             let to_be_created_melodie_author_mapping = [];
             for (let created_author of created_melodie_authors) {
               let create_author_melodie = {
-                melodie_id: created_melodie,
+                melodie_id: created_melodie.id,
                 autor_id: created_author.id,
               };
               if (!_.every(create_author_melodie, (val) => val === null))
@@ -627,9 +769,12 @@ export default {
                 "to_be_created_melodie_author_mapping",
                 to_be_created_melodie_author_mapping
               );
-              // await axios
-              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, to_be_created_melodie_author_mapping)
-              //   .then((resp) => created_text = resp.data.data);
+              await axios
+                .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, to_be_created_melodie_author_mapping)
+                .then((resp) => {
+                  this.successfully_created.melodie_author_mapping.push(...resp.data.data)
+                  console.log(resp.data.data);
+                })
             }
 
             // MELODIE TO FILE MELODIE MAPPING
@@ -648,9 +793,12 @@ export default {
                 "to_be_created_melodie_file_mapping",
                 to_be_created_melodie_file_mapping
               );
-              // await axios
-              //   .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
-              //   .then((resp) => created_text = resp.data.data);
+              await axios
+                .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
+                .then((resp) => {
+                  this.successfully_created.melodie_files = resp.data.data;
+                  console.log(resp.data.data);
+                });
             }
           }
         }
@@ -658,17 +806,10 @@ export default {
         // UPDATE AUTHOR WITH TEXT AND MELODIE
         let update_gesangbuchlied = {
           // text und melodie
-          textId: this.existing_text
-            ? this.selected_text?.id
-            : created_text === -1
-            ? null
-            : created_text,
-          melodieId: this.existing_melodie
-            ? this.selected_melodie?.id
-            : created_melodie === -1
-            ? null
-            : created_melodie,
+          textId: this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null),
+          melodieId: this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null),
         };
+        console.log(update_gesangbuchlied)
         if (!_.every(update_gesangbuchlied, (val) => val === null)) {
           console.log("update_gesangbuchlied", update_gesangbuchlied);
           await axios
