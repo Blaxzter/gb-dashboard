@@ -88,7 +88,7 @@
                 <template v-slot:item="{ props, item }">
                   <v-list-item
                     v-bind="props"
-                    :title="item?.raw?.titel"
+                    :title="item?.raw?.titel +  (item?.raw?.strophenEinzeln ? ' - #' + item?.raw?.strophenEinzeln?.length + ' Strophen' : '')"
                     :subtitle="item?.raw?.author_name"
                   >
                     {{ item?.raw?.strophe_short }}
@@ -292,18 +292,18 @@
         Senden
       </v-btn>
 
-      <v-btn
-        prepend-icon="mdi-undo"
-        block
-        class="mt-5 py-5"
-        color="error"
-        elevated
-        size="x-large"
-        @click="delete_created_stuff"
-        v-if="show_undo_button"
-      >
-        Undo
-      </v-btn>
+<!--      <v-btn-->
+<!--        prepend-icon="mdi-undo"-->
+<!--        block-->
+<!--        class="mt-5 py-5"-->
+<!--        color="error"-->
+<!--        elevated-->
+<!--        size="x-large"-->
+<!--        @click="delete_created_stuff"-->
+<!--        v-if="show_undo_button"-->
+<!--      >-->
+<!--        Undo-->
+<!--      </v-btn>-->
     </v-container>
   </v-form>
 </template>
@@ -342,20 +342,20 @@ export default {
       melodie_files: [],
     },
 
-    title: "Ftest",
+    title: "",
     kategorie: [],
-    externer_link: "FTest",
-    cloud_link: "Ftest",
+    externer_link: "",
+    cloud_link: "",
     existing_text: false,
     selected_text: null,
     existing_melodie: false,
     selected_melodie: null,
     text: {
-      title: "F Neuer Text",
-      strophen: [{ text: "Erste Strophe" }, { text: "Zweite Strophe"}],
-      quelle: "Frederic",
-      quelllink: "Frederic",
-      anmerkung: "Test Eintrag",
+      title: "",
+      strophen: [{ text: "" }],
+      quelle: "",
+      quelllink: "",
+      anmerkung: "",
       lizenz: {
         name: "",
         digital: false,
@@ -365,18 +365,18 @@ export default {
       selected_authors: [],
       authors: [
         {
-          firstName: "Erster Author",
-          lastName: "Wub Wub",
+          firstName: "",
+          lastName: "",
           birthdate: null,
           deathdate: null,
         },
       ],
     },
     melodie: {
-      title: "Neue Melodie",
-      quelle: "Quelle Fielmann",
-      quelllink: "Test Link",
-      anmerkung: "Anmerkungen?",
+      title: "",
+      quelle: "",
+      quelllink: "",
+      anmerkung: "?",
       noten: null,
       lizenz: {
         name: "",
@@ -387,15 +387,15 @@ export default {
       selected_authors: [],
       authors: [
         {
-          firstName: "Melodie Test Author",
-          lastName: "Test",
+          firstName: "",
+          lastName: "",
           birthdate: null,
           deathdate: null,
         },
       ],
     },
-    anmerkung: "Lied Anmerkung",
-    liednummer2000: 5,
+    anmerkung: "",
+    liednummer2000: null,
     geandert: [],
   }),
   computed: {
