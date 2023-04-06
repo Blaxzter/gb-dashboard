@@ -1,6 +1,6 @@
 <template>
   <v-container>
-    <div class="text-h4 mb-5">Nächste Deadlines</div>
+    <div class="text-h4 mb-5">Nächste Meilenstein ersetzen</div>
     <div v-for="event in filteredEvents" :key="event.id" class="mb-4">
       <div
         class="border rounded d-flex pa-3"
