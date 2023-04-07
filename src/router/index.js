@@ -4,15 +4,32 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    component: () => import('@/layouts/default/Default.vue'),
+    component: () => import('@/layouts/new/Default.vue'),
     children: [
       {
-        path: '',
-        name: 'Home',
-        // route level code-splitting
-        // this generates a separate chunk (about.[hash].js) for this route
-        // which is lazy-loaded when the route is visited.
-        component: () => import(/* webpackChunkName: "home" */ '@/views/Home.vue'),
+        path: '*',
+        name: 'Dashboard',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/DashboardView.vue'),
+      },{
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/DashboardView.vue'),
+      },{
+        path: 'hochladen',
+        name: 'Neues Gesangbuchlied',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/UploadFormView.vue'),
+      },{
+        path: 'kalender',
+        name: 'Kalender',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/KalenderView.vue'),
+      },{
+        path: 'gesangbuchlieder',
+        name: 'Gesangbuchlieder',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/SongOverviewView.vue'),
+      },{
+        path: 'arbeitsauftraege',
+        name: 'Arbeitsaufträge',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/WorkorderView.vue'),
       },
     ],
   },
