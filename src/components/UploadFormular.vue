@@ -1,5 +1,10 @@
 <template>
-  <div class="text-h5 mb-2">Gesangbuchlied hochladen</div>
+  <v-row>
+    <v-col class="d-flex justify-space-between">
+      <div class="text-h5 mb-2">Gesangbuchlied hochladen</div>
+      <v-btn density="default" icon="mdi-undo" v-if="show_undo_button" @click="delete_created_stuff" flat></v-btn>
+    </v-col>
+  </v-row>
   <v-form ref="form">
     <v-container>
       <v-row>
@@ -291,19 +296,6 @@
       >
         Senden
       </v-btn>
-
-<!--      <v-btn-->
-<!--        prepend-icon="mdi-undo"-->
-<!--        block-->
-<!--        class="mt-5 py-5"-->
-<!--        color="error"-->
-<!--        elevated-->
-<!--        size="x-large"-->
-<!--        @click="delete_created_stuff"-->
-<!--        v-if="show_undo_button"-->
-<!--      >-->
-<!--        Undo-->
-<!--      </v-btn>-->
     </v-container>
   </v-form>
 </template>
@@ -491,41 +483,49 @@ export default {
     },
     async delete_created_stuff() {
       if (this.successfully_created.gesangbuchlied) {
-        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${this.successfully_created.gesangbuchlied.id}`)
-          .then((resp) => console.log("Deleted gesangbuchlied: ", resp))
+        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied`, {
+          data: [ this.successfully_created.gesangbuchlied.id ]
+        }).then((resp) => console.log("Deleted gesangbuchlied: ", resp))
       }
 
       if (this.successfully_created.text) {
         await axios
-          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/text/${this.successfully_created.text}`)
-          .then((resp) => console.log("Deleted text: ", resp))
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/text`, {
+            data: [ this.successfully_created.text.id ]
+          }).then((resp) => console.log("Deleted text: ", resp))
+      }
+      if (this.successfully_created.category_gesangbuchlied_mapping.length !== 0) {
+        await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`, {
+          data: [_.map(this.successfully_created.category_gesangbuchlied_mapping, 'id')]
+        }).then((resp) => console.log("Deleted autor: ", resp))
       }
       if (this.successfully_created.authors.length !== 0) {
         await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, {
-          data: {source: _.map(this.successfully_created.authors, 'id')}
+          data: [_.map(this.successfully_created.authors, 'id')]
         }).then((resp) => console.log("Deleted autor: ", resp))
       }
       if (this.successfully_created.text_author_mapping.length !== 0) {
         await axios
           .delete(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, {
-            data: {source: _.map(this.successfully_created.text_author_mapping, 'id')}
+            data: [_.map(this.successfully_created.text_author_mapping, 'id')]
           }).then((resp) => console.log("Deleted text_autor: ", resp))
       }
       if (this.successfully_created.melodie) {
         await axios
-          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie/${this.successfully_created.melodie.id}`)
-          .then((resp) => console.log("Deleted melodie: ", resp))
+          .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie`, {
+            data: [this.successfully_created.melodie.id]
+          }).then((resp) => console.log("Deleted melodie: ", resp))
       }
       if (this.successfully_created.melodie_author_mapping.length !== 0) {
         await axios
           .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, {
-            data: {source: _.map(this.successfully_created.melodie_author_mapping, 'id')}
+            data: [_.map(this.successfully_created.melodie_author_mapping, 'id')]
           }).then((resp) => console.log("Deleted melodie_autor: ", resp))
       }
       if (this.successfully_created.melodie_files.length !== 0) {
         await axios
           .delete(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, {
-            data: {source: _.map(this.successfully_created.melodie_files, 'id')}
+            data: [_.map(this.successfully_created.melodie_files, 'id')]
           }).then((resp) => console.log("Deleted melodie_files: ", resp))
       }
     },
