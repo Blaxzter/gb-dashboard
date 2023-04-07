@@ -39,7 +39,7 @@
 
 import { mapStores } from 'pinia'
 import {useAppStore} from "@/store/app";
-import AuftragTable from "@/components/AuftragTable.vue";
+import AuftragTable from "@/components/Workorders/AuftragTable.vue";
 
 export default {
   name: "WorkOrders",
