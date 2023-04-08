@@ -49,12 +49,12 @@
 <script>
 export default {
   name: "TextData",
-  props: {
-    title: String,
-    quelle: String,
-    quellelink: String,
-    anmerkung: String
-  }
+  data: () => ({
+    title: "",
+    quelle: "",
+    quellelink: "",
+    anmerkung: ""
+  })
 };
 </script>
 
