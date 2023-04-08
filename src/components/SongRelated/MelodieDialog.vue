@@ -93,6 +93,9 @@
         </div>
       </div>
     </v-card-text>
+    <v-card-actions>
+      <v-btn color="error" @click="$emit('close')">Schließen</v-btn>
+    </v-card-actions>
   </v-card>
 
   <v-dialog v-model="noten_dialog" style="height: 100vh; width: 100vw">
