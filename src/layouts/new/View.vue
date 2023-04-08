@@ -2,7 +2,7 @@
   <v-main class="bg-grey-lighten-3">
     <v-container fluid class="main-container">
       <v-row>
-        <v-col v-if="$vuetify.display.lgAndUp" cols="2">
+        <v-col v-if="$vuetify.display.lgAndUp" cols="2" >
           <v-sheet rounded="lg">
             <MenuList rounded/>
           </v-sheet>
@@ -13,7 +13,9 @@
             min-height="70vh"
             rounded="lg"
           >
-            <router-view/>
+            <v-container>
+              <router-view/>
+            </v-container>
           </v-sheet>
         </v-col>
       </v-row>
@@ -27,6 +29,6 @@ import MenuList from "@/components/util/MenuList.vue";
 
 <style>
 .main-container {
-  max-width: 1200px;
+  max-width: 1600px;
 }
 </style>

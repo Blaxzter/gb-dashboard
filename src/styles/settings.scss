@@ -8,3 +8,69 @@
 // @use 'vuetify' with (
 //   $color-pack: false
 // );
+
+html { overflow-y: auto }
+
+.text {
+  color: #5D3E92;
+  background-color: #D5C5E3;
+}
+.text-bg {
+  background-color: #D5C5E3;
+}
+.melodie {
+  color: #FFC107;
+  background-color: #FFF9C4;
+}
+.melodie-bg {
+  background-color: #FFF9C4;
+}
+.jugend {
+  color: #4CAF50;
+  background-color: #C8E6C9;
+}
+.jugend-bg {
+  background-color: #C8E6C9;
+}
+.kinder {
+  color: #EC407A;
+  background-color: #F8BBD0;
+}
+.kinder-bg {
+  background-color: #F8BBD0;
+}
+.it {
+  color: #2196F3;
+  background-color: #BBDEFB;
+}
+.it-bg {
+  background-color: #BBDEFB;
+}
+.kleiner-kreis {
+  color: #673AB7;
+  background-color: #D1C4E9;
+}
+.kleiner-kreis-bg {
+  background-color: #D1C4E9;
+}
+.allgemein {
+  color: #9C27B0;
+  background-color: #E1BEE7;
+}
+.allgemein-bg {
+  background-color: #E1BEE7;
+}
+.grosser-ak-gesangbuch {
+  color: #F44336;
+  background-color: #FFCDD2;
+}
+.grosser-ak-gesangbuch-bg {
+  background-color: #FFCDD2;
+}
+.layout {
+  color: #607D8B;
+  background-color: #CFD8DC;
+}
+.layout-bg {
+  background-color: #CFD8DC;
+}
