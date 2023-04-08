@@ -127,7 +127,7 @@ export const useAppStore = defineStore('app', {
         author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
         strophen_connected: _.map(obj.strophenEinzeln, 'strophe')?.join('\n\n'),
         strophen_connected_short: _.map(obj.strophenEinzeln, 'strophe')?.join(' ').substring(0, 50),
-        strophe_short: _.map(obj.strophenEinzeln?.slice(0, 3), (elem, idx) => `${idx + 1}. ${elem.strophe.substring(0, 30)}${elem.length > 15 ? '...' : ''}`).join(" "),
+        strophe_short: _.map(obj.strophenEinzeln?.slice(0, 3), (elem, idx) => `${idx + 1}. ${elem?.strophe?.replace('\n', ' ').substring(0, 30)}${elem?.strophe?.length > 15 ? '...' : ''}`).join(" "),
       }));
       text  = _.map(text, obj => ({
         ...obj,
