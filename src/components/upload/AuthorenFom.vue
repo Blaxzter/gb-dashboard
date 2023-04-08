@@ -11,7 +11,7 @@
           <v-col>
             <v-autocomplete
               label="Suche nach existierende Autoren"
-              :items="store_authors"
+              :items="sorted_store_authors"
               item-title="author_str"
               item-value="id"
               hide-details="auto"
@@ -108,6 +108,8 @@
 import VuetifyDatepicker from "@/components/upload/VuetifyDatepicker.vue";
 import { useAppStore } from "@/store/app";
 
+import _ from "lodash"
+
 export default {
   name: "AuthorenFom",
   components: { VuetifyDatepicker },
@@ -132,6 +134,9 @@ export default {
     store_authors() {
       return this.store.authors;
     },
+    sorted_store_authors() {
+      return _.sortBy(this.store_authors, 'vorname')
+    }
   },
 
   watch: {
