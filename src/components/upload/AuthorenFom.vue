@@ -136,7 +136,6 @@ export default {
 
   watch: {
     selected_author_model() {
-      console.log("Changed", this.selected_author_model)
       this.$emit("update:selected_author", this.selected_author_model)
     }
   },
