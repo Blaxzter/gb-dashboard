@@ -19,11 +19,12 @@
         </div>
       </v-card-title>
     </v-card-title>
-    <v-card-text class="pt-0">
+    <v-card-text class="pt-0 px-8">
       <v-carousel
         v-if="selected_song.melodie.files.length"
         :show-arrows="selected_song.melodie.files?.length <= 1 ? false : 'hover'"
         hide-delimiter-background
+        :hide-delimiters="selected_song?.melodie.files?.length <= 1"
         height="300"
         v-model="pdf_carousel_model"
       >
@@ -37,6 +38,7 @@
               height="300"
               :source="getPdfUrl(file.id)"
               @click="fullscreen_pdf($event, file)"
+              style="cursor: pointer;"
             />
           </div>
         </v-carousel-item>
@@ -86,6 +88,9 @@
         </div>
       </div>
     </v-card-text>
+    <v-card-actions>
+      <v-btn color="error" @click="$emit('close')">Schließen</v-btn>
+    </v-card-actions>
   </v-card>
 
   <v-dialog v-model="noten_dialog" style="height: 100vh; width: 100vw">
@@ -100,10 +105,10 @@
   </v-dialog>
 
   <v-dialog v-model="text_dialog" width="700">
-    <TextDialog :text="selected_song.text" />
+    <TextDialog :text="selected_song.text" @close="text_dialog = false" />
   </v-dialog>
-  <v-dialog v-model="melodie_dialog" width="700">
-    <MelodieDialog :melodie="selected_song.melodie" />
+  <v-dialog v-model="melodie_dialog" @close="melodie_dialog = false" width="700">
+    <MelodieDialog :melodie="selected_song.melodie" @close="melodie_dialog = false" />
   </v-dialog>
 </template>
 

@@ -79,11 +79,15 @@ export default {
 
     let status = []
     if ('sonstiges' in auftragsartText) status.push(...auftragsartText['sonstiges'])
-    if ('sonstiges' in auftragsartMelodie) status.push(...auftragsartMelodie['sonstiges'])
+    if ('sonstiges' in auftragsartMelodie) status.push(
+      ..._.filter(auftragsartMelodie['sonstiges'], (elem) => _.find(status, (elem_c) => elem_c.id === elem.id) === undefined)
+    )
 
     let rueckfrageAutor = []
-    if ('rueckfrageAutor' in auftragsartText) status.push(...auftragsartText['rueckfrageAutor'])
-    if ('rueckfrageAutor' in auftragsartMelodie) status.push(...auftragsartMelodie['rueckfrageAutor'])
+    if ('rueckfrageAutor' in auftragsartText) rueckfrageAutor.push(...auftragsartText['rueckfrageAutor'])
+    if ('rueckfrageAutor' in auftragsartMelodie) rueckfrageAutor.push(
+      ..._.filter(auftragsartMelodie['rueckfrageAutor'], (elem) => _.find(rueckfrageAutor, (elem_c) => elem_c.id === elem.id)  === undefined)
+    )
 
     delete auftragsartText['auftragsartText']
     delete auftragsartText['sonstiges']

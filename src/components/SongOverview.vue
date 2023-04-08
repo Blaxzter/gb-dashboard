@@ -24,7 +24,7 @@
   </v-data-table>
 
   <v-dialog v-model="song_dialog" width="700">
-    <GesangbuchLiedComponent :selected_song="selected_song" />
+    <GesangbuchLiedComponent :selected_song="selected_song" @close="song_dialog = false"/>
   </v-dialog>
 </template>
 <script>
@@ -72,5 +72,12 @@ export default {
 <style>
 i.mdi-circle.mdi.v-icon.notranslate.v-theme--light.v-icon--size-default:before {
   color: #9595ff;
+}
+
+.v-data-table__tr:hover  {
+  background-color: #cbd5e1;
+}
+.v-data-table__td {
+  background-color: transparent !important;
 }
 </style>
