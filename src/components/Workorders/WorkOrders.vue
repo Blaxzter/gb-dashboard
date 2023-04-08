@@ -1,8 +1,8 @@
 <template>
-  <div class="d-flex align-center justify-space-between  mb-6">
-    <div class="text-h4">Arbeitsaufträge</div>
-    <div>
-      <v-btn-toggle v-model="selected_tabs" elevation="1" color="success" class="me-3">
+  <div class="d-flex align-start align-md-center justify-space-between mb-0 mb-md-6 flex-column flex-md-row">
+    <div class="text-h4 mb-4">Arbeitsaufträge</div>
+    <div class="d-flex align-end justify-end mb-6 flex-column flex-md-row w-100">
+      <v-btn-toggle v-model="selected_tabs" elevation="1" color="success" class="mb-3 mb-md-0 me-md-3">
         <v-btn prepend-icon="mdi-arm-flex">Auftrags Typen</v-btn>
         <v-btn prepend-icon="mdi-shape">Kategorien</v-btn>
       </v-btn-toggle>
@@ -22,25 +22,27 @@
     </div>
   </div>
 
-  <v-tabs v-model="tab" fixed-tabs>
-    <v-tab value="alle">Alle</v-tab>
-    <v-tab v-for="(label, index) in current_tabs" :key="index" :value="index">
-      {{ selected_tabs === 1 ? label : auftrag_type_to_name[label] }}
-    </v-tab>
-  </v-tabs>
+  <v-card elevation="0">
+    <v-tabs v-model="tab" fixed-tabs bg-color="primary">
+      <v-tab value="alle">Alle</v-tab>
+      <v-tab v-for="(label, index) in current_tabs" :key="index" :value="index">
+        {{ selected_tabs === 1 ? label : auftrag_type_to_name[label] }}
+      </v-tab>
+    </v-tabs>
 
-  <v-card-text>
-    <v-window v-model="tab">
-      <v-window-item value="alle">
-        <AuftragCards :auftraege="auftraege" v-if="display_style === 0"/>
-        <AuftragTable :auftraege="auftraege" v-else-if="display_style === 1"/>
-      </v-window-item>
-      <v-window-item v-for="(label, index) in current_tabs" :key="index" :value="index">
-        <AuftragCards :auftraege="current_group[label]" v-if="display_style === 0"/>
-        <AuftragTable :auftraege="current_group[label]" v-else-if="display_style === 1"/>
-      </v-window-item>
-    </v-window>
-  </v-card-text>
+    <v-card-text>
+      <v-window v-model="tab">
+        <v-window-item value="alle">
+          <AuftragCards :auftraege="auftraege" v-if="display_style === 0"/>
+          <AuftragTable :auftraege="auftraege" v-else-if="display_style === 1"/>
+        </v-window-item>
+        <v-window-item v-for="(label, index) in current_tabs" :key="index" :value="index">
+          <AuftragCards :auftraege="current_group[label]" v-if="display_style === 0"/>
+          <AuftragTable :auftraege="current_group[label]" v-else-if="display_style === 1"/>
+        </v-window-item>
+      </v-window>
+    </v-card-text>
+  </v-card>
 </template>
 
 <script>
@@ -88,7 +90,8 @@ export default {
     delete auftragsartMelodie['auftragsartText']
     delete auftragsartMelodie['sonstiges']
 
-    this.group_by_auftrag = {status: status, rueckfrageAutor: rueckfrageAutor, ...auftragsartText, ...auftragsartMelodie}
+    this.group_by_auftrag = {sonstiges: status, rueckfrageAutor: rueckfrageAutor, ...auftragsartText, ...auftragsartMelodie}
+    console.log(this.group_by_auftrag)
     this.group_by_arbeitskreis = _.groupBy(this.auftraege, (elem) => elem.arbeitskreis_name)
   },
   computed: {
