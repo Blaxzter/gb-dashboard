@@ -1,5 +1,8 @@
 <template>
-  <v-card class="mb-4" :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg`">
+  <v-card
+    class="mb-4"
+    :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg`"
+  >
     <template v-slot:title>
       <div class="d-flex align-center">
         <v-icon
@@ -9,31 +12,26 @@
           :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}`"
         />
         {{ auftrag.arbeitskreis_name }}
-
       </div>
     </template>
     <template v-slot:subtitle>
       {{ format_date(auftrag.abgabetermin) }}
     </template>
     <template v-slot:text>
-
-
       <v-card
         v-if="auftrag.text"
         @click="text_dialog = true"
-        :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg-dark`"
-        class="mb-3 hover_card">
+        :class="`${arbeitskreis_name_to_css(
+          auftrag.arbeitskreis_name
+        )}-bg-dark ${auftrag.melodie || auftrag.anmerkung ? 'mb-3' : ''}`"
+        class="hover_card"
+      >
         <template v-slot:title>
           <div class="d-flex align-center mb-1 text-subtitle-1">
-            <v-icon icon="mdi-pencil" size="tiny" class="me-2"/>
-            <div>
-              Zugeordneter Text:
-            </div>
+            <v-icon icon="mdi-pencil" size="tiny" class="me-2" />
+            <div>Zugeordneter Text:</div>
             <div class="flex-grow-1"></div>
-            <v-icon
-              icon="mdi-cursor-pointer"
-              size="tiny"
-            />
+            <v-icon icon="mdi-cursor-pointer" size="tiny" />
           </div>
         </template>
         <template v-slot:subtitle>
@@ -44,19 +42,18 @@
         </template>
       </v-card>
 
-
-      <v-card v-if="auftrag.melodie" :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg-dark`" class="mb-3" @click="melodie_dialog = true">
+      <v-card
+        v-if="auftrag.melodie"
+        :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg-dark ${auftrag.anmerkung? 'mb-3' : ''}`"
+        class="mb-3"
+        @click="melodie_dialog = true"
+      >
         <template v-slot:title>
           <div class="d-flex align-center mb-1 text-subtitle-1">
-            <v-icon icon="mdi-music-note" size="tiny" class="me-2"/>
-            <div>
-              Zugeordnete Melodie:
-            </div>
+            <v-icon icon="mdi-music-note" size="tiny" class="me-2" />
+            <div>Zugeordnete Melodie:</div>
             <div class="flex-grow-1"></div>
-            <v-icon
-              icon="mdi-cursor-pointer"
-              size="tiny"
-            />
+            <v-icon icon="mdi-cursor-pointer" size="tiny" />
           </div>
         </template>
         <template v-slot:subtitle>
@@ -67,42 +64,46 @@
         </template>
       </v-card>
 
-
-      <v-card v-if="auftrag.anmerkung" :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg-dark`" >
+      <v-card
+        v-if="auftrag.anmerkung"
+        :class="`${arbeitskreis_name_to_css(
+          auftrag.arbeitskreis_name
+        )}-bg-dark`"
+      >
         <template v-slot:title>
-          <div class="d-flex align-center mb-1 text-subtitle-1" @click="text_dialog = true">
-            <v-icon icon="mdi-message-bulleted" size="tiny" class="me-2"/>
-            <div>
-              Anmerkung:
-            </div>
+          <div
+            class="d-flex align-center mb-1 text-subtitle-1"
+            @click="text_dialog = true"
+          >
+            <v-icon icon="mdi-message-bulleted" size="tiny" class="me-2" />
+            <div>Anmerkung:</div>
           </div>
         </template>
         <template v-slot:text>
           {{ auftrag.anmerkung }}
         </template>
       </v-card>
-
     </template>
   </v-card>
 
   <v-dialog v-model="text_dialog" width="700">
-    <TextDialog :text="auftrag.text" />
+    <TextDialog :text="auftrag.text" @close="text_dialog = false" />
   </v-dialog>
   <v-dialog v-model="melodie_dialog" width="700">
-    <MelodieDialog :melodie="auftrag.melodie" />
+    <MelodieDialog :melodie="auftrag.melodie" @close="melodie_dialog = false" />
   </v-dialog>
 </template>
 
 <script>
-import {useAppStore} from "@/store/app";
-import {work_group_icon, auftrag_type_to_name} from "@/assets/js/utils";
+import { useAppStore } from "@/store/app";
+import { work_group_icon, auftrag_type_to_name } from "@/assets/js/utils";
 import moment from "moment/moment";
 import TextDialog from "@/components/SongRelated/TextDialog.vue";
 import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
 
 export default {
   name: "AuftragCard",
-  components: {TextDialog, MelodieDialog},
+  components: { TextDialog, MelodieDialog },
   data: () => ({
     store: useAppStore(),
     text_dialog: false,
@@ -119,28 +120,25 @@ export default {
       return work_group_icon;
     },
     auftrag_type_to_name() {
-      return auftrag_type_to_name
-    }
+      return auftrag_type_to_name;
+    },
   },
   methods: {
     arbeitskreis_name_to_css(name) {
-      return name.replace('ß', 'ss').replace(' ', '-').toLowerCase()
+      return name.replace("ß", "ss").replace(" ", "-").toLowerCase();
     },
     arbeitskreis_name(id) {
       return this.store.arbeitskreis_by_id(id);
     },
     format_date(date) {
-      if (date)
-        return moment(date).format("DD.MM.YYYY");
-      return 'Kein Datum'
+      if (date) return moment(date).format("DD.MM.YYYY");
+      return "Kein Datum";
     },
-  }
-}
+  },
+};
 </script>
 
 <style>
 .hover_card:hover {
-
 }
-
 </style>
