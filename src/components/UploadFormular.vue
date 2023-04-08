@@ -99,7 +99,7 @@
               <v-autocomplete
                 :disabled="!existing_text"
                 label="Suche nach existierenden Texten"
-                :items="store_text"
+                :items="sorted_store_text"
                 :custom-filter="custom_filter"
                 item-title="titel"
                 item-value="id"
@@ -184,7 +184,7 @@
               <v-autocomplete
                 :disabled="!existing_melodie"
                 label="Suche nach existierenden Melodien"
-                :items="store_melodie"
+                :items="sorted_store_melodie"
                 :custom-filter="custom_filter"
                 item-title="titel"
                 item-value="id"
@@ -432,6 +432,12 @@ export default {
     },
     store_melodie() {
       return this.store.melodies;
+    },
+    sorted_store_text() {
+      return _.sortBy(this.store_text, 'titel');
+    },
+    sorted_store_melodie() {
+      return _.sortBy(this.store_melodie, 'titel');
     },
     show_undo_button() {
       return this.successfully_created.gesangbuchlied !== null ||
