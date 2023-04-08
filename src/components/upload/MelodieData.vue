@@ -15,12 +15,15 @@
     <v-row>
       <v-col cols="12" class="pb-0">
         <v-file-input
+          v-model="noten"
           show-size
           label="Noten Datein"
           multiple
+          counter
           chips
-          @change="$emit('update:noten', $event.target.value)"
-        > </v-file-input>
+          @change="$emit('update:noten', noten)"
+        >
+        </v-file-input>
       </v-col>
     </v-row>
 
@@ -62,12 +65,21 @@
 export default {
   name: "MelodieData",
   props: {
-    title: String,
-    noten: File,
-    quelle: String,
-    quellelink: String,
-    anmerkung: String,
+
   },
+  data: () => ({
+    noten: [],
+    title: "",
+    quelle: "",
+    quellelink: "",
+    anmerkung: "",
+  }),
+  watch: {
+
+  },
+  methods: {
+
+  }
 };
 </script>
 

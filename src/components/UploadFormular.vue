@@ -2,10 +2,28 @@
   <v-row class="mb-5">
     <v-col class="d-flex justify-space-between">
       <div class="text-h4">Gesangbuchlied hochladen</div>
-      <v-btn density="default" icon="mdi-undo" v-if="show_undo_button" @click="delete_created_stuff" flat></v-btn>
+      <!--      <v-btn density="default" icon="mdi-undo" v-if="show_undo_button" @click="delete_created_stuff" flat></v-btn>-->
     </v-col>
   </v-row>
-  <v-form ref="form">
+
+  <v-icon icon="fa:fas ring"/>
+
+  <UploadProgress
+    v-if="show_undo_button || loading"
+    :loading="loading"
+    :gesangbuchlied="successfully_created.gesangbuchlied"
+    :text="successfully_created.text"
+    :melodie="successfully_created.melodie"
+    :category_gesangbuchlied_mapping="successfully_created.category_gesangbuchlied_mapping"
+    :authors="successfully_created.authors"
+    :text_author_mapping="successfully_created.text_author_mapping"
+    :melodie_author_mapping="successfully_created.melodie_author_mapping"
+    :melodie_files="successfully_created.melodie_files"
+    :created_files="successfully_created.created_files"
+    @reset="reset_data"
+  />
+
+  <v-form ref="form" v-else>
     <v-container>
       <v-row>
         <v-col cols="12" class="py-0">
@@ -112,16 +130,16 @@
             >
               <v-expansion-panel-text>
                 <TextData
-                  :anmerkung="text.anmerkung"
-                  :quelle="text.quelle"
-                  :quellelink="text.quelllink"
-                  :title="text.title"
+                  @update:anmerkung="text.anmerkung = $event"
+                  @update:quelle="text.quelle = $event"
+                  @update:quellelink="text.quelllink = $event"
+                  @update:title="text.title = $event"
                 />
 
-                <TextStrophen :strophen="text.strophen" class="mb-3" />
+                <TextStrophen :strophen="text.strophen" class="mb-3"/>
                 <AuthorenFom
                   :label="'Text Autoren'"
-                  v-model:selected_author="text.selected_authors"
+                  @update:selected_author="text.selected_authors = $event"
                   v-model:authors="text.authors"
                   class="mb-3"
                 />
@@ -194,17 +212,17 @@
             >
               <v-expansion-panel-text>
                 <MelodieData
-                  :anmerkung="melodie.anmerkung"
-                  :quelle="melodie.quelle"
-                  :noten="melodie.noten"
-                  :quellelink="melodie.quelllink"
-                  :title="melodie.title"
+                  @update:noten="update_file"
+                  @update:quellelink="melodie.quelllink = $event"
+                  @update:title="melodie.title = $event"
+                  @update:quelle="melodie.quelle = $event"
+                  @update:anmerkung="melodie.anmerkung = $event"
                 />
 
                 <AuthorenFom
                   :label="'Melodie Autoren'"
-                  :selected_author="melodie.selected_authors"
-                  :authors="melodie.authors"
+                  @update:selected_author="melodie.selected_authors = $event"
+                  v-model:authors="melodie.authors"
                   class="mb-3"
                 />
                 <!--                <LizensComponent-->
@@ -296,6 +314,18 @@
       >
         Senden
       </v-btn>
+      <!--      <v-btn-->
+      <!--        prepend-icon="mdi-send"-->
+      <!--        block-->
+      <!--        class="mt-5 py-5"-->
+      <!--        color="primary"-->
+      <!--        elevated-->
+      <!--        size="x-large"-->
+      <!--        @click="see_data"-->
+      <!--      >-->
+      <!--        Senden-->
+      <!--      </v-btn>-->
+
     </v-container>
   </v-form>
 </template>
@@ -307,13 +337,16 @@ import AuthorenFom from "@/components/upload/AuthorenFom.vue";
 import TextData from "@/components/upload/TextData.vue";
 import MelodieData from "@/components/upload/MelodieData.vue";
 
-import { useAppStore } from "@/store/app";
+import {useAppStore} from "@/store/app";
 import axios from "axios";
 import _ from "lodash";
 import moment from "moment";
+import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
+import UploadProgress from "@/components/upload/UploadProgress.vue";
 
 export default {
   components: {
+    UploadProgress,
     MelodieData,
     TextData,
     // LizensComponent,
@@ -323,15 +356,18 @@ export default {
   data: () => ({
     store: useAppStore(),
 
+    loading: false,
+
     successfully_created: {
       gesangbuchlied: null,
       text: null,
       melodie: null,
-      category_gesangbuchlied_mapping: null,
+      category_gesangbuchlied_mapping: [],
       authors: [],
       text_author_mapping: [],
       melodie_author_mapping: [],
       melodie_files: [],
+      created_files: [],
     },
 
     title: "",
@@ -344,7 +380,7 @@ export default {
     selected_melodie: null,
     text: {
       title: "",
-      strophen: [{ text: "" }],
+      strophen: [{text: ""}],
       quelle: "",
       quelllink: "",
       anmerkung: "",
@@ -368,7 +404,7 @@ export default {
       title: "",
       quelle: "",
       quelllink: "",
-      anmerkung: "?",
+      anmerkung: "",
       noten: null,
       lizenz: {
         name: "",
@@ -398,85 +434,36 @@ export default {
       return this.store.melodies;
     },
     show_undo_button() {
-      return this.successfully_created.gesangbuchlied  !== null ||
-        this.successfully_created.text  !== null ||
-        this.successfully_created.melodie  !== null ||
-        this.successfully_created.category_gesangbuchlied_mapping  !== null ||
+      return this.successfully_created.gesangbuchlied !== null ||
+        this.successfully_created.text !== null ||
+        this.successfully_created.melodie !== null ||
+        this.successfully_created.category_gesangbuchlied_mapping.length !== 0 ||
         this.successfully_created.authors.length !== 0 ||
         this.successfully_created.text_author_mapping.length !== 0 ||
         this.successfully_created.melodie_author_mapping.length !== 0;
     }
   },
   methods: {
+    see_data() {
+      console.log('title', this.title)
+      console.log('kategorie', this.kategorie)
+      console.log('externer_link', this.externer_link)
+      console.log('cloud_link', this.cloud_link)
+      console.log('existing_text', this.existing_text)
+      console.log('selected_text', this.selected_text)
+      console.log('existing_melodie', this.existing_melodie)
+      console.log('selected_melodie', this.selected_melodie)
+      console.log('text', this.text)
+      console.log('melodie', this.melodie)
+      console.log('anmerkung', this.anmerkung)
+      console.log('liednummer2000', this.liednummer2000)
+      console.log('geandert', this.geandert)
+    },
+    update_file(event) {
+      this.melodie.noten = event
+    },
     get_icon(item) {
-      if (item.raw.name === "Kinder")
-        return "mdi-teddy-bear"
-      if (item.raw.name === "Jugend")
-        return "mdi-skateboarding"
-      if (item.raw.name === "Weihnachten")
-        return "mdi-pine-tree"
-      if (item.raw.name === "Heimgang")
-        return "mdi-grave-stone"
-      if (item.raw.name === "Abendlied")
-        return "mdi-weather-night"
-      if (item.raw.name === "Advent")
-        return "mdi-candle"
-      if (item.raw.name === "Abendmahl")
-        return "mdi-glass-wine"
-      if (item.raw.name === "Heiligabend")
-        return "mdi-string-lights"
-      if (item.raw.name === "Joseph Weißenberg – Geburtstag")
-        return "mdi-image-filter-hdr"
-      if (item.raw.name === "Sakrament des Sterbens / Abschiedsfeie")
-        return ""
-      if (item.raw.name === "Sakrament des Abendmahls")
-        return ""
-      if (item.raw.name === "Joseph Weißenberg – Geburtstag (24.08.)")
-        return ""
-      if (item.raw.name === "Palmsonntag")
-        return "mdi-palm-tree"
-      if (item.raw.name === "Karfreitag")
-        return "mdi-cross"
-      if (item.raw.name === "Ostersonntag")
-        return "mdi-egg-easter"
-      if (item.raw.name === "Kirchentag")
-        return "mdi-balloon"
-      if (item.raw.name === "Jahreswechsel")
-        return "mdi-firework"
-      if (item.raw.name === "Sakrament der Taufe")
-        return "mdi-human-baby-changing-table"
-      if (item.raw.name === "Konfirmation")
-        return "mdi-account-group"
-      if (item.raw.name === "Trauung")
-        return ""
-      if (item.raw.name === "Verpflichtung")
-        return ""
-      if (item.raw.name === "Freundschaft")
-        return ""
-      if (item.raw.name === "Friedensstadt")
-        return ""
-      if (item.raw.name === "Joseph Weißenberg – Verurteilung (13.08.)")
-        return ""
-      if (item.raw.name === "Joseph Weißenberg – Heimgang (06.03.)")
-        return ""
-      if (item.raw.name === "Pfingsten")
-        return ""
-      if (item.raw.name === "Erntedank")
-        return ""
-      if (item.raw.name === "Ewigkeitssonntag (Totensonntag)")
-        return ""
-      if (item.raw.name === "Passion")
-        return ""
-      if (item.raw.name === "Gemeinschaft")
-        return ""
-      if (item.raw.name === "Loblied")
-        return ""
-      if (item.raw.name === "Stille")
-        return ""
-      if (item.raw.name === "Christi Himmelfahrt")
-        return ""
-
-      return null
+      return gesangbuch_kategorie_name_to_icon(item.title)
     },
     custom_filter(item, queryText, itemText) {
       return itemText.value.autocomplete.includes(queryText)
@@ -484,14 +471,14 @@ export default {
     async delete_created_stuff() {
       if (this.successfully_created.gesangbuchlied) {
         await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied`, {
-          data: [ this.successfully_created.gesangbuchlied.id ]
+          data: [this.successfully_created.gesangbuchlied.id]
         }).then((resp) => console.log("Deleted gesangbuchlied: ", resp))
       }
 
       if (this.successfully_created.text) {
         await axios
           .delete(`${import.meta.env.VITE_BACKEND_URL}/items/text`, {
-            data: [ this.successfully_created.text.id ]
+            data: [this.successfully_created.text.id]
           }).then((resp) => console.log("Deleted text: ", resp))
       }
       if (this.successfully_created.category_gesangbuchlied_mapping.length !== 0) {
@@ -605,6 +592,10 @@ export default {
             create_gesangbuchlied
           )
           .then((resp) => {
+            console.log(
+              "created gesangbuchlied",
+              resp.data.data
+            );
             created_gesangbuchlied = resp.data.data;
             this.successfully_created.gesangbuchlied = resp.data.data;
           });
@@ -629,6 +620,10 @@ export default {
             await axios
               .post(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`, to_be_created_category_lied_mapping)
               .then((resp) => {
+                console.log(
+                  "created to_be_created_category_lied_mapping",
+                  resp.data.data
+                );
                 this.successfully_created.category_gesangbuchlied_mapping = resp.data.data;
               });
           }
@@ -653,9 +648,12 @@ export default {
             await axios
               .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
               .then((resp) => {
+                console.log(
+                  "created text",
+                  resp.data.data
+                );
                 created_text = resp.data.data;
                 this.successfully_created.text = resp.data.data;
-                console.log(resp.data.data);
               });
 
 
@@ -673,9 +671,12 @@ export default {
               await axios
                 .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_text_authors)
                 .then((resp) => {
+                  console.log(
+                    "created authors",
+                    resp.data.data
+                  );
                   created_text_authors = resp.data.data;
                   this.successfully_created.authors.push(...resp.data.data);
-                  console.log(resp.data.data);
                 });
             }
 
@@ -699,8 +700,11 @@ export default {
               await axios
                 .post(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, to_be_created_text_author_mapping)
                 .then((resp) => {
+                  console.log(
+                    "created text_author_mapping",
+                    resp.data.data
+                  );
                   this.successfully_created.text_author_mapping.push(...resp.data.data);
-                  console.log(resp.data.data);
                 })
 
             }
@@ -727,9 +731,12 @@ export default {
             await axios
               .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie`, create_melodie)
               .then((resp) => {
+                console.log(
+                  "created created_melodie",
+                  resp.data.data
+                );
                 created_melodie = resp.data.data;
                 this.successfully_created.melodie = resp.data.data;
-                console.log(resp.data.data);
               });
 
             // CREATE NEW MELODIE AUTHORS
@@ -746,9 +753,12 @@ export default {
               await axios
                 .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, to_be_created_melodie_authors)
                 .then((resp) => {
+                  console.log(
+                    "created melodie authors",
+                    resp.data.data
+                  );
                   created_melodie_authors = resp.data.data;
                   this.successfully_created.authors.push(...resp.data.data);
-                  console.log(resp.data.data);
                 });
             }
 
@@ -774,18 +784,21 @@ export default {
               await axios
                 .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, to_be_created_melodie_author_mapping)
                 .then((resp) => {
+                  console.log(
+                    "created melodie_author_mapping",
+                    resp.data.data
+                  );
                   this.successfully_created.melodie_author_mapping.push(...resp.data.data)
-                  console.log(resp.data.data);
                 })
             }
 
             // MELODIE TO FILE MELODIE MAPPING
             const created_files = await this.upload_file();
             let to_be_created_melodie_file_mapping = [];
-            for (let created_author of created_files) {
+            for (let created_file of created_files) {
               let create_file_melodie = {
-                melodie_id: created_melodie,
-                autor_id: created_author.id,
+                melodie_id: created_melodie.id,
+                directus_files_id: created_file.id,
               };
               to_be_created_melodie_file_mapping.push(create_file_melodie);
             }
@@ -798,8 +811,11 @@ export default {
               await axios
                 .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
                 .then((resp) => {
+                  console.log(
+                    "created melodie_files",
+                    resp.data.data
+                  );
                   this.successfully_created.melodie_files = resp.data.data;
-                  console.log(resp.data.data);
                 });
             }
           }
@@ -820,16 +836,86 @@ export default {
       }
     },
     async upload_file() {
-      console.log("File Upload");
-      console.log("this.melodie.noten", this.melodie.noten);
+      for (let file of this.melodie.noten) {
+        console.log("Upload file ", file);
+        const formData = new FormData();
+        formData.append("title", file.name);
+        formData.append('file', file);
 
-      const formData = new FormData();
-      formData.append("title", "My First File");
-      // formData.append('file', fileInput.files[0]);
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
+          .then((resp) => this.successfully_created.created_files.push(resp.data.data));
+      }
+      return this.successfully_created.created_files;
+    },
 
-      let created_file = [];
-      // await axios.post('/files', formData).then((resp) => created_file = resp.data.data);
-      return created_file;
+    reset_data() {
+      this.successfully_created = {
+        gesangbuchlied: null,
+        text: null,
+        melodie: null,
+        category_gesangbuchlied_mapping: [],
+        authors: [],
+        text_author_mapping: [],
+        melodie_author_mapping: [],
+        melodie_files: [],
+        created_files: [],
+      }
+
+      this.title = "";
+      this.kategorie = [];
+      this.externer_link = "";
+      this.cloud_link = "";
+      this.existing_text = false;
+      this.selected_text = null;
+      this.existing_melodie = false;
+      this.selected_melodie = null;
+      this.text = {
+        title: "",
+        strophen: [{text: ""}],
+        quelle: "",
+        quelllink: "",
+        anmerkung: "",
+        lizenz: {
+          name: "",
+          digital: false,
+          print: false,
+        },
+        use_lizenz: true,
+        selected_authors: [],
+        authors: [
+          {
+            firstName: "",
+            lastName: "",
+            birthdate: null,
+            deathdate: null,
+          },
+        ],
+      };
+      this.melodie = {
+        title: "",
+        quelle: "",
+        quelllink: "",
+        anmerkung: "",
+        noten: null,
+        lizenz: {
+          name: "",
+          digital: false,
+          print: false,
+        },
+        use_lizenz: true,
+        selected_authors: [],
+        authors: [
+          {
+            firstName: "",
+            lastName: "",
+            birthdate: null,
+            deathdate: null,
+          },
+        ],
+      };
+      this.anmerkung = "";
+      this.liednummer2000 = null;
+      this.geandert = [];
     },
 
     validate_author(author) {
