@@ -7,9 +7,8 @@ const routes = [
     component: () => import('@/layouts/new/Default.vue'),
     children: [
       {
-        path: '*',
-        name: 'Dashboard',
-        component: () => import(/* webpackChunkName: "home" */ '@/views/DashboardView.vue'),
+        path: '/',
+        redirect: '/dashboard',
       },{
         path: 'dashboard',
         name: 'Dashboard',

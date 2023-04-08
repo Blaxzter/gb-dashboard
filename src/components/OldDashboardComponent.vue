@@ -1,26 +1,21 @@
 <template>
-  <v-container class="fill-height">
-    <v-responsive>
-      <UploadFormular/>
+  <UploadFormular/>
 
-      <v-divider class="my-8"/>
+  <v-divider class="my-8"/>
 
-      <CurrentState/>
+  <CurrentState/>
 
-      <v-divider class="my-8"/>
+  <v-divider class="my-8"/>
 
-      <Calender/>
+  <Calender/>
 
-      <v-divider class="my-8"/>
+  <v-divider class="my-8"/>
 
-      <WorkOrders/>
+  <WorkOrders/>
 
-      <v-divider class="my-8"/>
+  <v-divider class="my-8"/>
 
-      <SongOverview/>
-
-    </v-responsive>
-  </v-container>
+  <SongOverview/>
 </template>
 
 <script setup>
@@ -28,7 +23,7 @@
 import Calender from "@/components/Calender.vue";
 import WorkOrders from "@/components/Workorders/WorkOrders.vue";
 import CurrentState from "@/components/CurrentState.vue";
-import UploadFormular from "@/components/upload/UploadFormular.vue";
+import UploadFormular from "@/components/UploadFormular.vue";
 import SongOverview from "@/components/SongOverview.vue";
 
 </script>
