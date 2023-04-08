@@ -3,6 +3,7 @@ import {defineStore} from 'pinia'
 import axios from 'axios'
 
 import _ from 'lodash'
+import {status_mapping} from "@/assets/js/utils";
 
 export const useAppStore = defineStore('app', {
   state: () => ({
@@ -17,6 +18,10 @@ export const useAppStore = defineStore('app', {
     termin: [],
     text_autor: [],
     melodie_autor: [],
+    auftrags_typ: [],
+    auftrags_category: [],
+    melodie_file: [],
+    file: [],
   }),
   getters: {
     authors: (state) => state.author,
@@ -30,6 +35,10 @@ export const useAppStore = defineStore('app', {
     termine: (state) => state.termin,
     text_autors: (state) => state.text_autor,
     melodie_autors: (state) => state.melodie_autor,
+    auftrags_typen: (state) => state.auftrags_typ,
+    auftrags_categories: (state) => state.auftrags_category,
+    melodie_files: (state) => state.melodie_file,
+    files: (state) => state.file,
 
     arbeitskreis_by_id: (state) => {
       return (id) => _.find(state.auftrag, (o) => o.id === id)
@@ -49,6 +58,8 @@ export const useAppStore = defineStore('app', {
         terminResponse,
         textautorResponse,
         melodieautorResponse,
+        melodieFilesResponse,
+        filesResponse,
       ] = await Promise.all([
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text?limit=-1`),
@@ -62,6 +73,8 @@ export const useAppStore = defineStore('app', {
         // N M tabelle
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor?limit=-1`),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files?limit=-1`),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/files?limit=-1`),
       ]);
 
       return {
@@ -76,6 +89,8 @@ export const useAppStore = defineStore('app', {
         termin: terminResponse.data.data,
         text_autor: textautorResponse.data.data,
         melodie_autor: melodieautorResponse.data.data,
+        melodie_file: melodieFilesResponse.data.data,
+        file: filesResponse.data.data,
       };
     },
 
@@ -99,19 +114,66 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, text_autor, melodie_autor } = data
+      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, text_autor, melodie_autor, melodie_file, file} = data
+
+      const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
+      const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
+      text  = _.map(text, obj => ({
+        ...obj,
+        authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+      }));
+      text  = _.map(text, obj => ({
+        ...obj,
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
+        strophen_connected: _.map(obj.strophenEinzeln, 'strophe')?.join('\n\n'),
+        strophen_connected_short: _.map(obj.strophenEinzeln, 'strophe')?.join(' ').substring(0, 50),
+        strophe_short: _.map(obj.strophenEinzeln?.slice(0, 3), (elem, idx) => `${idx + 1}. ${elem.strophe.substring(0, 30)}${elem.length > 15 ? '...' : ''}`).join(" "),
+      }));
+      text  = _.map(text, obj => ({
+        ...obj,
+        autocomplete: obj.titel + obj.author_name + obj.strophe_short
+      }));
+
+      const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: 'Keine'};
+      const melodie_file_grouped = {..._.groupBy(melodie_file, 'melodie_id'), null: 'Keine'};
+      const file_grouped = {..._.keyBy(file, 'id'), null: 'Keine'};
+      console.log(file_grouped)
+      console.log(melodie_file_grouped)
+      melodie  = _.map(melodie, obj => ({
+        ...obj,
+        authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+        files_urls: _.map(melodie_file_grouped[obj.id], 'directus_files_id'),
+      }));
+      melodie  = _.map(melodie, obj => ({
+        ...obj,
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
+        files: _.map(obj.files_urls, elem => file_grouped[elem]),
+      }));
+      console.log(melodie)
+      melodie  = _.map(melodie, obj => ({
+        ...obj,
+        autocomplete: obj.titel + obj.author_name
+      }));
 
       // Resolve id's to names
       const arbeitskreisById = {..._.keyBy(arbeitskreis, 'id'), null: 'Keinen'};
       const textById = {..._.keyBy(text, 'id'), null: 'Keine'};
       const melodieById = {..._.keyBy(melodie, 'id'), null: 'Keine'};
-      const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
+
       auftrag = _.map(auftrag, obj => ({
         ...obj,
         arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
-        text_name: textById[obj.textId].titel,
-        melodie_name: melodieById[obj.melodieId].titel,
+        text: textById[obj.textId],
+        melodie: melodieById[obj.melodieId],
       }));
+
+      const auftrags_typ = _.filter(_.uniq([
+        ..._.map(auftrag, obj => obj.auftragsartMelodie),
+        ..._.map(auftrag, obj => obj.auftragsartText)
+      ]), null);
+
+      const auftrags_category = _.uniq(_.map(auftrag, 'arbeitskreis_name'));
+
       termin = _.map(termin, obj => ({
         ...obj,
         arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
@@ -122,42 +184,13 @@ export const useAppStore = defineStore('app', {
         author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsjahr ? obj.geburtsjahr : '?'}-${obj.sterbejahr ? obj.sterbejahr : '?'}`,
       }));
 
-      const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
-      text  = _.map(text, obj => ({
-        ...obj,
-        authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
-      }));
-      text  = _.map(text, obj => ({
-        ...obj,
-        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
-        strophe_short: _.map(obj.strophen?.split('\n\n').slice(0, 3), (elem, idx) => `${idx + 1}. ${elem.substring(0, 30)}${elem.length > 15 ? '...' : ''}`).join(" "),
-      }));
-      text  = _.map(text, obj => ({
-        ...obj,
-        autocomplete: obj.titel + obj.author_name + obj.strophe_short
-      }));
-
-      const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: 'Keine'};
-      melodie  = _.map(melodie, obj => ({
-        ...obj,
-        authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
-      }));
-      melodie  = _.map(melodie, obj => ({
-        ...obj,
-        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
-      }));
-      melodie  = _.map(melodie, obj => ({
-        ...obj,
-        autocomplete: obj.titel + obj.author_name
-      }));
 
       gesangbuchlied = _.map(gesangbuchlied, obj => ({
         ...obj,
+        status_mapped: status_mapping[obj.status],
         text: textById[obj.textId],
         melodie: melodieById[obj.melodieId],
       }));
-
-      console.log(kategorie)
 
       this.author = author
       this.text = text
@@ -170,6 +203,10 @@ export const useAppStore = defineStore('app', {
       this.termin = termin
       this.text_autor = text_autor
       this.melodie_autor = melodie_autor
+      this.auftrags_typ = auftrags_typ
+      this.auftrags_category = auftrags_category
+      this.melodie_file = melodie_file
+      this.file = file
     }
   },
 })

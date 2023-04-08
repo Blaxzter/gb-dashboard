@@ -1,49 +1,45 @@
 <template>
-  <v-table>
-    <thead>
-    <tr>
-      <th class="text-left" v-for="table_head in table_header" :key="table_head">
-        {{ table_head }}
-      </th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr
-      v-for="auftrag in auftraege"
-      :key="auftrag.id"
-    >
-      <td>{{ auftrag.arbeitskreis_name }}</td>
-      <td>{{ auftrag.abgabetermin }}</td>
-      <td>{{ auftrag.text_name }}</td>
-      <td>{{ auftrag.melodie_name }}</td>
-      <td>{{ auftrag.anmerkung }}</td>
-    </tr>
-    </tbody>
-  </v-table>
+
+  <v-data-table
+    style="min-height: 600px"
+    :headers="headers"
+    :items="auftraege"
+    item-key="id"
+    :search="search"
+  >
+    <template v-slot:top>
+      <v-text-field
+        v-model="search"
+        single-line
+        prepend-icon="mdi-magnify"
+        label="Suche"
+        hide-details
+        class="pa-4"
+      ></v-text-field>
+    </template>
+  </v-data-table>
 </template>
 
 <script>
 
-import moment from "moment";
 import {useAppStore} from "@/store/app";
 
 export default {
   name: "AuftragTable",
   data: () => ({
     store: useAppStore(),
-    table_header: ['Arbeitskreis', 'Abgabetermin', 'Text', 'Melodie', 'Anmerkung'],
+    search: '',
+    headers: [
+      { title: "Arbeitskreis", align: "start", key: "arbeitskreis_name" },
+      { title: "Abgabetermin", align: "start", key: "abgabetermin" },
+      { title: "Text", align: "start", key: "text.titel" },
+      { title: "Melodie", align: "start", key: "melodie.titel" },
+      { title: "Anmerkung", align: "start", key: "anmerkung" },
+    ],
   }),
   props: {
     auftraege: Array,
   },
-  computed: {
-    arbeitskreis_name(id) {
-      return this.store.arbeitskreis_by_id(id)
-    },
-    format_date(date) {
-      return moment(date).format("DD.MM.YYYY")
-    }
-  }
 }
 </script>
 
