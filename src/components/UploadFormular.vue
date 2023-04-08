@@ -540,6 +540,7 @@ export default {
             return;
           }
           let to_be_created_text_author = {
+            status: 'uploaded',
             vorname: author.firstName == "" ? null : author.firstName,
             nachname: author.lastName == "" ? null : author.lastName,
             geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
@@ -560,6 +561,7 @@ export default {
             return;
           }
           let to_be_created_melodie_author = {
+            status: 'uploaded',
             vorname: author.firstName === "" ? null : author.firstName,
             nachname: author.lastName === "" ? null : author.lastName,
             geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
@@ -579,6 +581,7 @@ export default {
       // CREATE GESANGBUCHLIED
       console.log("CREATE GESANGBUCHLIED");
       let create_gesangbuchlied = {
+        status: 'uploaded',
         titel: this.title === "" ? null : this.title,
         externerLink: this.externer_link === "" ? null : this.externer_link,
         linkCloud: this.cloud_link === "" ? null : this.cloud_link,
@@ -636,6 +639,7 @@ export default {
         let created_text = null;
         if (!this.existing_text) {
           let create_text = {
+            status: 'uploaded',
             titel: this.text.title === "" ? null : this.text.title,
             strophenEinzeln: this.text.strophen,
             quelle: this.text.quelle === "" ? null : this.text.quelle,
@@ -708,6 +712,7 @@ export default {
         let created_melodie = null;
         if (!this.existing_melodie) {
           let create_melodie = {
+            status: 'uploaded',
             titel: this.melodie.title === "" ? null : this.melodie.title,
             quelle: this.melodie.quelle === "" ? null : this.melodie.quelle,
             quelllink:
