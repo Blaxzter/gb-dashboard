@@ -3,5 +3,5 @@
 </template>
 
 <script setup>
-import UploadFormular from "@/components/upload/UploadFormular.vue";
+import UploadFormular from "@/components/UploadFormular.vue";
 </script>

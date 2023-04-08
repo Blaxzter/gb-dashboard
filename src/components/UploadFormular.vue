@@ -1,7 +1,7 @@
 <template>
-  <v-row>
+  <v-row class="mb-5">
     <v-col class="d-flex justify-space-between">
-      <div class="text-h5 mb-2">Gesangbuchlied hochladen</div>
+      <div class="text-h4">Gesangbuchlied hochladen</div>
       <v-btn density="default" icon="mdi-undo" v-if="show_undo_button" @click="delete_created_stuff" flat></v-btn>
     </v-col>
   </v-row>
@@ -637,10 +637,7 @@ export default {
         if (!this.existing_text) {
           let create_text = {
             titel: this.text.title === "" ? null : this.text.title,
-            strophen:
-              this.text.strophen[0].text === ""
-                ? null
-                : _.map(this.text.strophen, "text").join("\n\n"),
+            strophenEinzeln: this.text.strophen,
             quelle: this.text.quelle === "" ? null : this.text.quelle,
             quelllink: this.text.quelllink === "" ? null : this.text.quelllink,
             anmerkung: this.text.anmerkung === "" ? null : this.text.anmerkung,
