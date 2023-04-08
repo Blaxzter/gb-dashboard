@@ -22,6 +22,9 @@ const auftrag_type_to_name = {
 const status_mapping = {
   draft: "Entwurf",
   published: "Veröffentlicht",
+  uploaded: "Eingereicht via Formular",
+  "back-to-author": "Rückfrage/Auftrag an Autor",
+  "archived": "Archiviert",
 };
 
 export { work_group_icon, auftrag_type_to_name, status_mapping };

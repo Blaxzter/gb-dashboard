@@ -134,9 +134,9 @@ export const useAppStore = defineStore('app', {
         autocomplete: obj.titel + obj.author_name + obj.strophe_short
       }));
 
-      const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: 'Keine'};
-      const melodie_file_grouped = {..._.groupBy(melodie_file, 'melodie_id'), null: 'Keine'};
-      const file_grouped = {..._.keyBy(file, 'id'), null: 'Keine'};
+      const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: undefined};
+      const melodie_file_grouped = {..._.groupBy(melodie_file, 'melodie_id'), null: undefined};
+      const file_grouped = {..._.keyBy(file, 'id'), null: undefined};
       console.log(file_grouped)
       console.log(melodie_file_grouped)
       melodie  = _.map(melodie, obj => ({
@@ -156,9 +156,9 @@ export const useAppStore = defineStore('app', {
       }));
 
       // Resolve id's to names
-      const arbeitskreisById = {..._.keyBy(arbeitskreis, 'id'), null: 'Keinen'};
-      const textById = {..._.keyBy(text, 'id'), null: 'Keine'};
-      const melodieById = {..._.keyBy(melodie, 'id'), null: 'Keine'};
+      const arbeitskreisById = {..._.keyBy(arbeitskreis, 'id'), null: undefined};
+      const textById = {..._.keyBy(text, 'id'), null: undefined};
+      const melodieById = {..._.keyBy(melodie, 'id'), null: undefined};
 
       auftrag = _.map(auftrag, obj => ({
         ...obj,
@@ -191,6 +191,8 @@ export const useAppStore = defineStore('app', {
         text: textById[obj.textId],
         melodie: melodieById[obj.melodieId],
       }));
+
+
 
       this.author = author
       this.text = text
