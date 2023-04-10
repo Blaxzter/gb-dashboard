@@ -314,17 +314,17 @@
       >
         Senden
       </v-btn>
-      <!--      <v-btn-->
-      <!--        prepend-icon="mdi-send"-->
-      <!--        block-->
-      <!--        class="mt-5 py-5"-->
-      <!--        color="primary"-->
-      <!--        elevated-->
-      <!--        size="x-large"-->
-      <!--        @click="see_data"-->
-      <!--      >-->
-      <!--        Senden-->
-      <!--      </v-btn>-->
+            <v-btn
+              prepend-icon="mdi-send"
+              block
+              class="mt-5 py-5"
+              color="primary"
+              elevated
+              size="x-large"
+              @click="see_data"
+            >
+              Senden
+            </v-btn>
 
     </v-container>
   </v-form>
@@ -380,7 +380,7 @@ export default {
     selected_melodie: null,
     text: {
       title: "",
-      strophen: [{text: ""}],
+      strophen: [{strophe: ""}],
       quelle: "",
       quelllink: "",
       anmerkung: "",
@@ -528,19 +528,21 @@ export default {
       let to_be_created_text_authors = [];
       if (!this.existing_text) {
         for (let author of this.text.authors) {
+          console.log(author)
           if (!this.validate_author(author)) {
             alert("Ein Text Autor hat keinen Nachnamen.");
             return;
           }
           let to_be_created_text_author = {
-            status: 'uploaded',
             vorname: author.firstName == "" ? null : author.firstName,
             nachname: author.lastName == "" ? null : author.lastName,
             geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
             sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
           };
-          if (!_.every(to_be_created_text_author, (val) => val === null))
+          if (!_.every(to_be_created_text_author, (val) => val === null)) {
+            to_be_created_text_authors['status'] = 'uploaded'
             to_be_created_text_authors.push(to_be_created_text_author);
+          }
         }
       }
 
@@ -554,19 +556,20 @@ export default {
             return;
           }
           let to_be_created_melodie_author = {
-            status: 'uploaded',
             vorname: author.firstName === "" ? null : author.firstName,
             nachname: author.lastName === "" ? null : author.lastName,
             geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
             sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
           };
-          if (!_.every(to_be_created_melodie_author, (val) => val === null))
+          if (!_.every(to_be_created_melodie_author, (val) => val === null)) {
+            to_be_created_melodie_author['status'] = 'uploaded';
             to_be_created_melodie_authors.push(to_be_created_melodie_author);
+          }
         }
       }
 
       if (!Number.isInteger(Number(this.liednummer2000))) {
-        alert("LIed Nummer 2000 ist keine Zahl.")
+        alert("Lied Nummer 2000 ist keine Zahl.")
         this.liednummer2000 = null;
         return
       }
@@ -574,7 +577,6 @@ export default {
       // CREATE GESANGBUCHLIED
       console.log("CREATE GESANGBUCHLIED");
       let create_gesangbuchlied = {
-        status: 'uploaded',
         titel: this.title === "" ? null : this.title,
         externerLink: this.externer_link === "" ? null : this.externer_link,
         linkCloud: this.cloud_link === "" ? null : this.cloud_link,
@@ -589,6 +591,8 @@ export default {
         create_gesangbuchlied["textGeaendert"] =
           _.find(this.geandert, (elem) => elem == "text_geaendert") !==
           undefined;
+        create_gesangbuchlied['status'] = 'uploaded';
+
 
         console.log(create_gesangbuchlied);
         let created_gesangbuchlied = null;
@@ -640,7 +644,6 @@ export default {
         let created_text = null;
         if (!this.existing_text) {
           let create_text = {
-            status: 'uploaded',
             titel: this.text.title === "" ? null : this.text.title,
             strophenEinzeln: this.text.strophen,
             quelle: this.text.quelle === "" ? null : this.text.quelle,
@@ -650,6 +653,7 @@ export default {
 
           // Check if a value is set
           if (!_.every(create_text, (val) => val === null)) {
+            create_text['status'] = 'uploaded';
             console.log("create_text", create_text);
             await axios
               .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
@@ -722,7 +726,6 @@ export default {
         let created_melodie = null;
         if (!this.existing_melodie) {
           let create_melodie = {
-            status: 'uploaded',
             titel: this.melodie.title === "" ? null : this.melodie.title,
             quelle: this.melodie.quelle === "" ? null : this.melodie.quelle,
             quelllink:
@@ -732,6 +735,7 @@ export default {
           };
 
           if (!_.every(create_melodie, (val) => val === null)) {
+            create_melodie['status'] = 'uploaded';
             console.log("create_melodie", create_melodie);
 
             await axios
@@ -925,12 +929,10 @@ export default {
     },
 
     validate_author(author) {
-      return !(
-        author.lastName === "" &&
-        (author.firstName !== "" ||
-          author.birthdate != null ||
-          author.deathdate != null)
-      );
+      if (!_.isEmpty(author.firstName) || !_.isEmpty(author.birthdate) || !_.isEmpty(author.deathdate))
+        if (_.isEmpty(author.firstName))
+          return false
+      return true;
     },
   },
 };
