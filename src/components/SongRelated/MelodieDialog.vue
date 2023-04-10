@@ -113,7 +113,6 @@
 <script>
 import VuePdfEmbed from "vue-pdf-embed";
 import { status_mapping } from "@/assets/js/utils";
-import axios from "@/assets/js/axiossConfig";
 
 export default {
   name: "MelodieDialog",
