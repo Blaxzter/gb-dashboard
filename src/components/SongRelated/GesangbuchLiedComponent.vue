@@ -117,6 +117,8 @@ import VuePdfEmbed from "vue-pdf-embed";
 import TextDialog from "@/components/SongRelated/TextDialog.vue";
 import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
 
+import axios from "@/assets/js/axiossConfig"
+
 export default {
   name: "GesangbuchLiedComponent",
   components: {MelodieDialog, TextDialog, VuePdfEmbed},
@@ -132,7 +134,7 @@ export default {
   }),
   methods: {
     getPdfUrl(file_id) {
-      return `https://gb26.***REMOVED***/assets/${file_id}.pdf`;
+      return this.downloadFile(`https://gb26.***REMOVED***/assets/${file_id}.pdf`);
     },
     getImgUrl(file_id) {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}`;
