@@ -314,17 +314,17 @@
       >
         Senden
       </v-btn>
-            <v-btn
-              prepend-icon="mdi-send"
-              block
-              class="mt-5 py-5"
-              color="primary"
-              elevated
-              size="x-large"
-              @click="see_data"
-            >
-              Senden
-            </v-btn>
+<!--            <v-btn-->
+<!--              prepend-icon="mdi-send"-->
+<!--              block-->
+<!--              class="mt-5 py-5"-->
+<!--              color="primary"-->
+<!--              elevated-->
+<!--              size="x-large"-->
+<!--              @click="see_data"-->
+<!--            >-->
+<!--              Senden-->
+<!--            </v-btn>-->
 
     </v-container>
   </v-form>
@@ -577,11 +577,11 @@ export default {
       // CREATE GESANGBUCHLIED
       console.log("CREATE GESANGBUCHLIED");
       let create_gesangbuchlied = {
-        titel: this.title === "" ? null : this.title,
-        externerLink: this.externer_link === "" ? null : this.externer_link,
-        linkCloud: this.cloud_link === "" ? null : this.cloud_link,
-        anmerkung: this.anmerkung === "" ? null : this.anmerkung,
-        liednummer2000: this.liednummer2000 === '' ? null : Number(this.liednummer2000),
+        titel: _.isEmpty(this.title) ? null : this.title,
+        externerLink: _.isEmpty(this.externer_link) ? null : this.externer_link,
+        linkCloud: _.isEmpty(this.cloud_link) ? null : this.cloud_link,
+        anmerkung: _.isEmpty(this.anmerkung) ? null : this.anmerkung,
+        liednummer2000: _.isEmpty(this.liednummer2000) ? null : Number(this.liednummer2000),
       };
 
       if (!_.every(create_gesangbuchlied, (val) => val === null)) {
@@ -644,16 +644,18 @@ export default {
         let created_text = null;
         if (!this.existing_text) {
           let create_text = {
-            titel: this.text.title === "" ? null : this.text.title,
-            strophenEinzeln: this.text.strophen,
-            quelle: this.text.quelle === "" ? null : this.text.quelle,
-            quelllink: this.text.quelllink === "" ? null : this.text.quelllink,
-            anmerkung: this.text.anmerkung === "" ? null : this.text.anmerkung,
+            titel: _.isEmpty(this.text.title) ? null : this.text.title,
+            quelle: _.isEmpty(this.text.quelle) ? null : this.text.quelle,
+            quelllink: _.isEmpty(this.text.quelllink) ? null : this.text.quelllink,
+            anmerkung: _.isEmpty(this.text.anmerkung) ? null : this.text.anmerkung,
           };
 
+          const strophen_empty = !_.includes(_.map(this.text.strophen, (elem) => _.isEmpty(elem.strophe)), false)
+
           // Check if a value is set
-          if (!_.every(create_text, (val) => val === null)) {
+          if (!_.every(create_text, (val) => val === null) || !strophen_empty) {
             create_text['status'] = 'uploaded';
+            create_text['strophenEinzeln'] = this.text.strophen;
             console.log("create_text", create_text);
             await axios
               .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
@@ -726,12 +728,12 @@ export default {
         let created_melodie = null;
         if (!this.existing_melodie) {
           let create_melodie = {
-            titel: this.melodie.title === "" ? null : this.melodie.title,
-            quelle: this.melodie.quelle === "" ? null : this.melodie.quelle,
+            titel: _.isEmpty(this.melodie.title) ? null : this.melodie.title,
+            quelle: _.isEmpty(this.melodie.quelle) ? null : this.melodie.quelle,
             quelllink:
-              this.melodie.quelllink === "" ? null : this.melodie.quelllink,
+              _.isEmpty(this.melodie.quelllink) ? null : this.melodie.quelllink,
             anmerkung:
-              this.melodie.anmerkung === "" ? null : this.melodie.anmerkung,
+              _.isEmpty(this.melodie.anmerkung) ? null : this.melodie.anmerkung,
           };
 
           if (!_.every(create_melodie, (val) => val === null)) {
@@ -832,11 +834,17 @@ export default {
         }
 
         // UPDATE AUTHOR WITH TEXT AND MELODIE
-        let update_gesangbuchlied = {
+        let update_gesangbuchlied = { }
           // text und melodie
-          textId: this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null),
-          melodieId: this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null),
-        };
+        const textId = this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null)
+        if (textId) {
+          update_gesangbuchlied['textId'] = textId
+        }
+        const melodieId = this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null)
+        if (melodieId) {
+          update_gesangbuchlied['melodieId'] = melodieId
+        }
+
         console.log(update_gesangbuchlied)
         if (!_.every(update_gesangbuchlied, (val) => val === null)) {
           console.log("update_gesangbuchlied", update_gesangbuchlied);
