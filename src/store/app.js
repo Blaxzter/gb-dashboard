@@ -1,6 +1,6 @@
 // Utilities
 import {defineStore} from 'pinia'
-import axios from 'axios'
+import axios from "@/assets/js/axiossConfig"
 
 import _ from 'lodash'
 import {status_mapping} from "@/assets/js/utils";
