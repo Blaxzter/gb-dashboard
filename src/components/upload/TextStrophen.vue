@@ -5,7 +5,7 @@
         <v-row v-for="(strophe, index) in strophen_model" :key="index">
           <v-col cols="12" class="py-0">
             <v-textarea
-              v-model="strophe.text"
+              v-model="strophe.strophe"
               :label="'Strophe ' + (index + 1)"
               :append-icon="strophen_model.length > 1 ? 'mdi-minus' : null"
               variant="filled"
@@ -16,7 +16,7 @@
               hide-details="auto"
               class="mb-3"
               @click:append="remove_strophe(index);"
-              @click:clear="strophe.text = ''"
+              @click:clear="strophe.strophe = ''"
             ></v-textarea>
           </v-col>
         </v-row>
@@ -55,7 +55,7 @@ export default {
   },
   methods: {
     remove_strophe(index) {
-      if (this.strophen_model[index].text.length === 0)
+      if (this.strophen_model[index].strophe.length === 0)
         this.strophen_model.splice(index, 1)
       else {
         const response = confirm("Strophe wirklich löschen?");
@@ -65,7 +65,7 @@ export default {
       }
     },
     addStrophe() {
-      this.strophen_model.push({ text: "" });
+      this.strophen_model.push({ strophe: "" });
     },
   },
 };
