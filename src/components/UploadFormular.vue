@@ -338,7 +338,7 @@ import TextData from "@/components/upload/TextData.vue";
 import MelodieData from "@/components/upload/MelodieData.vue";
 
 import {useAppStore} from "@/store/app";
-import axios from "axios";
+import axios from "@/assets/js/axiossConfig";
 import _ from "lodash";
 import moment from "moment";
 import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
