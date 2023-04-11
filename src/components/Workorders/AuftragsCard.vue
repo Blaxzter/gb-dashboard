@@ -27,7 +27,7 @@
         class="hover_card"
       >
         <template v-slot:title>
-          <div class="d-flex align-center mb-1 text-subtitle-1">
+          <div class="d-flex align-center mb-1 text-body-1">
             <v-icon icon="mdi-pencil" size="tiny" class="me-2" />
             <div>Zugeordneter Text:</div>
             <div class="flex-grow-1"></div>
@@ -38,7 +38,9 @@
           {{ auftrag_type_to_name[auftrag.auftragsartText] }}
         </template>
         <template v-slot:text>
-          {{ auftrag.text.titel }}
+          <div class="text-subtitle-1">
+            <strong>{{ auftrag.text.titel }}</strong>
+          </div>
         </template>
       </v-card>
 
@@ -49,7 +51,7 @@
         @click="melodie_dialog = true"
       >
         <template v-slot:title>
-          <div class="d-flex align-center mb-1 text-subtitle-1">
+          <div class="d-flex align-center mb-1 text-body-1">
             <v-icon icon="mdi-music-note" size="tiny" class="me-2" />
             <div>Zugeordnete Melodie:</div>
             <div class="flex-grow-1"></div>
@@ -60,7 +62,11 @@
           {{ auftrag_type_to_name[auftrag.auftragsartMelodie] }}
         </template>
         <template v-slot:text>
-          {{ auftrag.melodie.titel }}
+          <div class="text-subtitle-1">
+            <strong>
+              {{ auftrag.melodie.titel }}
+            </strong>
+          </div>
         </template>
       </v-card>
 
@@ -72,7 +78,7 @@
       >
         <template v-slot:title>
           <div
-            class="d-flex align-center mb-1 text-subtitle-1"
+            class="d-flex align-center mb-1 text-body-1"
             @click="text_dialog = true"
           >
             <v-icon icon="mdi-message-bulleted" size="tiny" class="me-2" />
@@ -80,7 +86,9 @@
           </div>
         </template>
         <template v-slot:text>
-          {{ auftrag.anmerkung }}
+          <div>
+            {{ auftrag.anmerkung }}
+          </div>
         </template>
       </v-card>
     </template>
