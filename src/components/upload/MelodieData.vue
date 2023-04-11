@@ -2,12 +2,15 @@
   <div>
     <v-row>
       <v-col cols="12" class="pb-0">
-        <div class="d-flex">
-          <v-tooltip text="Kopiere den Gesangbuchs Titel" location="bottom">
-            <template v-slot:activator="{ props }">
-              <v-btn icon="mdi-content-copy" size="tiny" variant="plain" class="me-5" v-bind="props" color="primary" @click="title = song_title"/>
-            </template>
-          </v-tooltip>
+        <div class="d-flex align-center">
+          <div class="h-100">
+            <v-tooltip text="Kopiere den Gesangbuchs Titel" location="bottom">
+              <template v-slot:activator="{ props }">
+                <v-btn icon="mdi-content-copy" size="tiny" variant="plain" class="me-5" v-bind="props" color="primary"
+                       @click="copy_song_title"/>
+              </template>
+            </v-tooltip>
+          </div>
           <v-text-field
             :model-value="title"
             @change="$emit('update:title', $event.target.value)"
@@ -81,11 +84,12 @@ export default {
     quellelink: "",
     anmerkung: "",
   }),
-  watch: {
-
-  },
+  watch: {},
   methods: {
-
+    copy_song_title() {
+      this.$emit('update:title', this.song_title);
+      this.title = this.song_title;
+    }
   }
 };
 </script>
