@@ -2,13 +2,20 @@
   <div>
     <v-row>
       <v-col cols="12" class="pb-0">
-        <v-text-field
-          :model-value="title"
-          @change="$emit('update:title', $event.target.value)"
-          label="Melodie Titel"
-          hide-details="auto"
-          class="mb-3"
-        ></v-text-field>
+        <div class="d-flex">
+          <v-tooltip text="Kopiere den Gesangbuchs Titel" location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-btn icon="mdi-content-copy" size="tiny" variant="plain" class="me-5" v-bind="props" color="primary" @click="title = song_title"/>
+            </template>
+          </v-tooltip>
+          <v-text-field
+            :model-value="title"
+            @change="$emit('update:title', $event.target.value)"
+            label="Melodie Titel"
+            hide-details="auto"
+            class="mb-3"
+          ></v-text-field>
+        </div>
       </v-col>
     </v-row>
 
@@ -65,7 +72,7 @@
 export default {
   name: "MelodieData",
   props: {
-
+    song_title: String
   },
   data: () => ({
     noten: [],
