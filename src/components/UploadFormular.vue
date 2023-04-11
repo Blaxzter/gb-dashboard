@@ -316,17 +316,17 @@
       >
         Senden
       </v-btn>
-<!--            <v-btn-->
-<!--              prepend-icon="mdi-send"-->
-<!--              block-->
-<!--              class="mt-5 py-5"-->
-<!--              color="primary"-->
-<!--              elevated-->
-<!--              size="x-large"-->
-<!--              @click="see_data"-->
-<!--            >-->
-<!--              Senden-->
-<!--            </v-btn>-->
+      <v-btn
+        prepend-icon="mdi-send"
+        block
+        class="mt-5 py-5"
+        color="primary"
+        elevated
+        size="x-large"
+        @click="see_data"
+      >
+        Senden
+      </v-btn>
 
     </v-container>
   </v-form>
@@ -836,8 +836,8 @@ export default {
         }
 
         // UPDATE AUTHOR WITH TEXT AND MELODIE
-        let update_gesangbuchlied = { }
-          // text und melodie
+        let update_gesangbuchlied = {}
+        // text und melodie
         const textId = this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null)
         if (textId) {
           update_gesangbuchlied['textId'] = textId
@@ -856,14 +856,16 @@ export default {
       }
     },
     async upload_file() {
-      for (let file of this.melodie.noten) {
-        console.log("Upload file ", file);
-        const formData = new FormData();
-        formData.append("title", file.name);
-        formData.append('file', file);
+      if (this.melodie.noten) {
+        for (let file of this.melodie.noten) {
+          console.log("Upload file ", file);
+          const formData = new FormData();
+          formData.append("title", file.name);
+          formData.append('file', file);
 
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
-          .then((resp) => this.successfully_created.created_files.push(resp.data.data));
+          await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
+            .then((resp) => this.successfully_created.created_files.push(resp.data.data));
+        }
       }
       return this.successfully_created.created_files;
     },
