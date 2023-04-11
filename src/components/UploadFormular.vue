@@ -130,6 +130,7 @@
             >
               <v-expansion-panel-text>
                 <TextData
+                  :song_title="title"
                   @update:anmerkung="text.anmerkung = $event"
                   @update:quelle="text.quelle = $event"
                   @update:quellelink="text.quelllink = $event"
@@ -212,6 +213,7 @@
             >
               <v-expansion-panel-text>
                 <MelodieData
+                  :song_title="title"
                   @update:noten="update_file"
                   @update:quellelink="melodie.quelllink = $event"
                   @update:title="melodie.title = $event"
