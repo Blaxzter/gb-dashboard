@@ -21,8 +21,14 @@
         >
           <div class="me-2">{{ index + 1 }}.</div>
           <div>
-            {{ strophe.strophe }}
+            <div>
+              {{ strophe.strophe }}
+            </div>
+            <div class="font-weight-thin" v-if="strophe.aenderungsvorschlag">
+              Änderungsvorschlag: {{ strophe.aenderungsvorschlag }}
+            </div>
           </div>
+
         </div>
       </div>
 

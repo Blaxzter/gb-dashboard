@@ -52,19 +52,35 @@
         </div>
       </div>
 
-      <div class="text-h6 mx-auto">
+      <div class="text-h6 mx-auto mb-3">
         Strophen
       </div>
       <div
         style="max-width: 500px;"
-        class="d-flex flex-row mb-4 mx-auto"
+        class="mb-4 mx-auto"
         v-for="(strophe, index) in selected_song?.text.strophenEinzeln"
         :key="index"
       >
-        <div class="me-2">{{ index + 1 }}.</div>
-        <div>
-          {{ strophe.strophe }}
-        </div>
+        <v-row class="pb-0">
+          <v-col cols="1" class="pb-0">{{ index + 1 }}.</v-col>
+          <v-col cols="11" class="pb-0">
+            {{ strophe.strophe }}
+          </v-col>
+        </v-row>
+        <v-row class="pt-2" v-if="strophe.aenderungsvorschlag">
+          <v-col cols="1" class="d-flex align-center pt-0"></v-col>
+          <v-col cols="11" class="pt-0" :class="{'pb-0': strophe.anmerkung}" style="font-size: 0.9rem">
+            <v-icon icon="mdi-pencil" size="tiny" class="me-3" :class="{'pb-0': strophe.anmerkung}"></v-icon>
+            {{ strophe.aenderungsvorschlag }}
+          </v-col>
+        </v-row>
+        <v-row class="pt-2" v-if="strophe.anmerkung">
+          <v-col cols="1" class="d-flex align-center pt-0"></v-col>
+          <v-col cols="11" class="pt-0" style="font-size: 0.9rem">
+            <v-icon icon="mdi-message" size="tiny" class="me-3"></v-icon>
+            {{ strophe.anmerkung }}
+          </v-col>
+        </v-row>
       </div>
 
       <v-chip-group>
