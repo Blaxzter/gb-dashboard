@@ -35,7 +35,7 @@ function gesangbuch_kategorie_name_to_icon(gesangbuch_kategorie_name) {
   if (gesangbuch_kategorie_name === "Abendlied") return "mdi-weather-night";
   if (gesangbuch_kategorie_name === "Advent") return "mdi-candle";
   if (gesangbuch_kategorie_name === "Abendmahl") return "mdi-glass-wine";
-  if (gesangbuch_kategorie_name === "Heiligabend") return "mdi-string-lights";
+  if (gesangbuch_kategorie_name === "Heiligabend") return "mdi-pine-tree";
   if (gesangbuch_kategorie_name === "Joseph Weißenberg – Geburtstag")
     return "mdi-image-filter-hdr";
   if (gesangbuch_kategorie_name === "Sakrament des Sterbens / Abschiedsfeie")
