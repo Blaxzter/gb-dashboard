@@ -26,13 +26,20 @@
   <v-form ref="form" v-else>
     <v-container>
       <v-row>
-        <v-col cols="12" class="py-0">
+        <v-col cols="12" class="py-0 d-flex align-center">
           <v-text-field
             v-model="title"
             hide-details="auto"
             label="Titel des Gesangbuchlieds"
             required
           ></v-text-field>
+          <div v-if="title_already_exists">
+            <v-tooltip text="Titel existiert bereits" location="bottom">
+              <template v-slot:activator="{ props }">
+                <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning"/>
+              </template>
+            </v-tooltip>
+          </div>
         </v-col>
       </v-row>
 
@@ -316,17 +323,17 @@
       >
         Senden
       </v-btn>
-      <v-btn
-        prepend-icon="mdi-send"
-        block
-        class="mt-5 py-5"
-        color="primary"
-        elevated
-        size="x-large"
-        @click="see_data"
-      >
-        Senden
-      </v-btn>
+<!--      <v-btn-->
+<!--        prepend-icon="mdi-bug-check"-->
+<!--        block-->
+<!--        class="mt-5 py-5"-->
+<!--        color="warning"-->
+<!--        elevated-->
+<!--        size="x-large"-->
+<!--        @click="see_data"-->
+<!--      >-->
+<!--        Show data-->
+<!--      </v-btn>-->
 
     </v-container>
   </v-form>
@@ -429,6 +436,15 @@ export default {
     geandert: [],
   }),
   computed: {
+    store_gesangbuchlieder() {
+      return this.store.gesangbuchlieder;
+    },
+    existing_gesangbuchlieder_title() {
+      return _.map(this.store_gesangbuchlieder, 'titel')
+    },
+    title_already_exists() {
+      return this.existing_gesangbuchlieder_title.includes(this.title)
+    },
     store_text() {
       return this.store.texts;
     },
