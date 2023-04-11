@@ -74,10 +74,10 @@ import _ from 'lodash';
 import {mapStores} from 'pinia'
 import {useAppStore} from "@/store/app";
 
-import {ArcElement, Chart as ChartJS, Legend, Tooltip} from 'chart.js'
+import {ArcElement, Chart as ChartJS, Legend, Tooltip, Colors} from 'chart.js'
 import {Doughnut} from 'vue-chartjs'
 
-ChartJS.register(ArcElement, Tooltip, Legend)
+ChartJS.register(ArcElement, Tooltip, Legend, Colors)
 
 export default {
   name: "CurrentState",
@@ -111,10 +111,9 @@ export default {
     },
     song_chart_data() {
       return {
-        labels: ['Veröffentlicht', 'Entwurf', 'Archiviert'],
+        labels: this.song_category_label,
         datasets: [
           {
-            backgroundColor: ['#41B883', '#00D8FF', '#DD1B16'],
             data: this.song_data_list
           }
         ]
@@ -122,33 +121,33 @@ export default {
     },
     work_chart_data() {
       return {
-        labels: ['Text', 'Melodie', 'Jugend', 'Kinder', 'IT', 'Kleiner Kreis'],
+        labels: this.work_order_label,
         datasets: [
           {
-            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
             data: this.work_orders_data_list
           }
         ]
       }
     },
+    existing_categories() {
+      return _.map(_.filter(_.flatten(_.map(this.songs, (elem) => elem?.kategories)), elem => elem), elem => elem.kategorie_name.name);
+    },
+    song_category_label() {
+      let existing_categories = this.existing_categories
+      return _.uniq(existing_categories)
+    },
     song_data_list() {
-      const song_data = _.countBy(this.songs, (ele) => ele.status)
-      return [
-        _.get(song_data, 'published', 0),
-        _.get(song_data, 'draft', 0),
-        _.get(song_data, 'archived', 0),
-      ]
+      console.log(this.existing_categories)
+      const song_data = _.countBy(this.existing_categories)
+      return _.map(this.song_category_label, elem => song_data[elem])
+    },
+
+    work_order_label() {
+      return _.uniq(_.map(this.auftraege, 'arbeitskreis_name'))
     },
     work_orders_data_list() {
-      const work_orders_data = _.countBy(this.work_orders, (ele) => ele.arbeitskreisId)
-      return [
-        _.get(work_orders_data, '1', 0),
-        _.get(work_orders_data, '2', 0),
-        _.get(work_orders_data, '3', 0),
-        _.get(work_orders_data, '4', 0),
-        _.get(work_orders_data, '5', 0),
-        _.get(work_orders_data, '6', 0),
-      ]
+      let work_order_data = _.countBy(this.work_orders,  'arbeitskreis_name');
+      return _.filter(_.map(this.work_order_label, elem => work_order_data[elem]), elem => elem !== 0)
     }
   }
 }

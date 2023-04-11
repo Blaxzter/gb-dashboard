@@ -21,6 +21,7 @@ export const useAppStore = defineStore('app', {
     auftrags_typ: [],
     auftrags_category: [],
     melodie_file: [],
+    gesangbuchlied_kategorie: [],
     file: [],
   }),
   getters: {
@@ -38,6 +39,7 @@ export const useAppStore = defineStore('app', {
     auftrags_typen: (state) => state.auftrags_typ,
     auftrags_categories: (state) => state.auftrags_category,
     melodie_files: (state) => state.melodie_file,
+    gesangbuchlied_kategories: (state) => state.gesangbuchlied_kategorie,
     files: (state) => state.file,
 
     arbeitskreis_by_id: (state) => {
@@ -59,6 +61,7 @@ export const useAppStore = defineStore('app', {
         textautorResponse,
         melodieautorResponse,
         melodieFilesResponse,
+        gesangbuchliedKategoriesResponse,
         filesResponse,
       ] = await Promise.all([
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`),
@@ -74,6 +77,7 @@ export const useAppStore = defineStore('app', {
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files?limit=-1`),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/files?limit=-1`),
       ]);
 
@@ -90,6 +94,7 @@ export const useAppStore = defineStore('app', {
         text_autor: textautorResponse.data.data,
         melodie_autor: melodieautorResponse.data.data,
         melodie_file: melodieFilesResponse.data.data,
+        gesangbuchlied_kategorie: gesangbuchliedKategoriesResponse.data.data,
         file: filesResponse.data.data,
       };
     },
@@ -114,7 +119,7 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, text_autor, melodie_autor, melodie_file, file} = data
+      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
 
       const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
       const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
@@ -184,12 +189,20 @@ export const useAppStore = defineStore('app', {
         author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsjahr ? obj.geburtsjahr : '?'}-${obj.sterbejahr ? obj.sterbejahr : '?'}`,
       }));
 
+      const kategorieById = {..._.keyBy(kategorie, 'id'), null: 'Keine'};
+      gesangbuchlied_kategorie = _.filter(_.map(gesangbuchlied_kategorie, obj => ({
+        ...obj,
+        kategorie_name: kategorieById[obj.kategorie_id]
+      })), (elem) => elem.gesangbuchlied_id !== null);
 
+
+      const gesangbuchlied_kategorieBygesangbuchlied_id = {..._.groupBy(gesangbuchlied_kategorie, 'gesangbuchlied_id'), null: 'Keine'};
       gesangbuchlied = _.map(gesangbuchlied, obj => ({
         ...obj,
         status_mapped: status_mapping[obj.status],
         text: textById[obj.textId],
         melodie: melodieById[obj.melodieId],
+        kategories: gesangbuchlied_kategorieBygesangbuchlied_id[obj.id]
       }));
 
 
@@ -209,6 +222,7 @@ export const useAppStore = defineStore('app', {
       this.auftrags_category = auftrags_category
       this.melodie_file = melodie_file
       this.file = file
+      this.gesangbuchlied_kategorie = gesangbuchlied_kategorie
     }
   },
 })
