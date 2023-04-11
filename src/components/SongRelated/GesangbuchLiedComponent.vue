@@ -3,15 +3,15 @@
     <v-card-title>
       <v-card-title class="d-flex justify-space-between pb-0 align-center">
         <div>
-          {{ selected_song.titel }}
+          {{ selected_song?.titel }}
         </div>
         <div>
-          <v-tooltip text="Mehr Text Informationen" location="bottom" v-if="selected_song.text">
+          <v-tooltip text="Mehr Text Informationen" location="bottom" v-if="selected_song?.text">
             <template v-slot:activator="{ props }">
               <v-btn icon="mdi-text-box" v-bind="props" variant="text" @click="text_dialog = true"/>
             </template>
           </v-tooltip>
-          <v-tooltip text="Mehr Melodie Informationen" location="bottom" v-if="selected_song.melodie">
+          <v-tooltip text="Mehr Melodie Informationen" location="bottom" v-if="selected_song?.melodie">
             <template v-slot:activator="{ props }">
               <v-btn icon="mdi-music" v-bind="props" variant="text" @click="melodie_dialog = true"/>
             </template>
@@ -21,15 +21,15 @@
     </v-card-title>
     <v-card-text class="pt-0 px-8">
       <v-carousel
-        v-if="selected_song.melodie.files.length"
-        :show-arrows="selected_song.melodie.files?.length <= 1 ? false : 'hover'"
+        v-if="selected_song.melodie?.files.length"
+        :show-arrows="selected_song.melodie?.files?.length <= 1 ? false : 'hover'"
         hide-delimiter-background
-        :hide-delimiters="selected_song?.melodie.files?.length <= 1"
+        :hide-delimiters="selected_song?.melodie?.files?.length <= 1"
         height="300"
         v-model="pdf_carousel_model"
       >
         <v-carousel-item
-          v-for="(file, i) in selected_song.melodie.files"
+          v-for="(file, i) in selected_song?.melodie?.files"
           :key="i"
           :src="file.type.includes('image') ? getImgUrl(file.id) : null"
         >
@@ -43,12 +43,12 @@
           </div>
         </v-carousel-item>
       </v-carousel>
-      <div class="d-flex flex-row text-subtitle-2" style="max-width: 600px;" v-if="selected_song?.melodie.files.length">
+      <div class="d-flex flex-row text-subtitle-2" style="max-width: 600px;" v-if="selected_song?.melodie?.files.length">
         <div class="me-3">
           Dateiname:
         </div>
         <div>
-          {{selected_song?.melodie.files[pdf_carousel_model]?.title}}
+          {{selected_song?.melodie?.files[pdf_carousel_model]?.title}}
         </div>
       </div>
 
@@ -68,7 +68,7 @@
       </div>
 
       <div v-for="(author_source, index_1) in [{name: 'Text', src: selected_song?.text?.authors}, {name: 'Melodie', src: selected_song?.melodie?.authors}]" :key="index_1">
-        <div v-if="author_source">
+        <div v-if="author_source?.src">
           <div class="text-subtitle-1 font-weight-medium">
             {{ author_source.name }} Author
           </div>
@@ -117,8 +117,6 @@ import VuePdfEmbed from "vue-pdf-embed";
 import TextDialog from "@/components/SongRelated/TextDialog.vue";
 import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
 
-import axios from "@/assets/js/axiossConfig"
-
 export default {
   name: "GesangbuchLiedComponent",
   components: {MelodieDialog, TextDialog, VuePdfEmbed},
@@ -134,7 +132,7 @@ export default {
   }),
   methods: {
     getPdfUrl(file_id) {
-      return this.downloadFile(`https://gb26.johannische-kirche.org/assets/${file_id}.pdf`);
+      return `https://gb26.johannische-kirche.org/assets/${file_id}.pdf`;
     },
     getImgUrl(file_id) {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}`;
