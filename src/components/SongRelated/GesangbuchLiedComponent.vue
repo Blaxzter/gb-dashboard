@@ -67,6 +67,12 @@
         </div>
       </div>
 
+      <v-chip-group>
+        <v-chip :prepend-icon="gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)" v-for="(category, index) in selected_song?.kategories" :key="index">
+          {{ category?.kategorie_name?.name }}
+        </v-chip>
+      </v-chip-group>
+
       <div v-for="(author_source, index_1) in [{name: 'Text', src: selected_song?.text?.authors}, {name: 'Melodie', src: selected_song?.melodie?.authors}]" :key="index_1">
         <div v-if="author_source?.src">
           <div class="text-subtitle-1 font-weight-medium">
@@ -116,6 +122,7 @@
 import VuePdfEmbed from "vue-pdf-embed";
 import TextDialog from "@/components/SongRelated/TextDialog.vue";
 import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
+import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
 
 export default {
   name: "GesangbuchLiedComponent",
@@ -131,6 +138,7 @@ export default {
     pdf_carousel_model: 0
   }),
   methods: {
+    gesangbuch_kategorie_name_to_icon,
     getPdfUrl(file_id) {
       return `https://gb26.***REMOVED***/assets/${file_id}.pdf`;
     },
