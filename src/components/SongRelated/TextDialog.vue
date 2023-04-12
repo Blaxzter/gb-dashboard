@@ -15,6 +15,30 @@
 
       <StrophenList :text="text" :show_extra_strophen_data="true" />
 
+      <div>
+        <v-card :text-dialog="true" v-for="(auftrag, index) in text.auftrag" :key="index"/>
+      </div>
+
+      <div class="text-subtitle-1 font-weight-medium" v-if="text?.auftrag?.length">
+        Aufträge:
+      </div>
+      <div v-if="text?.auftrag?.length">
+        <div v-for="(auftrag, index) in text?.auftrag" :key="index" class="mb-3">
+          <v-card :subtitle="`Auftrag ${index + 1}`">
+            <v-card-text>
+              <div class="text-subtitle-1 font-weight-medium">Auftragsart:</div>
+              <div>
+                {{ auftrag_type_to_name[auftrag.auftragsartText] }}
+              </div>
+              <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
+              <div>
+                {{ auftrag.anmerkung }}
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+      </div>
+
       <div v-if="text?.anmerkung" class="mb-2">
         <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
         <div>
@@ -51,7 +75,7 @@
         </div>
       </div>
 
-      <div class="text-subtitle-1 font-weight-medium">Text Authoren</div>
+      <div class="text-subtitle-1 font-weight-medium" v-if="text?.authors?.length">Text Authoren</div>
       <div
         class="d-flex flex-row mb-4"
         v-for="(author, index) in text?.authors"
@@ -77,13 +101,19 @@
 </template>
 
 <script>
-import { status_mapping } from "../../assets/js/utils";
+import {auftrag_type_to_name, status_mapping} from "../../assets/js/utils";
 import StrophenList from "@/components/SongRelated/StrophenList.vue";
 
 export default {
   name: "TextDialog",
   components: {StrophenList},
+  mounted() {
+    console.log(this.text)
+  },
   computed: {
+    auftrag_type_to_name() {
+      return auftrag_type_to_name
+    },
     status_mapping() {
       return status_mapping;
     },
