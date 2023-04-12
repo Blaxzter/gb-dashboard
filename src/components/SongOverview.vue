@@ -6,20 +6,49 @@
   <v-data-table
     style="min-height: 600px"
     :headers="headers"
-    :items="gesangbuchlieder"
+    :items="filtered_gesangbuchlieder"
     item-key="id"
     @click:row="rowClick"
     :search="search"
   >
     <template v-slot:top>
-      <v-text-field
-        v-model="search"
-        single-line
-        prepend-icon="mdi-magnify"
-        label="Suche"
-        hide-details
-        class="pa-4"
-      ></v-text-field>
+      <div class="d-flex align-center">
+        <v-text-field
+          v-model="search"
+          single-line
+          prepend-icon="mdi-magnify"
+          label="Suche"
+          hide-details
+          class="pa-4"
+        ></v-text-field>
+        <v-btn-toggle v-model="filter" variant="outlined" multiple color="primary">
+          <v-tooltip text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen." location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-btn v-bind="props" value="suggestions" ><v-icon color="primary">mdi-text-box-edit</v-icon></v-btn>
+            </template>
+          </v-tooltip>
+          <v-tooltip text="Nur Gesangbuchlieder mit Anmerkung anzeigen." location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-btn v-bind="props" value="remarks"><v-icon color="primary">mdi-message</v-icon></v-btn>
+            </template>
+          </v-tooltip>
+        </v-btn-toggle>
+      </div>
+    </template>
+
+    <template v-slot:[`item.text_work_order`]="{ item }">
+      <v-tooltip :text="item.props.title.text_work_order ? 'Text Arbeitsauftrag' : 'Keinen Arbeitsauftrag'" location="bottom">
+        <template v-slot:activator="{ props }">
+          <v-icon :icon="item.props.title.text_work_order ? 'mdi-file-document' : 'mdi-check'" v-bind="props" :color="item.props.title.text_work_order ? 'primary' : 'success'"/>
+        </template>
+      </v-tooltip>
+    </template>
+    <template v-slot:[`item.music_work_order`]="{ item }">
+      <v-tooltip :text="item.props.title.melodie_work_order ? 'Melodie Arbeitsauftrag' : 'Keinen Arbeitsauftrag'" location="bottom">
+        <template v-slot:activator="{ props }">
+          <v-icon :icon="item.props.title.melodie_work_order ? 'mdi-music' : 'mdi-check'" v-bind="props" :color="item.props.title.melodie_work_order ? 'primary' : 'success'"/>
+        </template>
+      </v-tooltip>
     </template>
   </v-data-table>
 
@@ -30,6 +59,8 @@
 <script>
 import { useAppStore } from "@/store/app";
 import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComponent.vue";
+
+import _ from "lodash"
 
 export default {
   name: "SongOverview",
@@ -43,21 +74,29 @@ export default {
     search: null,
     song_dialog: false,
     selected_song: null,
-
+    filter: [],
     store: useAppStore(),
     headers: [
-      { title: "Status", align: "start", key: "status_mapped" },
       { title: "Title", align: "start", key: "titel" },
-      { title: "Melodie Title", align: "start", key: "melodie.titel" },
       { title: "Text Title", align: "start", key: "text.titel" },
+      { title: "Text Auftrag", align: "center", key: "text_work_order", sort: (a, b) => (a && !b) ? -1 : (!a && b ? 1 : 0)},
+      { title: "Melodie Title", align: "start", key: "melodie.titel" },
+      { title: "Melodie Auftrag", align: "center", key: "music_work_order", sort: (a, b) => (a && !b) ? -1 : (!a && b ? 1 : 0)},
       { title: "Strophe", align: "start", key: "text.strophen_connected_short" },
     ],
   }),
   computed: {
     gesangbuchlieder() {
-      console.log(this.store.gesangbuchlieder)
       return this.store.gesangbuchlieder;
     },
+    filtered_gesangbuchlieder() {
+      let ret_gesangbuchlieder = this.gesangbuchlieder;
+      if (this.filter.includes('suggestions'))
+        ret_gesangbuchlieder = _.filter(this.gesangbuchlieder, (elem) =>  _.some(elem?.text?.strophenEinzeln, obj => _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag)))
+      if (this.filter.includes('remarks'))
+        ret_gesangbuchlieder = _.filter(this.gesangbuchlieder, (elem) =>  _.some(elem?.text?.strophenEinzeln, obj => _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung)))
+      return ret_gesangbuchlieder
+    }
   },
   methods: {
     rowClick(item, value) {

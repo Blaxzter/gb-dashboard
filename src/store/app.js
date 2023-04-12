@@ -200,14 +200,15 @@ export const useAppStore = defineStore('app', {
         kategorie_name: kategorieById[obj.kategorie_id]
       })), (elem) => elem.gesangbuchlied_id !== null);
 
-
       const gesangbuchlied_kategorieBygesangbuchlied_id = {..._.groupBy(gesangbuchlied_kategorie, 'gesangbuchlied_id'), null: 'Keine'};
       gesangbuchlied = _.map(gesangbuchlied, obj => ({
         ...obj,
         status_mapped: status_mapping[obj.status],
         text: textById[obj.textId],
         melodie: melodieById[obj.melodieId],
-        kategories: gesangbuchlied_kategorieBygesangbuchlied_id[obj.id]
+        kategories: gesangbuchlied_kategorieBygesangbuchlied_id[obj.id],
+        text_work_order: textById[obj.textId]?.auftrag !== undefined,
+        melodie_work_order: melodieById[obj.textId]?.auftrag !== undefined
       }));
 
 
