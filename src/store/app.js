@@ -123,9 +123,12 @@ export const useAppStore = defineStore('app', {
 
       const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
       const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
+      const auftragByText_id = {..._.pickBy(_.groupBy(auftrag, 'textId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))), null: undefined};
+      console.log(auftragByText_id)
       text  = _.map(text, obj => ({
         ...obj,
         authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+        auftrag: auftragByText_id[obj.id]
       }));
       text  = _.map(text, obj => ({
         ...obj,
@@ -142,12 +145,14 @@ export const useAppStore = defineStore('app', {
       const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: undefined};
       const melodie_file_grouped = {..._.groupBy(melodie_file, 'melodie_id'), null: undefined};
       const file_grouped = {..._.keyBy(file, 'id'), null: undefined};
+      const auftragByMelodieID = {..._.pickBy(_.groupBy(auftrag, 'melodieId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))), null: undefined};
       console.log(file_grouped)
       console.log(melodie_file_grouped)
       melodie  = _.map(melodie, obj => ({
         ...obj,
         authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
         files_urls: _.map(melodie_file_grouped[obj.id], 'directus_files_id'),
+        auftrag: auftragByMelodieID[obj.id]
       }));
       melodie  = _.map(melodie, obj => ({
         ...obj,
