@@ -1,6 +1,20 @@
 <template>
   <div class="text-h6 mx-auto mb-3">
-    Strophen
+    <span class="me-2">
+      Strophen
+    </span>
+    <v-tooltip text="Es gibt Änderungsvorschläge" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-icon v-bind="props" v-if="!show_extra_strophen_data && has_suggestion" class="me-2" size="tiny" color="primary">mdi-text-box-edit</v-icon>
+      </template>
+    </v-tooltip>
+    <v-tooltip text="Es gibt Anmerkungen" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-icon v-bind="props" v-if="!show_extra_strophen_data && has_anmerkung" size="tiny" color="primary">mdi-message</v-icon>
+      </template>
+    </v-tooltip>
+
+
   </div>
   <div
     style="max-width: 500px;"
@@ -32,11 +46,22 @@
 </template>
 
 <script>
+
+import _ from "lodash"
+
 export default {
   name: "StrophenList",
   props: {
-    text: Array,
+    text: Object,
     show_extra_strophen_data: Boolean
+  },
+  computed: {
+    has_suggestion() {
+      return  _.some(this.text?.strophenEinzeln, obj => _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag))
+    },
+    has_anmerkung() {
+      return  _.some(this.text?.strophenEinzeln, obj => _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung))
+    }
   }
 }
 </script>
