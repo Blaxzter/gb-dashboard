@@ -1,6 +1,6 @@
 <template>
   <v-card class="pa-3">
-    <v-card-title class="d-flex justify-space-between ">
+    <v-card-title class="d-flex justify-space-between">
       <div>
         {{ melodie.titel }}
       </div>
@@ -22,7 +22,10 @@
           :key="i"
           :src="file.type.includes('image') ? getImgUrl(file.id) : null"
         >
-          <div class="d-flex align-center justify-center fill-height bg-grey" v-if="file.type === 'application/pdf'">
+          <div
+            class="d-flex align-center justify-center fill-height bg-grey"
+            v-if="file.type === 'application/pdf'"
+          >
             <vue-pdf-embed
               height="300"
               :source="getPdfUrl(file.id)"
@@ -31,52 +34,76 @@
           </div>
         </v-carousel-item>
       </v-carousel>
-      <div class="d-flex flex-row text-subtitle-2" style="max-width: 600px;" v-if="melodie.files.length">
-        <div class="me-3">
-          Dateiname:
-        </div>
+      <div
+        class="d-flex flex-row text-subtitle-2"
+        style="max-width: 600px"
+        v-if="melodie.files.length"
+      >
+        <div class="me-3">Dateiname:</div>
         <div>
-          {{melodie.files[pdf_carousel_model]?.title}}
+          {{ melodie.files[pdf_carousel_model]?.title }}
+        </div>
+      </div>
+
+      <div
+        class="text-subtitle-1 font-weight-medium"
+        v-if="melodie?.auftrag?.length"
+      >
+        Aufträge:
+      </div>
+      <div v-if="melodie?.auftrag?.length">
+        <div
+          v-for="(auftrag, index) in melodie?.auftrag"
+          :key="index"
+          class="mb-3"
+        >
+          <v-card :subtitle="`Auftrag ${index + 1}`">
+            <v-card-text>
+              <div class="text-subtitle-1 font-weight-medium">Auftragsart:</div>
+              <div>
+                {{ auftrag_type_to_name[auftrag.auftragsartMelodie] }}
+              </div>
+              <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
+              <div>
+                {{ auftrag.anmerkung }}
+              </div>
+            </v-card-text>
+          </v-card>
         </div>
       </div>
 
       <div v-if="melodie?.anmerkung" class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium" >
-          Anmerkung:
-        </div>
+        <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
         <div class="ps-3">
           {{ melodie?.anmerkung }}
         </div>
       </div>
 
       <div v-if="melodie?.rueckfrageAutor" class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium" >
-          Rückfrage Author:
-        </div>
+        <div class="text-subtitle-1 font-weight-medium">Rückfrage Author:</div>
         <div class="ps-3">
           {{ melodie?.rueckfrageAutor }}
         </div>
       </div>
 
       <div v-if="melodie?.quelle" class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium" >
-          Quelle:
-        </div>
+        <div class="text-subtitle-1 font-weight-medium">Quelle:</div>
         <div class="ps-3">
           {{ melodie?.quelle }}
         </div>
       </div>
 
       <div v-if="melodie?.quelllink" class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium" >
-          Quelle Link:
-        </div>
+        <div class="text-subtitle-1 font-weight-medium">Quelle Link:</div>
         <div class="ps-3">
           {{ melodie?.quelllink }}
         </div>
       </div>
 
-      <div class="text-subtitle-1 font-weight-medium" v-if="melodie?.authors">
+      <div
+        class="text-subtitle-1 font-weight-medium"
+        v-if="melodie?.authors?.length"
+      >
         Authoren
       </div>
       <div
@@ -86,9 +113,13 @@
       >
         <div class="me-2">{{ index + 1 }}.</div>
         <div>
-          {{ author.vorname }} {{ author.nachname }} {{
-            author.geburtsjahr || author.sterbejahr ? ` (${author.geburtsjahr ?
-              author.geburtsjahr : ''} - ${author.sterbejahr ? author.sterbejahr : '?'})` : ''
+          {{ author.vorname }} {{ author.nachname }}
+          {{
+            author.geburtsjahr || author.sterbejahr
+              ? ` (${author.geburtsjahr ? author.geburtsjahr : ""} - ${
+                  author.sterbejahr ? author.sterbejahr : "?"
+                })`
+              : ""
           }}
         </div>
       </div>
@@ -100,7 +131,12 @@
 
   <v-dialog v-model="noten_dialog" style="height: 100vh; width: 100vw">
     <div class="position-relative" style="overflow: scroll">
-      <v-btn icon="mdi-close" @click="noten_dialog = false" class="position-fixed ma-10" style="z-index: 10000; right: 0"></v-btn>
+      <v-btn
+        icon="mdi-close"
+        @click="noten_dialog = false"
+        class="position-fixed ma-10"
+        style="z-index: 10000; right: 0"
+      ></v-btn>
       <vue-pdf-embed
         v-if="selected_file"
         :source="getPdfUrl(selected_file.id)"
@@ -112,23 +148,26 @@
 
 <script>
 import VuePdfEmbed from "vue-pdf-embed";
-import { status_mapping } from "@/assets/js/utils";
+import { auftrag_type_to_name, status_mapping } from "@/assets/js/utils";
 
 export default {
   name: "MelodieDialog",
   computed: {
+    auftrag_type_to_name() {
+      return auftrag_type_to_name;
+    },
     status_mapping() {
-      return status_mapping
-    }
+      return status_mapping;
+    },
   },
-  components: {VuePdfEmbed},
+  components: { VuePdfEmbed },
   props: {
     melodie: Object,
   },
   data: () => ({
     noten_dialog: false,
     selected_file: null,
-    pdf_carousel_model: 0
+    pdf_carousel_model: 0,
   }),
   methods: {
     getPdfUrl(file_id) {
@@ -140,11 +179,9 @@ export default {
     fullscreen_pdf(event, file) {
       this.selected_file = file;
       this.noten_dialog = true;
-    }
-  }
-}
+    },
+  },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>
