@@ -33,7 +33,7 @@
       </v-chip-group>
 
       <div v-for="(author_source, index_1) in [{name: 'Text', src: selected_song?.text?.authors}, {name: 'Melodie', src: selected_song?.melodie?.authors}]" :key="index_1">
-        <div v-if="author_source?.src">
+        <div v-if="author_source?.src?.length">
           <div class="text-subtitle-1 font-weight-medium">
             {{ author_source.name }} Author
           </div>
