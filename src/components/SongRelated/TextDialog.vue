@@ -10,27 +10,10 @@
         </div>
       </v-card-title>
     </v-card-title>
-    <v-card-text class="px-8">
-      <div v-if="text?.strophenEinzeln?.length" class="mb-2">
-        <div class="text-h6 mb-2">Strophen</div>
-        <div
-          style="max-width: 500px"
-          class="d-flex flex-row mb-1 mx-auto bg-grey-lighten-4 pa-2 rounded"
-          v-for="(strophe, index) in text?.strophenEinzeln"
-          :key="index"
-        >
-          <div class="me-2">{{ index + 1 }}.</div>
-          <div>
-            <div>
-              {{ strophe.strophe }}
-            </div>
-            <div class="font-weight-thin" v-if="strophe.aenderungsvorschlag">
-              Änderungsvorschlag: {{ strophe.aenderungsvorschlag }}
-            </div>
-          </div>
 
-        </div>
-      </div>
+    <v-card-text class="px-8">
+
+      <StrophenList :text="text" :show_extra_strophen_data="true" />
 
       <div v-if="text?.anmerkung" class="mb-2">
         <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
@@ -68,7 +51,7 @@
         </div>
       </div>
 
-      <div class="text-subtitle-1 font-weight-medium">Authoren</div>
+      <div class="text-subtitle-1 font-weight-medium">Text Authoren</div>
       <div
         class="d-flex flex-row mb-4"
         v-for="(author, index) in text?.authors"
@@ -95,15 +78,16 @@
 
 <script>
 import { status_mapping } from "../../assets/js/utils";
+import StrophenList from "@/components/SongRelated/StrophenList.vue";
 
 export default {
   name: "TextDialog",
+  components: {StrophenList},
   computed: {
     status_mapping() {
       return status_mapping;
     },
   },
-  components: {},
   props: {
     text: Object,
   },
