@@ -15,6 +15,6 @@ services:
     networks:
       - nginx-net
     environment:
-      VIRTUAL_HOST: gb-dashboard.fabraham.dev
-      LETSENCRYPT_HOST: gb-dashboard.fabraham.dev
+      VIRTUAL_HOST: gb-dashboard.fabraham.dev, gb26.johannische-kirche.org
+      LETSENCRYPT_HOST: gb-dashboard.fabraham.dev, gb26.johannische-kirche.org
       LETSENCRYPT_EMAIL: mail@fabraham.dev

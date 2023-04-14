@@ -23,7 +23,7 @@
 import Calender from "@/components/Calender.vue";
 import WorkOrders from "@/components/Workorders/WorkOrders.vue";
 import CurrentState from "@/components/CurrentState.vue";
-import UploadFormular from "@/components/UploadFormular.vue";
+import UploadFormular from "@/components/upload/UploadFormular.vue";
 import SongOverview from "@/components/SongOverview.vue";
 
 </script>
