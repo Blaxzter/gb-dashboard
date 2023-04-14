@@ -6,8 +6,6 @@
     </v-col>
   </v-row>
 
-  <v-icon icon="fa:fas ring"/>
-
   <UploadProgress
     v-if="show_undo_button || loading"
     :loading="loading"
@@ -354,6 +352,7 @@ import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
 import UploadProgress from "@/components/upload/UploadProgress.vue";
 
 export default {
+  name: "SongUploadForm",
   components: {
     UploadProgress,
     MelodieData,
@@ -833,7 +832,7 @@ export default {
               to_be_created_melodie_file_mapping.push(create_file_melodie);
             }
 
-            if (to_be_created_melodie_author_mapping.length !== 0) {
+            if (to_be_created_melodie_file_mapping.length !== 0) {
               console.log(
                 "to_be_created_melodie_file_mapping",
                 to_be_created_melodie_file_mapping

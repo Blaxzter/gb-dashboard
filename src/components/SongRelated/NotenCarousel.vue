@@ -59,7 +59,7 @@ export default {
   }),
   methods: {
     getPdfUrl(file_id) {
-      return `https://gb26.***REMOVED***/assets/${file_id}.pdf`;
+      return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;
     },
     getImgUrl(file_id) {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}`;
