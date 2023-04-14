@@ -14,9 +14,13 @@ const routes = [
         name: 'Dashboard',
         component: () => import(/* webpackChunkName: "home" */ '@/views/DashboardView.vue'),
       },{
-        path: 'hochladen',
-        name: 'Neues Gesangbuchlied',
+        path: 'gesangbuchliedhochladen',
+        name: 'GesangbuchliedHochladen',
         component: () => import(/* webpackChunkName: "home" */ '@/views/UploadFormView.vue'),
+      },{
+        path: 'aenderunghochladen',
+        name: 'AenderungHochladen',
+        component: () => import(/* webpackChunkName: "home" */ '@/views/ChangeForm.vue'),
       },{
         path: 'kalender',
         name: 'Kalender',

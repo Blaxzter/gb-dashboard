@@ -74,10 +74,12 @@ import _ from 'lodash';
 import {mapStores} from 'pinia'
 import {useAppStore} from "@/store/app";
 
-import {ArcElement, Chart as ChartJS, Legend, Tooltip, Colors} from 'chart.js'
+import {ArcElement, Chart as ChartJS, Legend, Tooltip} from 'chart.js'
 import {Doughnut} from 'vue-chartjs'
 
-ChartJS.register(ArcElement, Tooltip, Legend, Colors)
+import chroma from 'chroma-js'
+
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 export default {
   name: "CurrentState",
@@ -110,20 +112,39 @@ export default {
       return this.store.auftraege;
     },
     song_chart_data() {
+      let labels = this.song_category_label;
+      const vibrantPastelPalette = [
+        '#1ba3c6', '#2cb5c0', '#30bcad', '#21B087', '#33a65c', '#57a337', '#a2b627', '#d5bb21', '#f8b620', '#f89217', '#f06719', '#e03426', '#f64971', '#fc719e', '#eb73b3', '#ce69be', '#a26dc2', '#7873c0', '#4f7cba'
+      ];
+
+      const bezierColors = chroma.bezier(vibrantPastelPalette);
+      const colorScale = chroma.scale(bezierColors).mode('lch');
+      const pastelColors = colorScale.colors(labels.length);
+
       return {
-        labels: this.song_category_label,
+        labels: labels,
         datasets: [
           {
+            backgroundColor: pastelColors,
             data: this.song_data_list
           }
         ]
       }
     },
     work_chart_data() {
+      let labels = this.work_order_label;
+      const vibrantPastelPalette = [
+        '#1ba3c6', '#2cb5c0', '#30bcad', '#21B087', '#33a65c', '#57a337', '#a2b627', '#d5bb21', '#f8b620', '#f89217', '#f06719', '#e03426', '#f64971', '#fc719e', '#eb73b3', '#ce69be', '#a26dc2', '#7873c0', '#4f7cba'
+      ];
+
+      const bezierColors = chroma.bezier(vibrantPastelPalette);
+      const colorScale = chroma.scale(bezierColors).mode('lch');
+      const pastelColors = colorScale.colors(labels.length);
       return {
-        labels: this.work_order_label,
+        labels: labels,
         datasets: [
           {
+            backgroundColor: pastelColors,
             data: this.work_orders_data_list
           }
         ]
