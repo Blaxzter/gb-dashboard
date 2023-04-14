@@ -1,7 +1,7 @@
 <template>
-  <UploadFormular/>
+  <SongUploadForm/>
 </template>
 
 <script setup>
-import UploadFormular from "@/components/UploadFormular.vue";
+import SongUploadForm from "@/components/upload/SongUploadForm.vue";
 </script>
