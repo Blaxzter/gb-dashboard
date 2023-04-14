@@ -208,7 +208,9 @@ export const useAppStore = defineStore('app', {
         melodie: melodieById[obj.melodieId],
         kategories: gesangbuchlied_kategorieBygesangbuchlied_id[obj.id],
         text_work_order: textById[obj.textId]?.auftrag !== undefined,
-        melodie_work_order: melodieById[obj.textId]?.auftrag !== undefined
+        melodie_work_order: melodieById[obj.textId]?.auftrag !== undefined,
+        autocomplete: `${obj.titel} ${textById[obj.textId]?.autocomplete} ${melodieById[obj.melodieId]?.autocomplete}`,
+        author_name: `Text: ${textById[obj.textId]?.author_name} Melodie: ${melodieById[obj.melodieId]?.author_name}`
       }));
 
 
