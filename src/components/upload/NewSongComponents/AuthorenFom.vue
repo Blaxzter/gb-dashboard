@@ -122,6 +122,9 @@ export default {
     authors: Array,
     label: String,
   },
+  mounted() {
+    this.selected_author_model = this.selected_author;
+  },
   computed: {
     author_model: {
       get() {
