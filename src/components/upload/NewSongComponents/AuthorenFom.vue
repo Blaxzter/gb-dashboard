@@ -105,7 +105,7 @@
 </template>
 
 <script>
-import VuetifyDatepicker from "@/components/upload/VuetifyDatepicker.vue";
+import VuetifyDatepicker from "@/components/upload/NewSongComponents/VuetifyDatepicker.vue";
 import { useAppStore } from "@/store/app";
 
 import _ from "lodash"
