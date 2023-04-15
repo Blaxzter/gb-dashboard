@@ -56,6 +56,10 @@ export default {
   name: "TextData",
   props: {
     song_title: String,
+    in_title: String,
+    in_quelle: String,
+    in_quellelink: String,
+    in_anmerkung: String,
   },
   data: () => ({
     store: useAppStore(),
@@ -64,6 +68,12 @@ export default {
     quellelink: "",
     anmerkung: ""
   }),
+  mounted() {
+    this.title = this.in_title
+    this.quelle = this.in_quelle
+    this.quellelink = this.in_quellelink
+    this.anmerkung = this.in_anmerkung
+  },
   computed: {
     store_text() {
       return this.store.texts;
