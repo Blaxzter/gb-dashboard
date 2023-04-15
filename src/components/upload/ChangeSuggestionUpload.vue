@@ -26,7 +26,7 @@
               :title="item?.raw?.titel +  (item?.raw?.text?.strophenEinzeln ? ' - #' + item?.raw?.text?.strophenEinzeln?.length + ' Strophen' : '')"
               :subtitle="item?.raw?.author_name"
             >
-              {{ item?.raw?.text?.strophe_short }}
+              <span style="font-size: 0.8rem">{{ item?.raw?.text?.strophe_short }}</span>
             </v-list-item>
           </template>
         </v-autocomplete>
@@ -42,79 +42,9 @@
 
       <v-expand-transition>
       <div v-if="selected_song !== null">
-        <div class="text-h5">
-          Lade neue datein hoch.
-        </div>
-        <div v-if="!selected_song?.melodie">
-          <v-alert
-            color="warning"
-            icon="$warning"
-            title="Fehler"
-            text="Das ausgewählte Gesangbuchlied hat keine Melodie zugeordnet. Wähle ein neues Lied aus um Noten Hochzuladen."
-          ></v-alert>
-        </div>
-        <div v-else>
-          <v-chip-group>
-            <v-chip v-for="(file, index) in selected_song?.melodie?.files" :key="index" prepend-icon="mdi-file-music" >
-              {{ file.filename_download }}
-            </v-chip>
-          </v-chip-group>
-          <v-file-input
-            v-model="noten"
-            show-size
-            label="Noten Datein"
-            multiple
-            counter
-            chips
-          >
-          </v-file-input>
-        </div>
+        <AddFiles :melodie="selected_song?.melodie" @update:noten="noten = $event" />
 
-        <div class="text-h5 ps-0 my-5">
-          Änderungsvorschlag oder Anmerkungen
-        </div>
-        <div v-if="!selected_song?.text" class="mb-5">
-          <v-alert
-            color="warning"
-            icon="$warning"
-            title="Text Fehler"
-            text="Das ausgewählte Gesangbuchlied hat keinen Text zugeordnet. Wähle ein neues Lied aus."
-          ></v-alert>
-        </div>
-        <div v-else>
-          <div v-for="(strophe, index) in selected_song?.text?.strophenEinzeln" :key="index" class="d-flex flex-column mb-2">
-            <div class="text-h6 mb-1">
-              Strophe {{ index + 1 }}
-            </div>
-
-            <div class="text-subtitle-1 mb-3">
-              {{ strophe.strophe }}
-            </div>
-
-            <v-textarea
-              v-model="strophe.aenderungsvorschlag"
-              :label="'Änderungsvorschlag für Strophe ' + (index + 1)"
-              variant="filled"
-              rows="2"
-              type="text"
-              clearable
-              hide-details="auto"
-              class="mb-3"
-              @click:clear="strophe.aenderungsvorschlag = ''"
-            ></v-textarea>
-            <v-textarea
-              v-model="strophe.anmerkung"
-              :label="'Anmerkung für Strophe ' + (index + 1)"
-              variant="filled"
-              rows="2"
-              type="text"
-              hide-details="auto"
-              clearable
-              class="mb-3"
-              @click:clear="strophe.anmerkung = ''"
-            ></v-textarea>
-          </div>
-        </div>
+        <TextSuggestion :text="selected_song?.text" />
       </div>
       </v-expand-transition>
 
@@ -144,9 +74,12 @@
 import {useAppStore} from "@/store/app";
 import axios from "@/assets/js/axiossConfig";
 import _ from "lodash";
+import TextSuggestion from "@/components/upload/ChangeSuggestion/TextSuggestion.vue";
+import AddFiles from "@/components/upload/ChangeSuggestion/AddFiles.vue";
 
 export default {
   name: "ChangeSuggestionUpload",
+  components: {AddFiles, TextSuggestion},
   data: () => ({
     store: useAppStore(),
     noten: [],
@@ -161,6 +94,7 @@ export default {
   },
   methods: {
     async send_data() {
+
       // MELODIE TO FILE MELODIE MAPPING
       const created_files = await this.upload_file();
       let to_be_created_melodie_file_mapping = [];
@@ -227,6 +161,6 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 
 </style>

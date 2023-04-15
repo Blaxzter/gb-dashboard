@@ -23,66 +23,61 @@
 
   <v-form ref="form" v-else>
     <v-container>
-      <v-row>
-        <v-col cols="12" class="py-0 d-flex align-center">
-          <v-text-field
-            v-model="title"
-            hide-details="auto"
-            label="Titel des Gesangbuchlieds"
-            required
-          ></v-text-field>
-          <div v-if="title_already_exists">
-            <v-tooltip text="Titel existiert bereits" location="bottom">
-              <template v-slot:activator="{ props }">
-                <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning"/>
-              </template>
-            </v-tooltip>
-          </div>
-        </v-col>
-      </v-row>
-
-
-      <v-row>
-        <v-col cols="12" class="pb-6">
-          <v-autocomplete
-            label="Zugehörige Kategorie"
-            :items="this.store.kategorie"
-            item-title="name"
-            item-value="id"
-            hide-details="auto"
-            return-object
-            multiple
-            chips
-            closable-chips
-            v-model="kategorie"
-          >
-            <template v-slot:chip="{ props, item }">
-              <v-chip
-                v-bind="props"
-                :prepend-icon="get_icon(item)"
-                :text="item.raw.name"
-              ></v-chip>
+      <div class="py-0 mb-3 d-flex align-center">
+        <v-text-field
+          v-model="title"
+          hide-details="auto"
+          label="Titel des Gesangbuchlieds"
+          required
+        ></v-text-field>
+        <div v-if="title_already_exists">
+          <v-tooltip text="Titel existiert bereits" location="bottom">
+            <template v-slot:activator="{ props }">
+              <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning"/>
             </template>
+          </v-tooltip>
+        </div>
+      </div>
 
-            <template v-slot:item="{ props, item }">
-              <v-list-item
-                v-bind="props"
-                :prepend-icon="get_icon(item)"
-                :title="item?.raw?.name"
-              ></v-list-item>
-            </template>
-          </v-autocomplete>
-        </v-col>
-      </v-row>
+      <v-autocomplete
+        label="Zugehörige Kategorie"
+        class="mb-3"
+        :items="this.store.kategorie"
+        item-title="name"
+        item-value="id"
+        hide-details="auto"
+        return-object
+        multiple
+        chips
+        closable-chips
+        v-model="kategorie"
+      >
+        <template v-slot:chip="{ props, item }">
+          <v-chip
+            v-bind="props"
+            :prepend-icon="get_icon(item)"
+            :text="item.raw.name"
+          ></v-chip>
+        </template>
 
-      <v-card class="mb-5">
-        <v-card-title class="text-grey text-subtitle-1">
+        <template v-slot:item="{ props, item }">
+          <v-list-item
+            v-bind="props"
+            :prepend-icon="get_icon(item)"
+            :title="item?.raw?.name"
+          ></v-list-item>
+        </template>
+      </v-autocomplete>
+
+
+      <v-card class="mb-5" :elevation="$vuetify.display.xs ? 0 : 1">
+        <v-card-title class="text-grey text-subtitle-1" :class="{'px-0': $vuetify.display.xs}">
           Text Daten
         </v-card-title>
-        <v-card-text class="pb-0">
+        <v-card-text class="pb-0" :class="{'px-0': $vuetify.display.xs}">
           <v-row class="my-0">
-            <v-col cols="12" class="d-flex align-center py-0">
-              <span class="mr-4">
+            <v-col cols="12" class="d-flex align-center py-0 flex-column flex-sm-row">
+              <span class="mr-4 mb-3 mb-sm-0">
                 Nach Text in Datenbank suchen oder neuen Anlegen:
               </span>
               <v-switch
@@ -127,13 +122,13 @@
             </v-col>
           </v-row>
 
-          <v-expansion-panels class="mt-0 mb-5" :disabled="existing_text">
+          <v-expansion-panels class="mt-0 mb-5" :disabled="existing_text" >
             <v-expansion-panel
               title="Neuer Text des Gesangbuchlieds"
               ref="text_expansion_panel"
               :value="existing_text"
             >
-              <v-expansion-panel-text>
+              <v-expansion-panel-text >
                 <TextData
                   :song_title="title"
                   @update:anmerkung="text.anmerkung = $event"
@@ -160,14 +155,14 @@
         </v-card-text>
       </v-card>
 
-      <v-card class="mb-5">
-        <v-card-title class="text-grey text-subtitle-1">
+      <v-card class="mb-5" :elevation="$vuetify.display.xs ? 0 : 1">
+        <v-card-title class="text-grey text-subtitle-1" :class="{'px-0': $vuetify.display.xs}">
           Melodie Daten
         </v-card-title>
-        <v-card-text>
+        <v-card-text :class="{'px-0': $vuetify.display.xs}">
           <v-row class="my-0">
-            <v-col cols="12" class="d-flex align-center py-0">
-              <span class="mr-4">
+            <v-col cols="12" class="d-flex align-center py-0 flex-column flex-sm-row">
+              <span class="mr-4 mb-3 mb-sm-0">
                 Nach Melodie in Datenbank suchen oder neuen Anlegen:
               </span>
               <v-switch
@@ -338,18 +333,18 @@
 </template>
 
 <script>
-import TextStrophen from "@/components/upload/TextStrophen.vue";
-import AuthorenFom from "@/components/upload/AuthorenFom.vue";
+import TextStrophen from "@/components/upload/NewSongComponents/TextStrophen.vue";
+import AuthorenFom from "@/components/upload/NewSongComponents/AuthorenFom.vue";
 // import LizensComponent from "@/components/upload/LizensComponent.vue";
-import TextData from "@/components/upload/TextData.vue";
-import MelodieData from "@/components/upload/MelodieData.vue";
+import TextData from "@/components/upload/NewSongComponents/TextData.vue";
+import MelodieData from "@/components/upload/NewSongComponents/MelodieData.vue";
 
 import {useAppStore} from "@/store/app";
 import axios from "@/assets/js/axiossConfig";
 import _ from "lodash";
 import moment from "moment";
 import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
-import UploadProgress from "@/components/upload/UploadProgress.vue";
+import UploadProgress from "@/components/upload/NewSongComponents/UploadProgress.vue";
 
 export default {
   name: "SongUploadForm",
@@ -964,3 +959,14 @@ export default {
   },
 };
 </script>
+
+<style>
+
+@media (max-width: 600px) {
+  .v-expansion-panel-text__wrapper {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+}
+
+</style>
