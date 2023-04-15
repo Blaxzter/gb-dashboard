@@ -1,6 +1,6 @@
 <template>
   <v-expansion-panels>
-    <v-expansion-panel title="Strophen">
+    <v-expansion-panel title="Strophen" id="strophen-expansion-panel">
       <v-expansion-panel-text class="pt-3">
         <v-row v-for="(strophe, index) in strophen_model" :key="index">
           <v-col cols="12" class="py-0">
@@ -71,5 +71,3 @@ export default {
 };
 
 </script>
-
-<style scoped></style>
