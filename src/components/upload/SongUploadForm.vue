@@ -69,174 +69,21 @@
         </template>
       </v-autocomplete>
 
+      <NewTextData
+        :in_text="text"
+        @update:text="text = $event"
+        @update:existing_text="existing_text = $event"
+        @update:selected_text="selected_text = $event"
+        :song_title="title"
+      />
 
-      <v-card class="mb-5" :elevation="$vuetify.display.xs ? 0 : 1">
-        <v-card-title class="text-grey text-subtitle-1" :class="{'px-0': $vuetify.display.xs}">
-          Text Daten
-        </v-card-title>
-        <v-card-text class="pb-0" :class="{'px-0': $vuetify.display.xs}">
-          <v-row class="my-0">
-            <v-col cols="12" class="d-flex align-center py-0 flex-column flex-sm-row">
-              <span class="mr-4 mb-3 mb-sm-0">
-                Nach Text in Datenbank suchen oder neuen Anlegen:
-              </span>
-              <v-switch
-                v-model="existing_text"
-                class="ps-5"
-                color="primary"
-                density="compact"
-                hide-details
-                :label="
-                  existing_text
-                    ? 'Bestehenden Text verwenden'
-                    : 'Neuen Text anlegen'
-                "
-              ></v-switch>
-            </v-col>
-          </v-row>
-          <v-row class="my-0">
-            <v-col cols="12" class="my-0">
-              <v-autocomplete
-                :disabled="!existing_text"
-                label="Suche nach existierenden Texten"
-                :items="sorted_store_text"
-                :custom-filter="custom_filter"
-                item-title="titel"
-                item-value="id"
-                hide-details="auto"
-                class="py-0"
-                return-object
-                v-model="selected_text"
-              >
-                <template v-slot:item="{ props, item }">
-                  <v-list-item
-                    v-bind="props"
-                    :title="item?.raw?.titel +  (item?.raw?.strophenEinzeln ? ' - #' + item?.raw?.strophenEinzeln?.length + ' Strophen' : '')"
-                    :subtitle="item?.raw?.author_name"
-                  >
-                    {{ item?.raw?.strophe_short }}
-                  </v-list-item>
-                </template>
-
-              </v-autocomplete>
-            </v-col>
-          </v-row>
-
-          <v-expansion-panels class="mt-0 mb-5" :disabled="existing_text" >
-            <v-expansion-panel
-              title="Neuer Text des Gesangbuchlieds"
-              ref="text_expansion_panel"
-              :value="existing_text"
-            >
-              <v-expansion-panel-text >
-                <TextData
-                  :song_title="title"
-                  @update:anmerkung="text.anmerkung = $event"
-                  @update:quelle="text.quelle = $event"
-                  @update:quellelink="text.quelllink = $event"
-                  @update:title="text.title = $event"
-                />
-
-                <TextStrophen :strophen="text.strophen" class="mb-3"/>
-                <AuthorenFom
-                  :label="'Text Autoren'"
-                  @update:selected_author="text.selected_authors = $event"
-                  v-model:authors="text.authors"
-                  class="mb-3"
-                />
-                <!--                <LizensComponent-->
-                <!--                  :label="'Text Lizensen'"-->
-                <!--                  :lizenz="text.lizenz"-->
-                <!--                  :use_lizenz="text.use_lizenz"-->
-                <!--                />-->
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
-        </v-card-text>
-      </v-card>
-
-      <v-card class="mb-5" :elevation="$vuetify.display.xs ? 0 : 1">
-        <v-card-title class="text-grey text-subtitle-1" :class="{'px-0': $vuetify.display.xs}">
-          Melodie Daten
-        </v-card-title>
-        <v-card-text :class="{'px-0': $vuetify.display.xs}">
-          <v-row class="my-0">
-            <v-col cols="12" class="d-flex align-center py-0 flex-column flex-sm-row">
-              <span class="mr-4 mb-3 mb-sm-0">
-                Nach Melodie in Datenbank suchen oder neuen Anlegen:
-              </span>
-              <v-switch
-                v-model="existing_melodie"
-                class="ps-5"
-                color="primary"
-                density="compact"
-                hide-details
-                :label="
-                  existing_melodie
-                    ? 'Bestehenden Melodie verwenden'
-                    : 'Neue Melodie anlegen'
-                "
-              ></v-switch>
-            </v-col>
-          </v-row>
-
-          <v-row class="my-0">
-            <v-col cols="12" class="my-0">
-              <v-autocomplete
-                :disabled="!existing_melodie"
-                label="Suche nach existierenden Melodien"
-                :items="sorted_store_melodie"
-                :custom-filter="custom_filter"
-                item-title="titel"
-                item-value="id"
-                hide-details="auto"
-                class="py-0"
-                return-object
-                v-model="selected_melodie"
-              >
-
-                <template v-slot:item="{ props, item }">
-                  <v-list-item
-                    v-bind="props"
-                    :title="item?.raw?.titel"
-                    :subtitle="item?.raw?.author_name"
-                  ></v-list-item>
-                </template>
-              </v-autocomplete>
-            </v-col>
-          </v-row>
-
-          <v-expansion-panels class="mb-5" :disabled="existing_melodie">
-            <v-expansion-panel
-              title="Neue Melodie des Gesangbuchlieds"
-              :value="existing_melodie"
-            >
-              <v-expansion-panel-text>
-                <MelodieData
-                  :song_title="title"
-                  @update:noten="update_file"
-                  @update:quellelink="melodie.quelllink = $event"
-                  @update:title="melodie.title = $event"
-                  @update:quelle="melodie.quelle = $event"
-                  @update:anmerkung="melodie.anmerkung = $event"
-                />
-
-                <AuthorenFom
-                  :label="'Melodie Autoren'"
-                  @update:selected_author="melodie.selected_authors = $event"
-                  v-model:authors="melodie.authors"
-                  class="mb-3"
-                />
-                <!--                <LizensComponent-->
-                <!--                  :label="'Melodie Lizensen'"-->
-                <!--                  :lizenz="melodie.lizenz"-->
-                <!--                  :use_lizenz="melodie.use_lizenz"-->
-                <!--                />-->
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
-        </v-card-text>
-      </v-card>
+      <NewMelodieData
+        :in_melodie="melodie"
+        @update:melodie="melodie = $event"
+        @update:existing_melodie="existing_melodie = $event"
+        @update:selected_melodie="selected_melodie = $event"
+        :song_title="title"
+      />
 
       <v-row>
         <v-col cols="6">
@@ -316,45 +163,38 @@
       >
         Senden
       </v-btn>
-<!--      <v-btn-->
-<!--        prepend-icon="mdi-bug-check"-->
-<!--        block-->
-<!--        class="mt-5 py-5"-->
-<!--        color="warning"-->
-<!--        elevated-->
-<!--        size="x-large"-->
-<!--        @click="see_data"-->
-<!--      >-->
-<!--        Show data-->
-<!--      </v-btn>-->
+      <v-btn
+        prepend-icon="mdi-bug-check"
+        block
+        class="mt-5 py-5"
+        color="warning"
+        elevated
+        size="x-large"
+        @click="see_data"
+      >
+        Show data
+      </v-btn>
 
     </v-container>
   </v-form>
 </template>
 
 <script>
-import TextStrophen from "@/components/upload/NewSongComponents/TextStrophen.vue";
-import AuthorenFom from "@/components/upload/NewSongComponents/AuthorenFom.vue";
-// import LizensComponent from "@/components/upload/LizensComponent.vue";
-import TextData from "@/components/upload/NewSongComponents/TextData.vue";
-import MelodieData from "@/components/upload/NewSongComponents/MelodieData.vue";
-
 import {useAppStore} from "@/store/app";
 import axios from "@/assets/js/axiossConfig";
 import _ from "lodash";
 import moment from "moment";
 import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
 import UploadProgress from "@/components/upload/NewSongComponents/UploadProgress.vue";
+import NewMelodieData from "@/components/upload/NewSongComponents/NewMelodieData.vue";
+import NewTextData from "@/components/upload/NewSongComponents/NewTextData.vue";
 
 export default {
   name: "SongUploadForm",
   components: {
+    NewTextData,
+    NewMelodieData,
     UploadProgress,
-    MelodieData,
-    TextData,
-    // LizensComponent,
-    AuthorenFom,
-    TextStrophen,
   },
   data: () => ({
     store: useAppStore(),
@@ -439,18 +279,6 @@ export default {
     title_already_exists() {
       return this.existing_gesangbuchlieder_title.includes(this.title)
     },
-    store_text() {
-      return this.store.texts;
-    },
-    store_melodie() {
-      return this.store.melodies;
-    },
-    sorted_store_text() {
-      return _.sortBy(this.store_text, 'titel');
-    },
-    sorted_store_melodie() {
-      return _.sortBy(this.store_melodie, 'titel');
-    },
     show_undo_button() {
       return this.successfully_created.gesangbuchlied !== null ||
         this.successfully_created.text !== null ||
@@ -476,9 +304,6 @@ export default {
       console.log('anmerkung', this.anmerkung)
       console.log('liednummer2000', this.liednummer2000)
       console.log('geandert', this.geandert)
-    },
-    update_file(event) {
-      this.melodie.noten = event
     },
     get_icon(item) {
       return gesangbuch_kategorie_name_to_icon(item.title)
