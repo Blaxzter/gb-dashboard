@@ -85,7 +85,12 @@ import {useAppStore} from "@/store/app";
 export default {
   name: "MelodieData",
   props: {
-    song_title: String
+    song_title: String,
+    in_noten: Array,
+    in_quellelink: String,
+    in_title: String,
+    in_quelle: String,
+    in_anmerkung: String,
   },
   data: () => ({
     store: useAppStore(),
@@ -95,6 +100,13 @@ export default {
     quellelink: "",
     anmerkung: "",
   }),
+  mounted() {
+    this.noten = this.in_noten
+    this.quellelink = this.in_quellelink
+    this.title = this.in_title
+    this.quelle = this.in_quelle
+    this.anmerkung = this.in_anmerkung
+  },
   computed: {
     store_melodies() {
       return this.store.melodies;
