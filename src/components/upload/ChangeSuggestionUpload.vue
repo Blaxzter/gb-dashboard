@@ -42,9 +42,18 @@
 
       <v-expand-transition>
       <div v-if="selected_song !== null">
-        <AddFiles :melodie="selected_song?.melodie" @update:noten="noten = $event" />
+        <AddFiles
+          ref="add_files"
+          :melodie="selected_song?.melodie"
+          @update:noten="noten = $event"
+          :selected_song="selected_song"
+        />
 
-        <TextSuggestion :text="selected_song?.text" />
+        <TextSuggestion
+          ref="text_suggestion"
+          :text="selected_song?.text"
+          :selected_song="selected_song"
+        />
       </div>
       </v-expand-transition>
 
@@ -56,7 +65,7 @@
         color="primary"
         elevated
         size="x-large"
-        @click="send_data"
+        @click="check_data"
       >
         Änderung Hochladen
       </v-btn>
@@ -85,7 +94,7 @@ export default {
     noten: [],
     selected_song: null,
     created_files: [],
-    melodie_files: []
+    melodie_files: [],
   }),
   computed: {
     store_gesangbuchlieder() {
@@ -93,7 +102,39 @@ export default {
     },
   },
   methods: {
+    check_data() {
+      // log data from ref
+      console.log(this.$refs.add_files.new_melodie);
+      console.log(this.$refs.text_suggestion.new_text);
+
+      this.$refs.add_files.validate();
+      this.$refs.text_suggestion.validate();
+
+
+    },
     async send_data() {
+
+      // TODO depending on if new melodie or text should be created call refs upload
+      // And update gesangbuchlied accordingly with return of update method
+
+      // // UPDATE AUTHOR WITH TEXT AND MELODIE
+      // let update_gesangbuchlied = {}
+      // // text und melodie
+      // const textId = this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null)
+      // if (textId) {
+      //   update_gesangbuchlied['textId'] = textId
+      // }
+      // const melodieId = this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null)
+      // if (melodieId) {
+      //   update_gesangbuchlied['melodieId'] = melodieId
+      // }
+      //
+      // console.log(update_gesangbuchlied)
+      // if (!_.every(update_gesangbuchlied, (val) => val === null)) {
+      //   console.log("update_gesangbuchlied", update_gesangbuchlied);
+      //   await axios
+      //     .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${created_gesangbuchlied.id}`, update_gesangbuchlied)
+      // }
 
       // MELODIE TO FILE MELODIE MAPPING
       const created_files = await this.upload_file();
