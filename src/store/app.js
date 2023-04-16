@@ -222,7 +222,7 @@ export const useAppStore = defineStore('app', {
         text_work_order: textById[obj.textId]?.auftrag ? (textById[obj.textId]?.auftrag?.some(elem => elem.status !== 'done') ? 2 : 1) : 0,
         melodie_work_order: melodieById[obj.melodieId]?.auftrag ? (melodieById[obj.melodieId]?.auftrag?.some(elem => elem.status !== 'done') ? 2 : 1) : 0,
         autocomplete: `${obj.titel} ${textById[obj.textId]?.autocomplete} ${melodieById[obj.melodieId]?.autocomplete}`,
-        author_name: `Text: ${textById[obj.textId]?.author_name} Melodie: ${melodieById[obj.melodieId]?.author_name}`,
+        author_name: (textById[obj.textId]?.author_name ? `Text: ${textById[obj.textId]?.author_name}` : '') + (melodieById[obj.melodieId]?.author_name ? `Melodie: ${melodieById[obj.melodieId]?.author_name}` : ''),
         // if equal to title replace with ...
         text_titel: textById[obj.textId]?.titel,
         melodie_titel: melodieById[obj.melodieId]?.titel ,
