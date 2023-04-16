@@ -1,7 +1,7 @@
 <template>
   <v-card class="pa-3">
     <v-card-title>
-      <v-card-title class="d-flex justify-space-between pb-0 align-center">
+      <v-card-title class="d-flex justify-space-between pb-0 align-center flex-column flex-md-row">
         <div>
           {{ selected_song?.titel }}
         </div>

@@ -50,7 +50,7 @@
           Lieder
         </div>
         <div class="mt-3">
-          <Doughnut :data="song_chart_data" :options="options"/>
+          <Doughnut :data="song_chart_data" :options="chart_options"/>
         </div>
       </v-card>
     </v-col>
@@ -60,7 +60,7 @@
           Arbeitsaufträge der Arbeitskreise
         </div>
         <div class="mt-3">
-          <Doughnut :data="work_chart_data" :options="options"/>
+          <Doughnut :data="work_chart_data" :options="chart_options"/>
         </div>
       </v-card>
     </v-col>
@@ -90,12 +90,60 @@ export default {
     tab: null,
     store: useAppStore(),
     options: {
+      // chartjs label positon
+      plugins: {
+        tooltip: {
+          enabled: true,
+          position: 'nearest',
+        },
+        legend: {
+          // set custom legend text formatter that adds ... if text is too long
+          labels: {
+            usePointStyle: true,
+            boxWidth: 10,
+            padding: 10,
+            font: {
+              size: 12
+            },
+            generateLabels(chart) {
+              const data = chart.data;
+              if (data.labels.length && data.datasets.length) {
+                const {labels: {pointStyle, color}} = chart.legend.options;
+
+                return data.labels.map((label, i) => {
+                  const meta = chart.getDatasetMeta(0);
+                  const style = meta.controller.getStyle(i);
+
+                  return {
+                    text: label.length > 15 ? label.substring(0, 15) + '...' : label,
+                    fillStyle: style.backgroundColor,
+                    strokeStyle: style.borderColor,
+                    fontColor: color,
+                    lineWidth: style.borderWidth,
+                    pointStyle: pointStyle,
+                    hidden: !chart.getDataVisibility(i),
+
+                    // Extra data used for toggling the correct item
+                    index: i
+                  };
+                });
+              }
+              return [];
+            }
+          }
+        },
+      },
       responsive: true,
       maintainAspectRatio: false
     },
   }),
   computed: {
     ...mapStores(useAppStore),
+    chart_options() {
+      const ret_options = this.options;
+      ret_options.plugins.legend.position = this.$vuetify.display.mdAndUp ? 'right' : 'bottom';
+      return ret_options;
+    },
     songs() {
       return this.store.gesangbuchlied;
     },
@@ -158,7 +206,6 @@ export default {
       return _.uniq(existing_categories)
     },
     song_data_list() {
-      console.log(this.existing_categories)
       const song_data = _.countBy(this.existing_categories)
       return _.map(this.song_category_label, elem => song_data[elem])
     },
