@@ -16,6 +16,7 @@ export const useAppStore = defineStore('app', {
     lizens: [],
     auftrag: [],
     termin: [],
+    bewertungKleinerKreis: [],
     text_autor: [],
     melodie_autor: [],
     auftrags_typ: [],
@@ -34,6 +35,7 @@ export const useAppStore = defineStore('app', {
     lizenzen: (state) => state.lizens,
     auftraege: (state) => state.auftrag,
     termine: (state) => state.termin,
+    bewertungKleinerKreise: (state) => state.bewertungKleinerKreis,
     text_autors: (state) => state.text_autor,
     melodie_autors: (state) => state.melodie_autor,
     auftrags_typen: (state) => state.auftrags_typ,
@@ -58,6 +60,8 @@ export const useAppStore = defineStore('app', {
         lizenzResponse,
         auftragResponse,
         terminResponse,
+        bewertungKleinerKreisResponse,
+        // N to M tables
         textautorResponse,
         melodieautorResponse,
         melodieFilesResponse,
@@ -73,6 +77,7 @@ export const useAppStore = defineStore('app', {
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/lizenz?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/auftrag?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/termin?limit=-1`),
+        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/bewertungKleinerKreis?limit=-1`),
         // N M tabelle
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor?limit=-1`),
         axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor?limit=-1`),
@@ -91,6 +96,7 @@ export const useAppStore = defineStore('app', {
         lizenz: lizenzResponse.data.data,
         auftrag: auftragResponse.data.data,
         termin: terminResponse.data.data,
+        bewertungKleinerKreis: bewertungKleinerKreisResponse.data.data,
         text_autor: textautorResponse.data.data,
         melodie_autor: melodieautorResponse.data.data,
         melodie_file: melodieFilesResponse.data.data,
@@ -119,7 +125,9 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
+      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, bewertungKleinerKreis, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
+
+      const bewertungKleinerKreisById = {..._.keyBy(bewertungKleinerKreis, 'id'), null: {bezeichner: '', rangfolge: -1}};
 
       const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
       const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
@@ -128,7 +136,8 @@ export const useAppStore = defineStore('app', {
       text  = _.map(text, obj => ({
         ...obj,
         authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
-        auftrag: auftragByText_id[obj.id]
+        auftrag: auftragByText_id[obj.id],
+        bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
       text  = _.map(text, obj => ({
         ...obj,
@@ -152,7 +161,8 @@ export const useAppStore = defineStore('app', {
         ...obj,
         authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
         files_urls: _.map(melodie_file_grouped[obj.id], 'directus_files_id'),
-        auftrag: auftragByMelodieID[obj.id]
+        auftrag: auftragByMelodieID[obj.id],
+        bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
       melodie  = _.map(melodie, obj => ({
         ...obj,
@@ -200,6 +210,7 @@ export const useAppStore = defineStore('app', {
         kategorie_name: kategorieById[obj.kategorie_id]
       })), (elem) => elem.gesangbuchlied_id !== null);
 
+
       const gesangbuchlied_kategorieBygesangbuchlied_id = {..._.groupBy(gesangbuchlied_kategorie, 'gesangbuchlied_id'), null: 'Keine'};
       gesangbuchlied = _.map(gesangbuchlied, obj => ({
         ...obj,
@@ -207,10 +218,16 @@ export const useAppStore = defineStore('app', {
         text: textById[obj.textId],
         melodie: melodieById[obj.melodieId],
         kategories: gesangbuchlied_kategorieBygesangbuchlied_id[obj.id],
-        text_work_order: textById[obj.textId]?.auftrag !== undefined,
-        melodie_work_order: melodieById[obj.textId]?.auftrag !== undefined,
+        // if undefined then 0, if auftrag exist and any has status not 'done' then 1 otherwise 2
+        text_work_order: textById[obj.textId]?.auftrag ? (textById[obj.textId]?.auftrag?.some(elem => elem.status !== 'done') ? 2 : 1) : 0,
+        melodie_work_order: melodieById[obj.melodieId]?.auftrag ? (melodieById[obj.melodieId]?.auftrag?.some(elem => elem.status !== 'done') ? 2 : 1) : 0,
         autocomplete: `${obj.titel} ${textById[obj.textId]?.autocomplete} ${melodieById[obj.melodieId]?.autocomplete}`,
-        author_name: `Text: ${textById[obj.textId]?.author_name} Melodie: ${melodieById[obj.melodieId]?.author_name}`
+        author_name: `Text: ${textById[obj.textId]?.author_name} Melodie: ${melodieById[obj.melodieId]?.author_name}`,
+        // if equal to title replace with ...
+        text_titel: textById[obj.textId]?.titel,
+        melodie_titel: melodieById[obj.melodieId]?.titel ,
+        // bewertung kleiner kreis
+        bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
 
 
