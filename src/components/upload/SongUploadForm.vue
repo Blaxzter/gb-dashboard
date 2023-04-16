@@ -163,17 +163,17 @@
       >
         Senden
       </v-btn>
-      <v-btn
-        prepend-icon="mdi-bug-check"
-        block
-        class="mt-5 py-5"
-        color="warning"
-        elevated
-        size="x-large"
-        @click="see_data"
-      >
-        Show data
-      </v-btn>
+<!--      <v-btn-->
+<!--        prepend-icon="mdi-bug-check"-->
+<!--        block-->
+<!--        class="mt-5 py-5"-->
+<!--        color="warning"-->
+<!--        elevated-->
+<!--        size="x-large"-->
+<!--        @click="see_data"-->
+<!--      >-->
+<!--        Show data-->
+<!--      </v-btn>-->
 
     </v-container>
   </v-form>

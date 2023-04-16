@@ -3,45 +3,43 @@
     <span class="me-2">
       Strophen
     </span>
-    <v-tooltip text="Es gibt Änderungsvorschläge" location="bottom">
-      <template v-slot:activator="{ props }">
-        <v-icon v-bind="props" v-if="!show_extra_strophen_data && has_suggestion" class="me-2" size="tiny" color="primary">mdi-text-box-edit</v-icon>
-      </template>
-    </v-tooltip>
-    <v-tooltip text="Es gibt Anmerkungen" location="bottom">
-      <template v-slot:activator="{ props }">
-        <v-icon v-bind="props" v-if="!show_extra_strophen_data && has_anmerkung" size="tiny" color="primary">mdi-message</v-icon>
-      </template>
-    </v-tooltip>
-
 
   </div>
   <div
     style="max-width: 500px;"
     class="mb-4 mx-auto"
-    v-for="(strophe, index) in text.strophenEinzeln"
+    v-for="(strophe, index) in show_strophen"
     :key="index"
   >
-    <v-row class="pb-0">
-      <v-col cols="1" class="pb-0">{{ index + 1 }}.</v-col>
-      <v-col cols="11" class="pb-0">
+    <div class="pb-0 d-flex">
+      <div class="pb-0 me-3" style="white-space: nowrap;">{{ index + 1 }}.</div>
+      <div class="pb-0" @click="strophe.show = !strophe.show">
         {{ strophe.strophe }}
-      </v-col>
-    </v-row>
-    <v-row class="pt-2" v-if="strophe.aenderungsvorschlag && show_extra_strophen_data">
-      <v-col cols="1" class="d-flex align-center pt-0"></v-col>
-      <v-col cols="11" class="pt-0" :class="{'pb-0': strophe.anmerkung}" style="font-size: 0.9rem">
-        <v-icon icon="mdi-pencil" size="tiny" class="me-3" :class="{'pb-0': strophe.anmerkung}"></v-icon>
-        {{ strophe.aenderungsvorschlag }}
-      </v-col>
-    </v-row>
-    <v-row class="pt-2" v-if="strophe.anmerkung && show_extra_strophen_data">
-      <v-col cols="1" class="d-flex align-center pt-0"></v-col>
-      <v-col cols="11" class="pt-0" style="font-size: 0.9rem">
-        <v-icon icon="mdi-message" size="tiny" class="me-3"></v-icon>
-        {{ strophe.anmerkung }}
-      </v-col>
-    </v-row>
+      </div>
+      <div class="d-flex flex-column align-center ms-3">
+        <v-icon icon="mdi-pencil" size="tiny" color="warning" v-if="strophe.aenderungsvorschlag"/>
+        <v-icon icon="mdi-message" size="tiny" color="warning" v-if="strophe.anmerkung"/>
+      </div>
+    </div>
+    <v-expand-transition>
+      <div v-if="strophe.show">
+        <div class="pt-2 d-flex" v-if="strophe.aenderungsvorschlag">
+          <div class="d-flex align-center pt-0"></div>
+          <div class="pt-0 ms-7" :class="{'pb-0': strophe.anmerkung}" style="font-size: 0.9rem">
+            <v-icon icon="mdi-pencil" size="tiny" class="me-3" :class="{'pb-0': strophe.anmerkung}"></v-icon>
+            {{ strophe.aenderungsvorschlag }}
+          </div>
+        </div>
+        <div class="pt-2 d-flex" v-if="strophe.anmerkung">
+          <div class="d-flex align-center pt-0"></div>
+          <div class="pt-0 ms-7" style="font-size: 0.9rem">
+            <v-icon icon="mdi-message" size="tiny" class="me-3"></v-icon>
+            {{ strophe.anmerkung }}
+          </div>
+        </div>
+      </div>
+    </v-expand-transition>
+
   </div>
 </template>
 
@@ -53,16 +51,17 @@ export default {
   name: "StrophenList",
   props: {
     text: Object,
-    show_extra_strophen_data: Boolean
+    show_extra_strophen_data: Boolean,
   },
-  computed: {
-    has_suggestion() {
-      return  _.some(this.text?.strophenEinzeln, obj => _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag))
-    },
-    has_anmerkung() {
-      return  _.some(this.text?.strophenEinzeln, obj => _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung))
-    }
-  }
+  data: () => ({
+    show_strophen: [],
+  }),
+  mounted() {
+    this.show_strophen = _.map(this.text?.strophenEinzeln, obj => ({
+      ...obj,
+        show: this.show_extra_strophen_data,
+    }))
+  },
 }
 </script>
 
