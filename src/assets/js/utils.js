@@ -71,9 +71,18 @@ function gesangbuch_kategorie_name_to_icon(gesangbuch_kategorie_name) {
   return null;
 }
 
+const rang_to_color = {
+  1: '#E35169',
+  2: '#FFA439',
+  3: '#00D1B9',
+  4: '#00DB04',
+  5: '#B9C32C',
+}
+
 export {
   work_group_icon,
   auftrag_type_to_name,
   status_mapping,
   gesangbuch_kategorie_name_to_icon,
+  rang_to_color,
 };
