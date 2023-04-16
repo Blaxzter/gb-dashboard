@@ -96,6 +96,8 @@ import TextStrophen from "@/components/upload/NewSongComponents/TextStrophen.vue
 import TextData from "@/components/upload/NewSongComponents/TextData.vue";
 import {useAppStore} from "@/store/app";
 import _ from "lodash";
+import axios from "@/assets/js/axiossConfig";
+import moment from "moment/moment";
 
 export default {
   name: "NewTextData",
@@ -105,6 +107,11 @@ export default {
     text: {},
     existing_text: false,
     selected_text: null,
+    successfully_created: {
+      text_author_mapping: [], // {text_id: 1, author_id: 1}
+      authors: [],
+      text: null,
+    }
   }),
   props: {
     song_title: String,
@@ -118,7 +125,6 @@ export default {
   watch: {
     text: {
       handler() {
-        console.log("Test: ",this.text)
         this.$emit("update:text", this.text)
       },
       deep: true
@@ -139,6 +145,118 @@ export default {
     },
   },
   methods: {
+    validate() {
+      // VALIDATE TEXT AUTHORS
+      console.log("VALIDATE TEXT AUTHORS");
+      this.to_be_created_text_authors = [];
+      if (!this.existing_text) {
+        for (let author of this.text.authors) {
+          console.log(author)
+          if (!this.validate_author(author)) {
+            alert("Ein Text Autor hat keinen Nachnamen.");
+            return;
+          }
+          let to_be_created_text_author = {
+            vorname: author.firstName == "" ? null : author.firstName,
+            nachname: author.lastName == "" ? null : author.lastName,
+            geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
+            sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
+          };
+          if (!_.every(to_be_created_text_author, (val) => val === null)) {
+            this.to_be_created_text_authors['status'] = 'uploaded'
+            this.to_be_created_text_authors.push(to_be_created_text_author);
+          }
+        }
+      }
+    },
+
+    async upload() {
+
+      // CREATE TEXT
+      console.log("CREATE TEXT");
+      let created_text = null;
+      if (!this.existing_text) {
+        let create_text = {
+          titel: _.isEmpty(this.text.title) ? null : this.text.title,
+          quelle: _.isEmpty(this.text.quelle) ? null : this.text.quelle,
+          quelllink: _.isEmpty(this.text.quelllink) ? null : this.text.quelllink,
+          anmerkung: _.isEmpty(this.text.anmerkung) ? null : this.text.anmerkung,
+        };
+
+        const strophen_empty = !_.includes(_.map(this.text.strophen, (elem) => _.isEmpty(elem.strophe)), false)
+
+        // Check if a value is set
+        if (!_.every(create_text, (val) => val === null) || !strophen_empty) {
+          create_text['status'] = 'uploaded';
+          create_text['strophenEinzeln'] = this.text.strophen;
+          console.log("create_text", create_text);
+          await axios
+            .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
+            .then((resp) => {
+              console.log(
+                "created text",
+                resp.data.data
+              );
+              created_text = resp.data.data;
+              this.successfully_created.text = resp.data.data;
+            });
+
+
+          // CREATE NEW TEXT AUTHORS
+          console.log("CREATE NEW TEXT AUTHORS");
+          let created_text_authors = [];
+          if (
+            !this.existing_text &&
+            this.to_be_created_text_authors.length !== 0
+          ) {
+            console.log(
+              "to_be_created_text_authors",
+              this.to_be_created_text_authors
+            );
+            await axios
+              .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, this.to_be_created_text_authors)
+              .then((resp) => {
+                console.log(
+                  "created authors",
+                  resp.data.data
+                );
+                created_text_authors = resp.data.data;
+                this.successfully_created.authors.push(...resp.data.data);
+              });
+          }
+
+          // CRATE TEXT AUTHOR MAPPING N:M
+          created_text_authors.push(...this.text.selected_authors);
+          let to_be_created_text_author_mapping = [];
+          for (let created_author of created_text_authors) {
+            let create_author_text = {
+              text_id: created_text?.id,
+              autor_id: created_author.id,
+            };
+            if (!_.every(create_author_text, (val) => val === null))
+              to_be_created_text_author_mapping.push(create_author_text);
+          }
+
+          if (to_be_created_text_author_mapping.length !== 0) {
+            console.log(
+              "to_be_created_text_author_mapping",
+              to_be_created_text_author_mapping
+            );
+            await axios
+              .post(`${import.meta.env.VITE_BACKEND_URL}/items/text_autor`, to_be_created_text_author_mapping)
+              .then((resp) => {
+                console.log(
+                  "created text_author_mapping",
+                  resp.data.data
+                );
+                this.successfully_created.text_author_mapping.push(...resp.data.data);
+              });
+          }
+        }
+      }
+
+      return this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null)
+    },
     custom_filter(item, queryText, itemText) {
       return itemText.value.autocomplete.includes(queryText)
     },
