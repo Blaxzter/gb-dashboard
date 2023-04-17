@@ -32,13 +32,35 @@
   </div>
   <div v-else>
     <div v-for="(strophe, index) in text?.strophenEinzeln" :key="index" class="d-flex flex-column mb-2">
-      <div class="text-h6 mb-1">
-        Strophe {{ index + 1 }}
+      <div class="d-flex justify-space-between align-center" :class="{'mb-3': strophe?.new_strophe}">
+        <div class="text-h6 mb-1" >
+          {{strophe?.new_strophe ? 'Neue' : ''}} Strophe {{ index + 1 }}
+        </div>
+        <div>
+          <v-icon
+            v-if="strophe?.new_strophe"
+            icon="mdi-delete"
+            class="px-5"
+            color="error"
+            @click="$emit('remove_strophe', index)" />
+        </div>
       </div>
 
-      <div class="text-subtitle-1 mb-3">
+      <div class="text-subtitle-1 mb-3" v-if="!strophe?.new_strophe">
         {{ strophe.strophe }}
       </div>
+      <v-textarea
+        v-else
+        v-model="strophe.strophe"
+        :label="'Text für Strophe ' + (index + 1)"
+        variant="filled"
+        rows="2"
+        type="text"
+        clearable
+        hide-details="auto"
+        class="mb-3"
+        @click:clear="strophe.strophe = ''"
+      ></v-textarea>
 
       <v-textarea
         v-model="strophe.aenderungsvorschlag"
@@ -63,6 +85,16 @@
         @click:clear="strophe.anmerkung = ''"
       ></v-textarea>
     </div>
+
+    <v-btn
+      class="mt-5"
+      color="success"
+      prepend-icon="mdi-plus"
+      @click="$emit('add_strophe', text)"
+    >
+      Neue Strophe hinzufügen
+      </v-btn>
+
   </div>
 </template>
 
@@ -76,6 +108,15 @@ export default {
     text: Object,
     selected_song: Object,
   },
+  mounted() {
+    // add bool value with key new_strophe to each strophe
+    if (this.text) {
+      this.text.strophenEinzeln.forEach((strophe) => {
+        strophe.new_strophe = false;
+      });
+    }
+  },
+  emits: ["remove_strophe", "add_strophe"],
   data: () => ({
     show_new_text: false,
     new_text: {
