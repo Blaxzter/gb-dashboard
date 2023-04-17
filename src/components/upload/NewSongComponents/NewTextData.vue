@@ -260,6 +260,12 @@ export default {
     custom_filter(item, queryText, itemText) {
       return itemText.value.autocomplete.includes(queryText)
     },
+    validate_author(author) {
+      if (!_.isEmpty(author.firstName) || !_.isEmpty(author.birthdate) || !_.isEmpty(author.deathdate))
+        if (_.isEmpty(author.firstName))
+          return false
+      return true;
+    },
   }
 }
 </script>
