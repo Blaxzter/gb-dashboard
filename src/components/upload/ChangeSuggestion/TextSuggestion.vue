@@ -111,8 +111,11 @@ export default {
   mounted() {
     // add bool value with key new_strophe to each strophe
     if (this.text) {
-      this.text.strophenEinzeln.forEach((strophe) => {
-        strophe.new_strophe = false;
+      this.text.strophenEinzeln?.forEach((strophe) => {
+        // check if new_strophe exists
+        if (strophe.new_strophe === undefined) {
+          strophe.new_strophe = false;
+        }
       });
     }
   },
