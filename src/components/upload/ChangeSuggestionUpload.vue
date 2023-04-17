@@ -65,7 +65,7 @@
         color="primary"
         elevated
         size="x-large"
-        @click="check_data"
+        @click="send_data"
       >
         Änderung Hochladen
       </v-btn>
@@ -102,76 +102,94 @@ export default {
     },
   },
   methods: {
-    check_data() {
-      // log data from ref
-      console.log(this.$refs.add_files.new_melodie);
-      console.log(this.$refs.text_suggestion.new_text);
-
-      this.$refs.add_files.validate();
-      this.$refs.text_suggestion.validate();
-
-
-    },
     async send_data() {
 
-      // TODO depending on if new melodie or text should be created call refs upload
-      // And update gesangbuchlied accordingly with return of update method
+      let create_new_text = false;
+      if (this.selected_song.text) {
+        // UPDATE AUTHOR WITH TEXT
+        let update_text = {
+          strophenEinzeln: this.selected_song?.text?.strophenEinzeln
+        }
 
-      // // UPDATE AUTHOR WITH TEXT AND MELODIE
-      // let update_gesangbuchlied = {}
-      // // text und melodie
-      // const textId = this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null)
-      // if (textId) {
-      //   update_gesangbuchlied['textId'] = textId
-      // }
-      // const melodieId = this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null)
-      // if (melodieId) {
-      //   update_gesangbuchlied['melodieId'] = melodieId
-      // }
-      //
-      // console.log(update_gesangbuchlied)
-      // if (!_.every(update_gesangbuchlied, (val) => val === null)) {
-      //   console.log("update_gesangbuchlied", update_gesangbuchlied);
-      //   await axios
-      //     .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${created_gesangbuchlied.id}`, update_gesangbuchlied)
-      // }
-
-      // MELODIE TO FILE MELODIE MAPPING
-      const created_files = await this.upload_file();
-      let to_be_created_melodie_file_mapping = [];
-      for (let created_file of created_files) {
-        let create_file_melodie = {
-          melodie_id: this.selected_song.melodie.id,
-          directus_files_id: created_file.id,
-        };
-        to_be_created_melodie_file_mapping.push(create_file_melodie);
+        if (!_.every(update_text, (val) => val === null || val === undefined)) {
+          console.log("update_text", update_text);
+          await axios
+            .patch(`${import.meta.env.VITE_BACKEND_URL}/items/text/${this.selected_song.text.id}`, update_text)
+        }
+      } else {
+        if (this.$refs.text_suggestion.show_new_text) {
+          // CREATE NEW TEXT
+          await this.$refs.text_suggestion.validate();
+          create_new_text = true;
+        }
       }
 
-      if (to_be_created_melodie_file_mapping.length !== 0) {
-        console.log(
-          "to_be_created_melodie_file_mapping",
-          to_be_created_melodie_file_mapping
-        );
-        await axios
-          .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
-          .then((resp) => {
-            console.log(
-              "created melodie_files",
-              resp.data.data
-            );
-            this.melodie_files = resp.data.data;
-          });
+      let create_new_melodie = false;
+      if (this.selected_song.melodie) {
+        // MELODIE TO FILE MELODIE MAPPING
+        const created_files = await this.upload_file();
+        let to_be_created_melodie_file_mapping = [];
+        for (let created_file of created_files) {
+          let create_file_melodie = {
+            melodie_id: this.selected_song.melodie.id,
+            directus_files_id: created_file.id,
+          };
+          to_be_created_melodie_file_mapping.push(create_file_melodie);
+        }
+
+        if (to_be_created_melodie_file_mapping.length !== 0) {
+          console.log(
+            "to_be_created_melodie_file_mapping",
+            to_be_created_melodie_file_mapping
+          );
+          await axios
+            .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
+            .then((resp) => {
+              console.log(
+                "created melodie_files",
+                resp.data.data
+              );
+              this.melodie_files = resp.data.data;
+            });
+        }
+      } else {
+        if (this.$refs.add_files.show_new_melodie) {
+          // CREATE NEW MELODIE
+          await this.$refs.add_files.validate();
+          create_new_melodie = true;
+        }
+      }
+
+      // Upload text and melodie
+      let created_text_id = null;
+      if (create_new_text) {
+        created_text_id = await this.$refs.text_suggestion.upload();
+        console.log("created_text", created_text_id);
+      }
+
+      let created_melodie_id = null;
+      if (create_new_melodie) {
+        created_melodie_id = await this.$refs.add_files.upload();
+        console.log("created_melodie", created_melodie_id);
       }
 
       // UPDATE AUTHOR WITH TEXT AND MELODIE
-      let update_text = {
-        strophenEinzeln: this.selected_song?.text?.strophenEinzeln
+      let update_gesangbuchlied = {}
+      // text und melodie
+      if (created_text_id) {
+        update_gesangbuchlied['textId'] = created_text_id
+        this.selected_song.text = this.$refs.text_suggestion.text;
+      }
+      if (created_melodie_id) {
+        update_gesangbuchlied['melodieId'] = created_melodie_id
+        this.selected_song.melodie = this.$refs.add_files.melodie;
       }
 
-      if (!_.every(update_text, (val) => val === null || val === undefined)) {
-        console.log("update_text", update_text);
+      console.log(update_gesangbuchlied)
+      if (!_.every(update_gesangbuchlied, (val) => val === null)) {
+        console.log("update_gesangbuchlied", update_gesangbuchlied);
         await axios
-          .patch(`${import.meta.env.VITE_BACKEND_URL}/items/text/${this.selected_song.text.id}`, update_text)
+          .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${this.selected_song.id}`, update_gesangbuchlied)
       }
 
       this.noten = null;
