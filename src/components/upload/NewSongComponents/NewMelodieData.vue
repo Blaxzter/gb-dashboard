@@ -95,7 +95,7 @@ import AuthorenFom from "@/components/upload/NewSongComponents/AuthorenFom.vue";
 import _ from "lodash";
 import {useAppStore} from "@/store/app";
 import moment from "moment";
-import axios from "axios";
+import axios from "@/assets/js/axiossConfig";
 
 export default {
   name: "NewMelodieData",
@@ -285,7 +285,27 @@ export default {
         }
       }
       return this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null);
-    }
+    },
+    validate_author(author) {
+      if (!_.isEmpty(author.firstName) || !_.isEmpty(author.birthdate) || !_.isEmpty(author.deathdate))
+        if (_.isEmpty(author.firstName))
+          return false
+      return true;
+    },
+    async upload_file() {
+      if (this.melodie.noten) {
+        for (let file of this.melodie.noten) {
+          console.log("Upload file ", file);
+          const formData = new FormData();
+          formData.append("title", file.name);
+          formData.append('file', file);
+
+          await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
+            .then((resp) => this.successfully_created.created_files.push(resp.data.data));
+        }
+      }
+      return this.successfully_created.created_files;
+    },
   }
 }
 </script>
