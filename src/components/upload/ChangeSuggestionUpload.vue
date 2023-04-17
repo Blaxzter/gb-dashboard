@@ -18,6 +18,7 @@
           hide-details="auto"
           class="py-0"
           return-object
+          @change="song_selected"
           v-model="selected_song"
         >
           <template v-slot:item="{ props, item }">
@@ -109,6 +110,12 @@ export default {
       let create_new_text = false;
       if (this.selected_song.text) {
         // UPDATE AUTHOR WITH TEXT
+
+        this.selected_song?.text.strophenEinzeln?.forEach((strophe) => {
+          // remove new stophe
+          delete strophe.new_strophe;
+        });
+
         let update_text = {
           strophenEinzeln: this.selected_song?.text?.strophenEinzeln
         }
@@ -219,6 +226,18 @@ export default {
         anmerkung: "",
         new_strophe: true,
       });
+    },
+    song_selected() {
+      if (this.selected_song.text) {
+        if (!this.selected_song.text.strophenEinzeln) {
+          this.selected_song.text.strophenEinzeln = [{
+            strophe: "",
+            aenderungsvorschlag: "",
+            anmerkung: "",
+            new_strophe: true,
+          }];
+        }
+      }
     },
     remove_strophe(index) {
       this.selected_song?.text?.strophenEinzeln.splice(index, 1);
