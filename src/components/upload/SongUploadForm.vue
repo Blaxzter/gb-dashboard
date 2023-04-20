@@ -1,7 +1,7 @@
 <template>
   <v-row class="mb-5">
     <v-col class="d-flex justify-space-between">
-      <div class="text-h4">Gesangbuchlied hochladen</div>
+      <div class="text-h4">Lied/Text/Melodie hochladen</div>
       <!--      <v-btn density="default" icon="mdi-undo" v-if="show_undo_button" @click="delete_created_stuff" flat></v-btn>-->
     </v-col>
   </v-row>
@@ -86,14 +86,14 @@
       />
 
       <v-row>
-        <v-col cols="6">
+        <v-col cols="6" v-show="false">
           <v-text-field
             v-model="externer_link"
             hide-details="auto"
             label="Externer Link"
           ></v-text-field>
         </v-col>
-        <v-col cols="6">
+        <v-col cols="12">
           <v-text-field
             v-model="cloud_link"
             hide-details="auto"
@@ -149,6 +149,18 @@
               Text Geändert
             </v-btn>
           </v-btn-toggle>
+        </v-col>
+      </v-row>
+
+      <v-row>
+        <v-col cols="12">
+          <v-text-field
+            v-model="einreicherName"
+            hide-details="auto"
+            type="text"
+            clearable
+            label="Name des Einreichers"
+          ></v-text-field>
         </v-col>
       </v-row>
 
@@ -267,6 +279,7 @@ export default {
     },
     anmerkung: "",
     liednummer2000: null,
+    einreicherName: null,
     geandert: [],
   }),
   computed: {
@@ -371,8 +384,8 @@ export default {
             return;
           }
           let to_be_created_text_author = {
-            vorname: author.firstName == "" ? null : author.firstName,
-            nachname: author.lastName == "" ? null : author.lastName,
+            vorname: author.firstName === "" ? null : author.firstName,
+            nachname: author.lastName === "" ? null : author.lastName,
             geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
             sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
           };
@@ -419,14 +432,15 @@ export default {
         linkCloud: _.isEmpty(this.cloud_link) ? null : this.cloud_link,
         anmerkung: _.isEmpty(this.anmerkung) ? null : this.anmerkung,
         liednummer2000: _.isEmpty(this.liednummer2000) ? null : Number(this.liednummer2000),
+        einreicherName: _.isEmpty(this.einreicherName) ? null : this.einreicherName,
       };
 
       if (!_.every(create_gesangbuchlied, (val) => val === null)) {
         create_gesangbuchlied["melodieGeaendert"] =
-          _.find(this.geandert, (elem) => elem == "melodie_geaendert") !==
+          _.find(this.geandert, (elem) => elem === "melodie_geaendert") !==
           undefined;
         create_gesangbuchlied["textGeaendert"] =
-          _.find(this.geandert, (elem) => elem == "text_geaendert") !==
+          _.find(this.geandert, (elem) => elem === "text_geaendert") !==
           undefined;
         create_gesangbuchlied['status'] = 'uploaded';
 

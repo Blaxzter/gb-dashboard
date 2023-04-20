@@ -1,6 +1,6 @@
 <template>
   <div class="d-flex align-start align-md-center justify-space-between mb-0 mb-md-6 flex-column flex-md-row">
-    <div class="text-h4 mb-4">Arbeitsaufträge</div>
+    <div class="text-h4 mb-4 text-no-wrap">{{this.filter_auftraege.length}} Arbeitsaufträge</div>
     <div class="d-flex align-end justify-end mb-6 flex-column flex-md-row w-100">
       <v-btn-toggle v-model="selected_tabs" elevation="1" color="success" class="mb-3 mb-md-0 me-md-3">
         <v-btn prepend-icon="mdi-arm-flex">Auftrags Typen</v-btn>
@@ -73,9 +73,8 @@ export default {
     }
   },
   mounted() {
-
-    let auftragsartText =  _.groupBy(this.auftraege, (elem) => elem.auftragsartText)
-    let auftragsartMelodie =  _.groupBy(this.auftraege, (elem) => elem.auftragsartMelodie)
+    let auftragsartText =  _.groupBy(this.filter_auftraege, (elem) => elem.auftragsartText)
+    let auftragsartMelodie =  _.groupBy(this.filter_auftraege, (elem) => elem.auftragsartMelodie)
 
     let status = []
     if ('sonstiges' in auftragsartText) status.push(...auftragsartText['sonstiges'])
@@ -95,7 +94,6 @@ export default {
     delete auftragsartMelodie['sonstiges']
 
     this.group_by_auftrag = {sonstiges: status, rueckfrageAutor: rueckfrageAutor, ...auftragsartText, ...auftragsartMelodie}
-    console.log(this.group_by_auftrag)
     this.group_by_arbeitskreis = _.groupBy(this.auftraege, (elem) => elem.arbeitskreis_name)
   },
   computed: {
@@ -108,6 +106,10 @@ export default {
     },
     categories() {
       return this.store.auftrags_categories
+    },
+    filter_auftraege() {
+      // Filter by status not done
+      return _.filter(this.auftraege, (elem) => elem.status !== 'done')
     },
     current_tabs() {
       return this.selected_tabs === 1 ? this.categories : this.auftrag_types;

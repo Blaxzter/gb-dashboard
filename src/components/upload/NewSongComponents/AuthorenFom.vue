@@ -10,7 +10,7 @@
         <v-row>
           <v-col>
             <v-autocomplete
-              label="Suche nach existierende Autoren"
+              label="Suche nach existierenden Autoren"
               :items="sorted_store_authors"
               item-title="author_str"
               item-value="id"

@@ -4,7 +4,7 @@
       <v-col cols="12" class="pb-0">
         <div class="d-flex align-center">
           <div class="h-100">
-            <v-tooltip text="Kopiere den Gesangbuchs Titel" location="bottom">
+            <v-tooltip text="Den Gesangbuchlied-Titel kopieren" location="bottom">
               <template v-slot:activator="{ props }">
                 <v-btn icon="mdi-content-copy" size="tiny" variant="plain" class="me-5" v-bind="props" color="primary"
                        @click="copy_song_title"/>
