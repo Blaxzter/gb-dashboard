@@ -148,12 +148,8 @@ export default {
     },
     filtered_gesangbuchlieder() {
 
-      console.log(this.gesangbuchlieder)
-
       let filtered_gesangbuchlied = _.filter(this.gesangbuchlieder, (elem) =>
           this.selected_status == null || (this.selected_status && status_mapping[elem["status"]] === this.selected_status));
-
-      console.log(filtered_gesangbuchlied)
 
       filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
         !this.filter_by_suggestions ||
@@ -162,16 +158,12 @@ export default {
         }))
       )
 
-      console.log(filtered_gesangbuchlied)
-
       filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
         !this.filter_by_remarks ||
           _.some(elem?.text?.strophenEinzeln, obj => {
             return _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung)
           }))
       )
-
-      console.log(filtered_gesangbuchlied)
 
       return filtered_gesangbuchlied
     },

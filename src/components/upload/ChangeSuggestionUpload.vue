@@ -243,7 +243,7 @@ export default {
       this.selected_song?.text?.strophenEinzeln.splice(index, 1);
     },
     custom_filter(item, queryText, itemText) {
-      return itemText.value.autocomplete.includes(queryText)
+      return itemText.value.autocomplete.toLowerCase().includes(queryText.toLowerCase())
     },
     reset_form() {
       this.selected_song = null;

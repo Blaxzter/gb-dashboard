@@ -322,7 +322,7 @@ export default {
       return gesangbuch_kategorie_name_to_icon(item.title)
     },
     custom_filter(item, queryText, itemText) {
-      return itemText.value.autocomplete.includes(queryText)
+      return itemText.value.autocomplete.toLowerCase().includes(queryText.toLowerCase())
     },
     async delete_created_stuff() {
       if (this.successfully_created.gesangbuchlied) {
