@@ -127,7 +127,7 @@ export default {
     filter: [],
     store: useAppStore(),
     headers: [
-      { title: "Title", align: "start", key: "titel" },
+      { title: "Title", align: "start", key: "gesangbuch_titel" },
       { title: "Text Title", align: "start", key: "text_titel" },
       { title: "Text Auftrag", align: "center", key: "text_work_order"},
       { title: "Melodie Title", align: "start", key: "melodie_titel" },
@@ -147,12 +147,40 @@ export default {
       return _.uniq(_.map(this.gesangbuchlieder, elem => status_mapping[elem["status"]]));
     },
     filtered_gesangbuchlieder() {
-      return _.filter(this.gesangbuchlieder, (elem) =>  _.some(elem?.text?.strophenEinzeln, obj => {
-        return (!this.filter.includes('remarks') || (this.filter.includes('remarks') && _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag))) &&
-          (!this.filter.includes('suggestions') || (this.filter.includes('suggestions') && _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung))) &&
-          (!this.selected_status || (this.selected_status && status_mapping[elem["status"]] === this.selected_status));
-      }))
-    }
+
+      console.log(this.gesangbuchlieder)
+
+      let filtered_gesangbuchlied = _.filter(this.gesangbuchlieder, (elem) =>
+          this.selected_status == null || (this.selected_status && status_mapping[elem["status"]] === this.selected_status));
+
+      console.log(filtered_gesangbuchlied)
+
+      filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
+        !this.filter_by_suggestions ||
+        _.some(elem?.text?.strophenEinzeln, obj => {
+          return _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag)
+        }))
+      )
+
+      console.log(filtered_gesangbuchlied)
+
+      filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
+        !this.filter_by_remarks ||
+          _.some(elem?.text?.strophenEinzeln, obj => {
+            return _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung)
+          }))
+      )
+
+      console.log(filtered_gesangbuchlied)
+
+      return filtered_gesangbuchlied
+    },
+    filter_by_remarks() {
+      return this.filter.includes('remarks')
+    },
+    filter_by_suggestions() {
+      return this.filter.includes('suggestions')
+    },
   },
   methods: {
     rowClick(item, value) {

@@ -141,7 +141,7 @@ export const useAppStore = defineStore('app', {
       }));
       text  = _.map(text, obj => ({
         ...obj,
-        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : '' })` : '')).join(", "),
         strophen_connected: _.map(obj.strophenEinzeln, 'strophe')?.join('\n\n'),
         strophen_connected_short: _.map(obj.strophenEinzeln, 'strophe')?.join(' ').substring(0, 50),
         strophe_short: _.map(obj.strophenEinzeln?.slice(0, 3), (elem, idx) => `${idx + 1}. ${elem?.strophe?.replace('\n', ' ').substring(0, 30)}${elem?.strophe?.length > 15 ? '...' : ''}`).join(" "),
@@ -166,7 +166,7 @@ export const useAppStore = defineStore('app', {
       }));
       melodie  = _.map(melodie, obj => ({
         ...obj,
-        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? elem.geburtsjahr : ''} - ${elem.sterbejahr ? elem.sterbejahr : '?' })` : '')).join(", "),
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : '' })` : '')).join(", "),
         files: _.map(obj.files_urls, elem => file_grouped[elem]),
       }));
       console.log(melodie)
@@ -224,6 +224,7 @@ export const useAppStore = defineStore('app', {
         autocomplete: `${obj.titel} ${textById[obj.textId]?.autocomplete} ${melodieById[obj.melodieId]?.autocomplete}`,
         author_name: (textById[obj.textId]?.author_name ? `Text: ${textById[obj.textId]?.author_name}` : '') + (melodieById[obj.melodieId]?.author_name ? `Melodie: ${melodieById[obj.melodieId]?.author_name}` : ''),
         // if equal to title replace with ...
+        gesangbuch_titel: `${obj?.liednummer2000 ? "(" + obj?.liednummer2000 + ") " : ''}${obj?.titel}`,
         text_titel: textById[obj.textId]?.titel,
         melodie_titel: melodieById[obj.melodieId]?.titel ,
         // bewertung kleiner kreis

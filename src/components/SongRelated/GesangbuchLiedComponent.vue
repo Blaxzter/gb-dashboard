@@ -27,7 +27,7 @@
       <StrophenList :text="selected_song?.text" :show_extra_strophen_data="false" />
 
       <v-chip-group>
-        <v-chip :prepend-icon="gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)" v-for="(category, index) in selected_song?.kategories" :key="index">
+        <v-chip :prepend-icon="gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)" v-for="(category, index) in selected_song?.kategories" :key="index" :style="{'background-color': get_color(category)}">
           {{ category?.kategorie_name?.name }}
         </v-chip>
       </v-chip-group>
@@ -35,7 +35,7 @@
       <div v-for="(author_source, index_1) in [{name: 'Text', src: selected_song?.text?.authors}, {name: 'Melodie', src: selected_song?.melodie?.authors}]" :key="index_1">
         <div v-if="author_source?.src?.length">
           <div class="text-subtitle-1 font-weight-medium">
-            {{ author_source.name }} Author
+            {{ author_source.name }} Autor
           </div>
           <div
             class="d-flex flex-row mb-4"
@@ -45,13 +45,33 @@
             <div class="me-2">{{ index + 1 }}.</div>
             <div>
               {{ author.vorname }} {{ author.nachname }} {{
-                author.geburtsjahr || author.sterbejahr ? ` (${author.geburtsjahr ?
-                  author.geburtsjahr : ''} - ${author.sterbejahr ? author.sterbejahr : '?'})` : ''
+                author.geburtsjahr || author.sterbejahr ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : '' })` : ''
               }}
             </div>
           </div>
         </div>
       </div>
+
+      <div v-if="selected_song?.einreicherName" class="mb-4">
+        <span class="text-subtitle-1 font-weight-medium"> Eingereicht von: </span>
+        <span> {{ selected_song?.einreicherName }} </span>
+      </div>
+
+      <div v-if="selected_song?.anmerkung" class="mb-4">
+        <div class="text-subtitle-1 font-weight-medium"> Anmerkung: </div>
+        <span> {{ selected_song?.anmerkung }} </span>
+      </div>
+
+      <div>
+        <span class="text-subtitle-1 font-weight-medium" v-if="selected_song?.liednummer2000"> Gesangbuchlied 2000: </span>
+        <span> {{ selected_song?.liednummer2000 }} </span>
+        <span v-if="selected_song?.melodieGeaendert || selected_song?.textGeaendert"> mit </span>
+        <v-icon icon="mdi-music-box" v-if="selected_song?.melodieGeaendert" color="primary" />
+        <span v-if="selected_song?.melodieGeaendert && selected_song?.textGeaendert"> und </span>
+        <v-icon icon="mdi-text-box-edit" v-if="selected_song?.textGeaendert" color="primary" />
+        <span v-if="selected_song?.melodieGeaendert || selected_song?.textGeaendert"> geändert. </span>
+      </div>
+
     </v-card-text>
     <v-card-actions>
       <v-btn color="error" @click="$emit('close')">Schließen</v-btn>
@@ -69,7 +89,7 @@
 <script>
 import TextDialog from "@/components/SongRelated/TextDialog.vue";
 import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
-import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
+import {gesangbuch_kategorie_name_to_icon, chart_colors} from "@/assets/js/utils";
 import StrophenList from "@/components/SongRelated/StrophenList.vue";
 import NotenCarousel from "@/components/SongRelated/NotenCarousel.vue";
 
@@ -79,17 +99,18 @@ export default {
   props: {
     selected_song: Object,
   },
+  data: () => ({
+    text_dialog: false,
+    melodie_dialog: false,
+  }),
   mounted() {
     console.log(this.selected_song)
   },
-  data: () => ({
-
-    text_dialog: false,
-    melodie_dialog: false,
-
-  }),
   methods: {
     gesangbuch_kategorie_name_to_icon,
+    get_color(category) {
+      return chart_colors[category.id % chart_colors.length]
+    }
   }
 }
 </script>

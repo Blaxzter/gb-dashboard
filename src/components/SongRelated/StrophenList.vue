@@ -13,7 +13,7 @@
   >
     <div class="pb-0 d-flex">
       <div class="pb-0 me-3" style="white-space: nowrap;">{{ index + 1 }}.</div>
-      <div class="pb-0" @click="strophe.show = !strophe.show">
+      <div class="pb-0" style="white-space: pre-line" @click="strophe.show = !strophe.show">
         {{ strophe.strophe }}
       </div>
       <div class="d-flex flex-column align-center ms-3">
