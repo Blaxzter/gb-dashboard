@@ -54,13 +54,13 @@ export default {
         marginButton: false,
       },
       {
-        name: "Gesangbuchlied Hochladen",
+        name: "Lied/Text/Melodie <wbr>hochladen",
         route: "gesangbuchliedhochladen",
         icon: "mdi-upload",
         marginButton: false,
       },
       {
-        name: "Änderung Eintragen",
+        name: "Änderung eintragen",
         route: "aenderunghochladen",
         icon: "mdi-pencil",
         marginButton: true,
