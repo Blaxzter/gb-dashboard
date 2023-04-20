@@ -258,7 +258,7 @@ export default {
       return this.existing_text ? this.selected_text?.id : (created_text ? created_text.id : null)
     },
     custom_filter(item, queryText, itemText) {
-      return itemText.value.autocomplete.includes(queryText)
+      return itemText.value.autocomplete.toLowerCase().includes(queryText.toLowerCase())
     },
     validate_author(author) {
       if (!_.isEmpty(author.firstName) || !_.isEmpty(author.birthdate) || !_.isEmpty(author.deathdate))

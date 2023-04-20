@@ -18,8 +18,23 @@
             height="300"
             :source="getPdfUrl(file.id)"
             @click="fullscreen_pdf($event, file)"
+            :page="1"
             style="cursor: pointer;"
           />
+        </div>
+
+        <div class="d-flex flex-column align-center justify-center h-100" v-if="is_audio(file)">
+          <div>
+            <div class="text-h6">
+              {{file.title}}
+            </div>
+            <div class="d-flex align-center">
+              <v-icon class="me-4" size="40">mdi-music-note-eighth</v-icon>
+              <audio controls>
+                <source :src="getImgUrl(file.id)" :type="file.type">
+              </audio>
+            </div>
+          </div>
         </div>
       </v-carousel-item>
     </v-carousel>
@@ -31,13 +46,15 @@
         {{melodie?.files[pdf_carousel_model]?.title}}
       </div>
     </div>
+
+    <AudioCarousel v-if="filtered_audio_files?.length" :files="filtered_audio_files"/>
+
     <v-dialog v-model="noten_dialog" style="height: 100vh; width: 100vw">
       <div class="position-relative" style="overflow: scroll">
         <v-btn icon="mdi-close" @click="noten_dialog = false" class="position-fixed ma-10" style="z-index: 10000; right: 0"></v-btn>
         <vue-pdf-embed
           v-if="selected_file"
           :source="getPdfUrl(selected_file.id)"
-          :page="1"
         />
       </div>
     </v-dialog>
@@ -57,7 +74,16 @@ export default {
     noten_dialog: false,
     pdf_carousel_model: 0
   }),
+  computed: {
+    filtered_audio_files() {
+      console.log(this.melodie?.files)
+      return this.melodie?.files.filter(file => file.type.includes('audio'))
+    },
+  },
   methods: {
+    is_audio(file) {
+      return file.type.includes('audio')
+    },
     getPdfUrl(file_id) {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;
     },
