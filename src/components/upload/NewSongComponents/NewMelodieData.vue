@@ -146,7 +146,7 @@ export default {
   },
   methods: {
     custom_filter(item, queryText, itemText) {
-      return itemText.value.autocomplete.includes(queryText)
+      return itemText.value.autocomplete.toLowerCase().includes(queryText.toLowerCase())
     },
     update_file(event) {
       this.melodie.noten = event
