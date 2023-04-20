@@ -79,10 +79,13 @@ const rang_to_color = {
   5: '#B9C32C',
 }
 
+const chart_colors = ['#1ba3c6', '#2cb5c0', '#30bcad', '#21B087', '#33a65c', '#57a337', '#a2b627', '#d5bb21', '#f8b620', '#f89217', '#f06719', '#e03426', '#f64971', '#fc719e', '#eb73b3', '#ce69be', '#a26dc2', '#7873c0', '#4f7cba']
+
 export {
   work_group_icon,
   auftrag_type_to_name,
   status_mapping,
   gesangbuch_kategorie_name_to_icon,
   rang_to_color,
+  chart_colors
 };
