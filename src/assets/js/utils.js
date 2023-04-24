@@ -51,7 +51,7 @@ function gesangbuch_kategorie_name_to_icon(gesangbuch_kategorie_name) {
   if (gesangbuch_kategorie_name === "Sakrament der Taufe")
     return "mdi-human-baby-changing-table";
   if (gesangbuch_kategorie_name === "Konfirmation") return "mdi-account-group";
-  if (gesangbuch_kategorie_name === "Trauung") return "fas rings-wedding";
+  if (gesangbuch_kategorie_name === "Trauung") return "";
   if (gesangbuch_kategorie_name === "Verpflichtung") return "";
   if (gesangbuch_kategorie_name === "Freundschaft") return "";
   if (gesangbuch_kategorie_name === "Friedensstadt") return "";
