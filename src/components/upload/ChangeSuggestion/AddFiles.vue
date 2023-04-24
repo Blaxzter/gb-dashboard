@@ -26,6 +26,7 @@
         @update:existing_melodie="existing_melodie = $event"
         @update:selected_melodie="selected_melodie = $event"
         :song_title="selected_song?.titel"
+        :upload_page="false"
       />
     </v-expand-transition>
   </div>
