@@ -75,6 +75,7 @@
         @update:existing_text="existing_text = $event"
         @update:selected_text="selected_text = $event"
         :song_title="title"
+        :upload_page="true"
       />
 
       <NewMelodieData
@@ -83,6 +84,7 @@
         @update:existing_melodie="existing_melodie = $event"
         @update:selected_melodie="selected_melodie = $event"
         :song_title="title"
+        :upload_page="true"
       />
 
       <v-row>
@@ -175,17 +177,17 @@
       >
         Senden
       </v-btn>
-<!--      <v-btn-->
-<!--        prepend-icon="mdi-bug-check"-->
-<!--        block-->
-<!--        class="mt-5 py-5"-->
-<!--        color="warning"-->
-<!--        elevated-->
-<!--        size="x-large"-->
-<!--        @click="see_data"-->
-<!--      >-->
-<!--        Show data-->
-<!--      </v-btn>-->
+      <v-btn
+        prepend-icon="mdi-bug-check"
+        block
+        class="mt-5 py-5"
+        color="warning"
+        elevated
+        size="x-large"
+        @click="see_data"
+      >
+        Show data
+      </v-btn>
 
     </v-container>
   </v-form>
@@ -268,6 +270,7 @@ export default {
       },
       use_lizenz: true,
       selected_authors: [],
+      use_same_author_for_text: false,
       authors: [
         {
           firstName: "",
@@ -390,7 +393,7 @@ export default {
             sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
           };
           if (!_.every(to_be_created_text_author, (val) => val === null)) {
-            to_be_created_text_authors['status'] = 'uploaded'
+            to_be_created_text_author['status'] = 'uploaded'
             to_be_created_text_authors.push(to_be_created_text_author);
           }
         }
@@ -459,6 +462,7 @@ export default {
             );
             created_gesangbuchlied = resp.data.data;
             this.successfully_created.gesangbuchlied = resp.data.data;
+            this.store.addGesangbuchlied(resp.data.data)
           });
 
         if (created_gesangbuchlied !== null) {
@@ -486,6 +490,7 @@ export default {
                   resp.data.data
                 );
                 this.successfully_created.category_gesangbuchlied_mapping = resp.data.data;
+                _.forEach(resp.data.data, (elem) => this.store.addKategorieGesangbuchlied(elem))
               });
           }
         }
@@ -493,6 +498,7 @@ export default {
         // CREATE TEXT
         console.log("CREATE TEXT");
         let created_text = null;
+        let created_text_authors = [];
         if (!this.existing_text) {
           let create_text = {
             titel: _.isEmpty(this.text.title) ? null : this.text.title,
@@ -517,12 +523,12 @@ export default {
                 );
                 created_text = resp.data.data;
                 this.successfully_created.text = resp.data.data;
+                this.store.addText(resp.data.data)
               });
 
 
             // CREATE NEW TEXT AUTHORS
             console.log("CREATE NEW TEXT AUTHORS");
-            let created_text_authors = [];
             if (
               !this.existing_text &&
               to_be_created_text_authors.length !== 0
@@ -540,6 +546,7 @@ export default {
                   );
                   created_text_authors = resp.data.data;
                   this.successfully_created.authors.push(...resp.data.data);
+                  _.forEach(resp.data.data, (elem) => this.store.addAuthor(elem))
                 });
             }
 
@@ -568,6 +575,7 @@ export default {
                     resp.data.data
                   );
                   this.successfully_created.text_author_mapping.push(...resp.data.data);
+                  _.forEach(resp.data.data, (elem) => this.store.addTextAutor(elem))
                 })
 
             }
@@ -600,6 +608,7 @@ export default {
                 );
                 created_melodie = resp.data.data;
                 this.successfully_created.melodie = resp.data.data;
+                this.store.addMelodie(resp.data.data)
               });
 
             // CREATE NEW MELODIE AUTHORS
@@ -622,11 +631,15 @@ export default {
                   );
                   created_melodie_authors = resp.data.data;
                   this.successfully_created.authors.push(...resp.data.data);
+                  _.forEach(resp.data.data, (elem) => this.store.addAuthor(elem))
                 });
             }
 
             // MELODIE AUTHOR N TO M MAPPING
             created_melodie_authors.push(...this.melodie.selected_authors);
+            if (this.melodie.use_same_author_for_text) {
+              created_melodie_authors.push(...created_text_authors);
+            }
 
             let to_be_created_melodie_author_mapping = [];
             for (let created_author of created_melodie_authors) {
@@ -652,6 +665,7 @@ export default {
                     resp.data.data
                   );
                   this.successfully_created.melodie_author_mapping.push(...resp.data.data)
+                  _.forEach(resp.data.data, (elem) => this.store.addMelodieAutor(elem))
                 })
             }
 
@@ -679,6 +693,7 @@ export default {
                     resp.data.data
                   );
                   this.successfully_created.melodie_files = resp.data.data;
+                  _.forEach(resp.data.data, (elem) => this.store.addMelodieFile(elem))
                 });
             }
           }
@@ -701,8 +716,19 @@ export default {
           console.log("update_gesangbuchlied", update_gesangbuchlied);
           await axios
             .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${created_gesangbuchlied.id}`, update_gesangbuchlied)
+            .then((resp) => {
+              console.log(
+                "updated gesangbuchlied",
+                resp.data.data
+              );
+              this.successfully_created.gesangbuchlied = resp.data.data;
+              this.store.updateGesangbuchlied(resp.data.data)
+            });
         }
       }
+
+      // loadData again
+      this.store.update_store_local();
     },
     async upload_file() {
       if (this.melodie.noten) {

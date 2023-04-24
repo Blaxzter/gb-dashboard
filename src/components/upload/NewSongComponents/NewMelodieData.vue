@@ -73,9 +73,11 @@
             <AuthorenFom
               :label="'Melodie Autoren'"
               @update:selected_author="melodie.selected_authors = $event"
+              @update:use_same_author_for_text="melodie.use_same_author_for_text = $event"
               :selected_author="melodie.selected_authors"
               v-model:authors="melodie.authors"
               class="mb-3"
+              :upload_page="upload_page"
             />
             <!--                <LizensComponent-->
             <!--                  :label="'Melodie Lizensen'"-->
@@ -116,7 +118,8 @@ export default {
   }),
   props: {
     song_title: String,
-    in_melodie: Object
+    in_melodie: Object,
+    upload_page: Boolean,
   },
   mounted() {
     this.melodie = this.in_melodie;

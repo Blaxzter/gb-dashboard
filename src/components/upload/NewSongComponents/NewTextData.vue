@@ -77,6 +77,7 @@
               :selected_author="text.selected_authors"
               v-model:authors="text.authors"
               class="mb-3"
+              :upload_page="upload_page"
             />
             <!--                <LizensComponent-->
             <!--                  :label="'Text Lizensen'"-->
@@ -116,6 +117,7 @@ export default {
   props: {
     song_title: String,
     in_text: Object,
+    upload_page: Boolean,
   },
   mounted() {
     this.text = this.in_text;

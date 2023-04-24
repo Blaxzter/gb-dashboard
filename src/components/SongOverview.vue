@@ -12,39 +12,81 @@
     :search="search"
   >
     <template v-slot:top>
-      <div class="d-flex align-center">
-        <v-text-field
-          v-model="search"
-          single-line
-          prepend-icon="mdi-magnify"
-          label="Suche"
-          hide-details
-          class="pa-4"
-        ></v-text-field>
-        <!-- Select vuetify element if admin is true that has status as values -->
-        <v-select
-          v-if="admin"
-          v-model="selected_status"
-          :items="status_list"
-          label="Filter Status nach"
-          class="pa-4"
-          hide-details
-          clearable
-          single-line/>
+      <v-expansion-panels class="mb-4" v-model="filter_expanded">
+        <v-expansion-panel value="filter_expanded">
+          <v-expansion-panel-title>
+            <v-icon icon="mdi-filter-variant" class="mr-2"></v-icon>
+            Filter
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <div class="d-flex align-center">
+              <v-text-field
+                v-model="search"
+                single-line
+                prepend-icon="mdi-magnify"
+                label="Suche"
+                hide-details
+                class="pa-4"
+              ></v-text-field>
+              <!-- Select vuetify element if admin is true that has status as values -->
+              <v-select
+                v-if="admin"
+                v-model="selected_status"
+                :items="status_list"
+                label="Filter Status nach"
+                class="pa-4"
+                hide-details
+                clearable
+                single-line/>
 
-        <v-btn-toggle v-model="filter" variant="outlined" multiple color="primary">
-          <v-tooltip text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen." location="bottom">
-            <template v-slot:activator="{ props }">
-              <v-btn v-bind="props" value="suggestions" ><v-icon color="primary">mdi-text-box-edit</v-icon></v-btn>
-            </template>
-          </v-tooltip>
-          <v-tooltip text="Nur Gesangbuchlieder mit Anmerkung anzeigen." location="bottom">
-            <template v-slot:activator="{ props }">
-              <v-btn v-bind="props" value="remarks"><v-icon color="primary">mdi-message</v-icon></v-btn>
-            </template>
-          </v-tooltip>
-        </v-btn-toggle>
-      </div>
+              <v-btn-toggle v-model="filter" variant="outlined" multiple color="primary">
+                <v-tooltip text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen." location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" value="suggestions" ><v-icon color="primary">mdi-text-box-edit</v-icon></v-btn>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Nur Gesangbuchlieder mit Anmerkung anzeigen." location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" value="remarks"><v-icon color="primary">mdi-message</v-icon></v-btn>
+                  </template>
+                </v-tooltip>
+              </v-btn-toggle>
+            </div>
+            <div class="d-flex align-center">
+              <v-autocomplete
+                label="Zugehörige Kategorie"
+                class="mb-3"
+                :items="this.store.kategorie"
+                item-title="name"
+                item-value="id"
+                hide-details="auto"
+                return-object
+                multiple
+                chips
+                closable-chips
+                v-model="kategorie"
+              >
+                <template v-slot:chip="{ props, item }">
+                  <v-chip
+                    v-bind="props"
+                    :prepend-icon="get_icon(item)"
+                    :text="item.raw.name"
+                  ></v-chip>
+                </template>
+
+                <template v-slot:item="{ props, item }">
+                  <v-list-item
+                    v-bind="props"
+                    :prepend-icon="get_icon(item)"
+                    :title="item?.raw?.name"
+                  ></v-list-item>
+                </template>
+              </v-autocomplete>
+            </div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
+
     </template>
 
     <template v-slot:[`item.text_titel`]="{ item }">
@@ -104,7 +146,7 @@ import { useAppStore } from "@/store/app";
 import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComponent.vue";
 
 import _ from "lodash"
-import {rang_to_color, status_mapping} from "@/assets/js/utils";
+import {gesangbuch_kategorie_name_to_icon, rang_to_color, status_mapping} from "@/assets/js/utils";
 
 export default {
   name: "SongOverview",
@@ -113,6 +155,12 @@ export default {
     // if route contains ?ansicht=kleiner_kreis then set admin to true
     this.admin = this.$route.query.ansicht === "kleiner_kreis";
 
+    if (this.$route.query.filter_kategorie) {
+      this.kategorie = [{name: this.$route.query.filter_kategorie}];
+      this.filter_expanded = ['filter_expanded'];
+      console.log(this.kategorie)
+    }
+
     if (this.admin) {
       // Berwertung kleiner kreis
       this.headers.push({ title: "Bewertung", align: "center", key: "bewertung_kleiner_kreis", sort: (a, b) => a?.rangfolge - b?.rangfolge });
@@ -120,6 +168,8 @@ export default {
   },
   data: () => ({
     selected_status: null,
+    kategorie: null,
+    filter_expanded: [],
     admin: false,
     search: null,
     song_dialog: false,
@@ -165,6 +215,17 @@ export default {
           }))
       )
 
+      // get kategorie names
+      const selected_kategorie_names = _.map(this.kategorie, 'name')
+      console.log(selected_kategorie_names)
+
+      filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
+        !selected_kategorie_names.length ||
+        _.every(selected_kategorie_names, obj => {
+          return _.some(elem?.kategories, kategorie => kategorie.kategorie_name.name === obj)
+        }))
+      )
+
       return filtered_gesangbuchlied
     },
     filter_by_remarks() {
@@ -179,6 +240,9 @@ export default {
       this.song_dialog = true;
       this.selected_song = value.item.raw;
       console.log(this.selected_song)
+    },
+    get_icon(item) {
+      return gesangbuch_kategorie_name_to_icon(item.title)
     },
   },
 };

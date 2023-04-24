@@ -24,6 +24,23 @@
             ></v-autocomplete>
           </v-col>
         </v-row>
+
+        <v-row v-if="melodie_authors && upload_page">
+          <v-col cols="12" class="text-grey text-subtitle-1 pt-3 pb-1 d-flex align-center">
+            <div class="mx-4">
+              <v-switch
+                v-model="use_same_author_for_text"
+                color="primary"
+                hide-details="auto"
+                class="mb-0"
+              ></v-switch>
+            </div>
+            <div>
+              Gleichen Autor wie bei Text verwenden
+            </div>
+          </v-col>
+        </v-row>
+
         <v-row>
           <v-col cols="12" class="text-grey text-subtitle-1 py-0 pt-3">
             Neuen Autor hinzufügen
@@ -115,12 +132,14 @@ export default {
   components: { VuetifyDatepicker },
   data: () => ({
     store: useAppStore(),
-    selected_author_model: []
+    selected_author_model: [],
+    use_same_author_for_text: false
   }),
   props: {
     selected_author: Array,
     authors: Array,
     label: String,
+    upload_page: Boolean,
   },
   mounted() {
     this.selected_author_model = this.selected_author;
@@ -134,6 +153,9 @@ export default {
         this.$emit("update:authors", value);
       },
     },
+    melodie_authors() {
+      return this.label.includes('Melodie')
+    },
     store_authors() {
       return this.store.authors;
     },
@@ -145,6 +167,9 @@ export default {
   watch: {
     selected_author_model() {
       this.$emit("update:selected_author", this.selected_author_model)
+    },
+    use_same_author_for_text() {
+      this.$emit("update:use_same_author_for_text", this.use_same_author_for_text)
     }
   },
 
