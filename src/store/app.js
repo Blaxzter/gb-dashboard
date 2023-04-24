@@ -105,48 +105,54 @@ export const useAppStore = defineStore('app', {
       };
     },
 
-    async loadData() {
+    update_store_local() {
+      // call update_store with local data
+      this.update_store(
+        this.bewertungKleinerKreis,
+        this.author,
+        this.text_autor,
+        this.auftrag,
+        this.text,
+        this.melodie_autor,
+        this.melodie_file,
+        this.file,
+        this.melodie,
+        this.arbeitskreis,
+        this.termin,
+        this.kategorie,
+        this.gesangbuchlied_kategorie,
+        this.gesangbuchlied,
+        this.lizenz,
+      )
+    },
 
-      const dont_cache = import.meta.env.VITE_CACHE_BACKEND
-
-      let data = {};
-      if (dont_cache !== 'ON') {
-        data = await this.fetchData();
-      } else {
-        let data = JSON.parse(localStorage.getItem('data'));
-
-        if (!data) {
-          console.log("Load API");
-
-          // Load data from file or API request
-          data = await this.fetchData(); // replace with your own function to load data
-          // Set the data in localStorage to avoid requesting again
-          localStorage.setItem('data', JSON.stringify(data));
-        }
-      }
-
-      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, bewertungKleinerKreis, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
-
-      const bewertungKleinerKreisById = {..._.keyBy(bewertungKleinerKreis, 'id'), null: {bezeichner: '', rangfolge: -1}};
+    update_store: function (bewertungKleinerKreis, author, text_autor, auftrag, text, melodie_autor, melodie_file, file, melodie, arbeitskreis, termin, kategorie, gesangbuchlied_kategorie, gesangbuchlied, lizenz) {
+      const bewertungKleinerKreisById = {
+        ..._.keyBy(bewertungKleinerKreis, 'id'),
+        null: {bezeichner: '', rangfolge: -1}
+      };
 
       const authorById = {..._.keyBy(author, 'id'), null: 'Keine'};
       const text_autor_grouped = {..._.groupBy(text_autor, 'text_id'), null: 'Keine'};
-      const auftragByText_id = {..._.pickBy(_.groupBy(auftrag, 'textId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))), null: undefined};
+      const auftragByText_id = {
+        ..._.pickBy(_.groupBy(auftrag, 'textId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))),
+        null: undefined
+      };
       console.log(auftragByText_id)
-      text  = _.map(text, obj => ({
+      text = _.map(text, obj => ({
         ...obj,
         authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
         auftrag: auftragByText_id[obj.id],
         bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
-      text  = _.map(text, obj => ({
+      text = _.map(text, obj => ({
         ...obj,
-        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : '' })` : '')).join(", "),
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : ''})` : '')).join(", "),
         strophen_connected: _.map(obj.strophenEinzeln, 'strophe')?.join('\n\n'),
         strophen_connected_short: _.map(obj.strophenEinzeln, 'strophe')?.join(' ').substring(0, 50),
         strophe_short: _.map(obj.strophenEinzeln?.slice(0, 3), (elem, idx) => `${idx + 1}. ${elem?.strophe?.replace('\n', ' ').substring(0, 30)}${elem?.strophe?.length > 15 ? '...' : ''}`).join(" "),
       }));
-      text  = _.map(text, obj => ({
+      text = _.map(text, obj => ({
         ...obj,
         autocomplete: obj.titel + obj.author_name + obj.strophe_short
       }));
@@ -154,23 +160,26 @@ export const useAppStore = defineStore('app', {
       const melodie_autor_grouped = {..._.groupBy(melodie_autor, 'melodie_id'), null: undefined};
       const melodie_file_grouped = {..._.groupBy(melodie_file, 'melodie_id'), null: undefined};
       const file_grouped = {..._.keyBy(file, 'id'), null: undefined};
-      const auftragByMelodieID = {..._.pickBy(_.groupBy(auftrag, 'melodieId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))), null: undefined};
+      const auftragByMelodieID = {
+        ..._.pickBy(_.groupBy(auftrag, 'melodieId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))),
+        null: undefined
+      };
       console.log(file_grouped)
       console.log(melodie_file_grouped)
-      melodie  = _.map(melodie, obj => ({
+      melodie = _.map(melodie, obj => ({
         ...obj,
         authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
         files_urls: _.map(melodie_file_grouped[obj.id], 'directus_files_id'),
         auftrag: auftragByMelodieID[obj.id],
         bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
-      melodie  = _.map(melodie, obj => ({
+      melodie = _.map(melodie, obj => ({
         ...obj,
-        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : '' })` : '')).join(", "),
+        author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : ''})` : '')).join(", "),
         files: _.map(obj.files_urls, elem => file_grouped[elem]),
       }));
       console.log(melodie)
-      melodie  = _.map(melodie, obj => ({
+      melodie = _.map(melodie, obj => ({
         ...obj,
         autocomplete: obj.titel + obj.author_name
       }));
@@ -211,13 +220,17 @@ export const useAppStore = defineStore('app', {
       })), (elem) => elem.gesangbuchlied_id !== null);
 
 
-      const gesangbuchlied_kategorieBygesangbuchlied_id = {..._.groupBy(gesangbuchlied_kategorie, 'gesangbuchlied_id'), null: 'Keine'};
+      const gesangbuchlied_kategorieBygesangbuchlied_id = {
+        ..._.groupBy(gesangbuchlied_kategorie, 'gesangbuchlied_id'),
+        null: 'Keine'
+      };
       gesangbuchlied = _.map(gesangbuchlied, obj => ({
         ...obj,
         status_mapped: status_mapping[obj.status],
         text: textById[obj.textId],
         melodie: melodieById[obj.melodieId],
         kategories: gesangbuchlied_kategorieBygesangbuchlied_id[obj.id],
+
         // if undefined then 0, if auftrag exist and any has status not 'done' then 1 otherwise 2
         text_work_order: textById[obj.textId]?.auftrag ? (textById[obj.textId]?.auftrag?.some(elem => elem.status !== 'done') ? 2 : 1) : 0,
         melodie_work_order: melodieById[obj.melodieId]?.auftrag ? (melodieById[obj.melodieId]?.auftrag?.some(elem => elem.status !== 'done') ? 2 : 1) : 0,
@@ -226,11 +239,10 @@ export const useAppStore = defineStore('app', {
         // if equal to title replace with ...
         gesangbuch_titel: `${obj?.liednummer2000 ? "(" + obj?.liednummer2000 + ") " : ''}${obj?.titel}`,
         text_titel: textById[obj.textId]?.titel,
-        melodie_titel: melodieById[obj.melodieId]?.titel ,
+        melodie_titel: melodieById[obj.melodieId]?.titel,
         // bewertung kleiner kreis
         bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
-
 
 
       this.author = author
@@ -249,6 +261,71 @@ export const useAppStore = defineStore('app', {
       this.melodie_file = melodie_file
       this.file = file
       this.gesangbuchlied_kategorie = gesangbuchlied_kategorie
+    },
+
+    async loadData() {
+
+      const dont_cache = import.meta.env.VITE_CACHE_BACKEND
+
+      let data = {};
+      if (dont_cache !== 'ON') {
+        data = await this.fetchData();
+      } else {
+        let data = JSON.parse(localStorage.getItem('data'));
+
+        if (!data) {
+          console.log("Load API");
+
+          // Load data from file or API request
+          data = await this.fetchData(); // replace with your own function to load data
+          // Set the data in localStorage to avoid requesting again
+          localStorage.setItem('data', JSON.stringify(data));
+        }
+      }
+
+      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, bewertungKleinerKreis, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
+
+      this.update_store(bewertungKleinerKreis, author, text_autor, auftrag, text, melodie_autor, melodie_file, file, melodie, arbeitskreis, termin, kategorie, gesangbuchlied_kategorie, gesangbuchlied, lizenz);
+    },
+
+    updateGesangbuchlied(gesangbuchlied) {
+      // update gesangbuchlied with same id
+      this.gesangbuchlied = this.gesangbuchlied.map((obj) => {
+        if (obj.id === gesangbuchlied.id) {
+          return gesangbuchlied;
+        }
+        return obj;
+      });
+    },
+
+    // Add data to store
+    addGesangbuchlied(gesangbuchlied) {
+      this.gesangbuchlied.push(gesangbuchlied)
+    },
+    addMelodie(melodie) {
+      this.melodie.push(melodie)
+    },
+    addText(text) {
+      this.text.push(text)
+    },
+    addAuthor(author) {
+      this.author.push(author)
+    },
+    addFile(file) {
+      this.file.push(file)
+    },
+    addMelodieFile(melodie_file) {
+      this.melodie_file.push(melodie_file)
+    },
+    addMelodieAutor(melodie_autor) {
+      this.melodie_autor.push(melodie_autor)
+    },
+    addTextAutor(text_autor) {
+      this.text_autor.push(text_autor)
+    },
+    addKategorieGesangbuchlied(gesangbuchlied_kategorie) {
+      this.gesangbuchlied_kategorie.push(gesangbuchlied_kategorie)
     }
+
   },
 })
