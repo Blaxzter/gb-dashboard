@@ -133,6 +133,9 @@ export default {
           },
         },
       },
+      tooltips: {
+        mode: 'dataset'
+      },
       responsive: true,
       maintainAspectRatio: false,
     },
@@ -145,8 +148,11 @@ export default {
       return ret_options;
     },
     categorie_options() {
-      const ret_options = this.chart_options;
+      const ret_options = _.cloneDeep(this.chart_options);
       ret_options.onClick = this.handle_click_events;
+      ret_options.onHover = function (event, chartElement) {
+        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+      };
       return ret_options;
     },
     songs() {
