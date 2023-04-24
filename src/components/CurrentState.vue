@@ -44,17 +44,17 @@
   </v-row>
 
   <v-row>
-    <v-col cols="12" md="6">
+    <v-col cols="12" lg="6">
       <v-card class="pa-3">
         <div class="text-h5">
           Lieder
         </div>
         <div class="mt-3">
-          <Doughnut :data="song_chart_data" :options="chart_options"/>
+          <Doughnut :data="song_chart_data" :options="categorie_options" ref="categorie_chart"/>
         </div>
       </v-card>
     </v-col>
-    <v-col cols="12" md="6">
+    <v-col cols="12" lg="6">
       <v-card class="pa-3">
         <div class="text-h5">
           Arbeitsaufträge der Arbeitskreise
@@ -130,11 +130,11 @@ export default {
               }
               return [];
             }
-          }
+          },
         },
       },
       responsive: true,
-      maintainAspectRatio: false
+      maintainAspectRatio: false,
     },
   }),
   computed: {
@@ -142,6 +142,11 @@ export default {
     chart_options() {
       const ret_options = this.options;
       ret_options.plugins.legend.position = this.$vuetify.display.mdAndUp ? 'right' : 'bottom';
+      return ret_options;
+    },
+    categorie_options() {
+      const ret_options = this.chart_options;
+      ret_options.onClick = this.handle_click_events;
       return ret_options;
     },
     songs() {
@@ -216,6 +221,17 @@ export default {
     work_orders_data_list() {
       let work_order_data = _.countBy(this.work_orders,  'arbeitskreis_name');
       return _.filter(_.map(this.work_order_label, elem => work_order_data[elem]), elem => elem !== 0)
+    }
+  },
+  methods: {
+    handle_click_events(event, legendItem) {
+      console.log(event)
+      if (legendItem && legendItem.length) {
+        let element_index = legendItem[0].index;
+        console.log(element_index);
+        console.log(this.song_category_label[element_index])
+        this.$router.push({name: 'Gesangbuchlieder', query: {filter_kategorie: this.song_category_label[element_index]}})
+      }
     }
   }
 }

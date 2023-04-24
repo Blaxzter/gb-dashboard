@@ -27,6 +27,7 @@
         @update:existing_text="existing_text = $event"
         @update:selected_text="selected_text = $event"
         :song_title="selected_song?.titel"
+        :upload_page="false"
       />
     </v-expand-transition>
   </div>
