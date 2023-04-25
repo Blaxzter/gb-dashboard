@@ -55,9 +55,16 @@
               cols="12"
               class="text-h6 d-flex justify-space-between align-center pt-3 pb-0"
             >
-              <span class="text-grey-darken-1 text-subtitle-2"
-                >Autor {{ index + 1 }}
+              <div class="d-flex">
+                <v-tooltip text="Autor existiert bereits" location="bottom" v-if="author.exists">
+                  <template v-slot:activator="{ props }">
+                    <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning" size="tiny"/>
+                  </template>
+                </v-tooltip>
+                <span class="text-grey-darken-1 text-subtitle-2">
+                Autor {{ index + 1 }}
               </span>
+              </div>
               <v-btn
                 color="error"
                 @click="removeAuthor(index)"
@@ -75,6 +82,7 @@
                 v-model="author.firstName"
                 hide-details="auto"
                 class="mb-0"
+                @update:model-value="check_author(index)"
               ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
@@ -83,6 +91,7 @@
                 v-model="author.lastName"
                 hide-details="auto"
                 class="mb-0"
+                @update:model-value="check_author(index)"
               ></v-text-field>
             </v-col>
           </v-row>
@@ -181,6 +190,12 @@ export default {
         birthdate: null,
         deathdate: null,
       });
+    },
+    check_author(index) {
+      const author = this.author_model[index]
+      const author_obj = this.store_authors.find(a => a.vorname === author.firstName && a.nachname === author.lastName)
+      this.author_model[index].exists = !!author_obj;
+      console.log(this.author_model[index])
     },
     removeAuthor(author_index) {
       this.author_model.splice(author_index, 1);
