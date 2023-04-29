@@ -44,7 +44,7 @@
   </v-row>
 
   <v-row>
-    <v-col cols="12" lg="6">
+    <v-col cols="12" lg="7">
       <v-card class="pa-3">
         <div class="text-h5">
           Lieder
@@ -54,7 +54,7 @@
         </div>
       </v-card>
     </v-col>
-    <v-col cols="12" lg="6">
+    <v-col cols="12" lg="5">
       <v-card class="pa-3">
         <div class="text-h5">
           Arbeitsaufträge der Arbeitskreise
