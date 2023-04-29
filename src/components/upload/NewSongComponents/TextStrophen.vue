@@ -10,7 +10,7 @@
               :append-icon="strophen_model.length > 1 ? 'mdi-minus' : null"
               variant="filled"
               clear-icon="mdi-close-circle"
-              rows="2"
+              rows="4"
               clearable
               type="text"
               hide-details="auto"

@@ -55,7 +55,7 @@
         v-model="strophe.strophe"
         :label="'Text für Strophe ' + (index + 1)"
         variant="filled"
-        rows="2"
+        rows="4"
         type="text"
         clearable
         hide-details="auto"
