@@ -12,50 +12,36 @@
     :search="search"
   >
     <template v-slot:top>
-      <v-expansion-panels class="mb-4" v-model="filter_expanded">
-        <v-expansion-panel value="filter_expanded">
-          <v-expansion-panel-title>
-            <v-icon icon="mdi-filter-variant" class="mr-2"></v-icon>
-            Filter
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
-            <div class="d-flex align-center">
-              <v-text-field
-                v-model="search"
-                single-line
-                prepend-icon="mdi-magnify"
-                label="Suche"
-                hide-details
-                class="pa-4"
-              ></v-text-field>
+      <div class="d-flex align-center">
+        <v-text-field
+          v-model="search"
+          single-line
+          prepend-icon="mdi-magnify"
+          label="Suche"
+          hide-details
+          class="pa-4"
+        ></v-text-field>
+        <v-btn icon="mdi-filter-variant" :color="filter_expanded ? 'primary' : null" class="my-4"
+               @click="filter_expanded = !filter_expanded"></v-btn>
+      </div>
+      <v-expand-transition v-show="filter_expanded">
+        <v-card title="Filter" class="mb-5">
+          <v-card-text>
+            <div class="d-flex align-center mb-4">
               <!-- Select vuetify element if admin is true that has status as values -->
               <v-select
                 v-if="admin"
                 v-model="selected_status"
                 :items="status_list"
                 label="Filter Status nach"
-                class="pa-4"
                 hide-details
                 clearable
                 single-line/>
-
-              <v-btn-toggle v-model="filter" variant="outlined" multiple color="primary">
-                <v-tooltip text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen." location="bottom">
-                  <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" value="suggestions" ><v-icon color="primary">mdi-text-box-edit</v-icon></v-btn>
-                  </template>
-                </v-tooltip>
-                <v-tooltip text="Nur Gesangbuchlieder mit Anmerkung anzeigen." location="bottom">
-                  <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" value="remarks"><v-icon color="primary">mdi-message</v-icon></v-btn>
-                  </template>
-                </v-tooltip>
-              </v-btn-toggle>
             </div>
             <div class="d-flex align-center">
               <v-autocomplete
                 label="Zugehörige Kategorie"
-                class="mb-3"
+                class="me-3"
                 :items="this.store.kategorie"
                 item-title="name"
                 item-value="id"
@@ -82,56 +68,84 @@
                   ></v-list-item>
                 </template>
               </v-autocomplete>
+
+              <v-btn-toggle v-model="filter" variant="outlined" multiple color="primary">
+                <v-tooltip text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen." location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" value="suggestions">
+                      <v-icon color="primary">mdi-text-box-edit</v-icon>
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Nur Gesangbuchlieder mit Anmerkung anzeigen." location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn v-bind="props" value="remarks">
+                      <v-icon color="primary">mdi-message</v-icon>
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+              </v-btn-toggle>
+
             </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+          </v-card-text>
+        </v-card>
+      </v-expand-transition>
 
     </template>
 
     <template v-slot:[`item.text_titel`]="{ item }">
       <v-tooltip text="Wie Liedtitel" location="bottom">
         <template v-slot:activator="{ props }">
-          <v-icon icon="mdi-arrow-left" v-bind="props" v-if="item.props.title.titel === item.props.title.text_titel"/> <span v-else>{{item.props.title.text_titel}}</span>
+          <v-icon icon="mdi-arrow-left" v-bind="props" v-if="item.props.title.titel === item.props.title.text_titel"/>
+          <span v-else>{{ item.props.title.text_titel }}</span>
         </template>
       </v-tooltip>
     </template>
     <template v-slot:[`item.melodie_titel`]="{ item }">
       <v-tooltip text="Wie Liedtitel" location="bottom">
         <template v-slot:activator="{ props }">
-          <v-icon icon="mdi-arrow-left" v-bind="props" v-if="item.props.title.titel === item.props.title.melodie_titel"/> <span v-else>{{item.props.title.melodie_titel}}</span>
+          <v-icon icon="mdi-arrow-left" v-bind="props"
+                  v-if="item.props.title.titel === item.props.title.melodie_titel"/>
+          <span v-else>{{ item.props.title.melodie_titel }}</span>
         </template>
       </v-tooltip>
     </template>
 
     <template v-slot:[`item.text_work_order`]="{ item }">
-      <v-tooltip :text="item.props.title.text_work_order ? 'Text Arbeitsauftrag' : 'Keinen Arbeitsauftrag'" location="bottom">
+      <v-tooltip :text="item.props.title.text_work_order ? 'Text Arbeitsauftrag' : 'Keinen Arbeitsauftrag'"
+                 location="bottom">
         <template v-slot:activator="{ props }">
-          <v-icon v-if="item.props.title.text_work_order" :icon="item.props.title.text_work_order === 2 ? 'mdi-file-document' : 'mdi-check'" v-bind="props" :color="item.props.title.text_work_order ? 'primary' : 'success'"/>
+          <v-icon v-if="item.props.title.text_work_order"
+                  :icon="item.props.title.text_work_order === 2 ? 'mdi-file-document' : 'mdi-check'" v-bind="props"
+                  :color="item.props.title.text_work_order ? 'primary' : 'success'"/>
         </template>
       </v-tooltip>
     </template>
     <template v-slot:[`item.melodie_work_order`]="{ item }">
-      <v-tooltip :text="item.props.title.melodie_work_order ? 'Melodie Arbeitsauftrag' : 'Keinen Arbeitsauftrag'" location="bottom">
+      <v-tooltip :text="item.props.title.melodie_work_order ? 'Melodie Arbeitsauftrag' : 'Keinen Arbeitsauftrag'"
+                 location="bottom">
         <template v-slot:activator="{ props }">
-          <v-icon v-if="item.props.title.melodie_work_order" :icon="item.props.title.melodie_work_order === 2 ? 'mdi-music' : 'mdi-check'" v-bind="props" :color="item.props.title.melodie_work_order ? 'primary' : 'success'"/>
+          <v-icon v-if="item.props.title.melodie_work_order"
+                  :icon="item.props.title.melodie_work_order === 2 ? 'mdi-music' : 'mdi-check'" v-bind="props"
+                  :color="item.props.title.melodie_work_order ? 'primary' : 'success'"/>
         </template>
       </v-tooltip>
     </template>
     <template v-slot:[`item.bewertung_kleiner_kreis`]="{ item }">
       <div :style="{'color': rang_to_color[item.props.title.bewertung_kleiner_kreis?.rangfolge]}">
         <span v-if="item.props.title.bewertung_kleiner_kreis?.bezeichner">
-          <v-icon icon="mdi-music" size="tiny"/> {{item.props.title.bewertung_kleiner_kreis?.bezeichner}}
+          <v-icon icon="mdi-music" size="tiny"/> {{ item.props.title.bewertung_kleiner_kreis?.bezeichner }}
         </span>
       </div>
       <div :style="{'color': rang_to_color[item.props.title.text?.bewertung_kleiner_kreis?.rangfolge]}">
         <span v-if="item.props.title.text?.bewertung_kleiner_kreis?.bezeichner">
-          <v-icon icon="mdi-text-box" size="tiny"/> {{item.props.title.text?.bewertung_kleiner_kreis?.bezeichner}}
+          <v-icon icon="mdi-text-box" size="tiny"/> {{ item.props.title.text?.bewertung_kleiner_kreis?.bezeichner }}
         </span>
       </div>
       <div :style="{'color': rang_to_color[item.props.title.melodie?.bewertung_kleiner_kreis?.rangfolge]}">
         <span v-if="item.props.title.melodie?.bewertung_kleiner_kreis?.bezeichner">
-          <v-icon icon="mdi-music-note" size="tiny"/> {{item.props.title.melodie?.bewertung_kleiner_kreis?.bezeichner}}
+          <v-icon icon="mdi-music-note"
+                  size="tiny"/> {{ item.props.title.melodie?.bewertung_kleiner_kreis?.bezeichner }}
         </span>
       </div>
     </template>
@@ -142,7 +156,7 @@
   </v-dialog>
 </template>
 <script>
-import { useAppStore } from "@/store/app";
+import {useAppStore} from "@/store/app";
 import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComponent.vue";
 
 import _ from "lodash"
@@ -163,7 +177,12 @@ export default {
 
     if (this.admin) {
       // Berwertung kleiner kreis
-      this.headers.push({ title: "Bewertung", align: "center", key: "bewertung_kleiner_kreis", sort: (a, b) => a?.rangfolge - b?.rangfolge });
+      this.headers.push({
+        title: "Bewertung",
+        align: "center",
+        key: "bewertung_kleiner_kreis",
+        sort: (a, b) => a?.rangfolge - b?.rangfolge
+      });
     }
   },
   data: () => ({
@@ -177,12 +196,12 @@ export default {
     filter: [],
     store: useAppStore(),
     headers: [
-      { title: "Title", align: "start", key: "gesangbuch_titel" },
-      { title: "Text Title", align: "start", key: "text_titel" },
-      { title: "Text Auftrag", align: "center", key: "text_work_order"},
-      { title: "Melodie Title", align: "start", key: "melodie_titel" },
-      { title: "Melodie Auftrag", align: "center", key: "melodie_work_order"},
-      { title: "Strophe", align: "start", key: "text.strophen_connected_short" },
+      {title: "Title", align: "start", key: "gesangbuch_titel"},
+      {title: "Text Title", align: "start", key: "text_titel"},
+      {title: "Text Auftrag", align: "center", key: "text_work_order"},
+      {title: "Melodie Title", align: "start", key: "melodie_titel"},
+      {title: "Melodie Auftrag", align: "center", key: "melodie_work_order"},
+      {title: "Strophe", align: "start", key: "text.strophen_connected_short"},
     ],
   }),
   computed: {
@@ -199,7 +218,7 @@ export default {
     filtered_gesangbuchlieder() {
 
       let filtered_gesangbuchlied = _.filter(this.gesangbuchlieder, (elem) =>
-          this.selected_status == null || (this.selected_status && status_mapping[elem["status"]] === this.selected_status));
+        this.selected_status == null || (this.selected_status && status_mapping[elem["status"]] === this.selected_status));
 
       filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
         !this.filter_by_suggestions ||
@@ -210,9 +229,9 @@ export default {
 
       filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
         !this.filter_by_remarks ||
-          _.some(elem?.text?.strophenEinzeln, obj => {
-            return _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung)
-          }))
+        _.some(elem?.text?.strophenEinzeln, obj => {
+          return _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung)
+        }))
       )
 
       // get kategorie names
@@ -253,9 +272,10 @@ i.mdi-circle.mdi.v-icon.notranslate.v-theme--light.v-icon--size-default:before {
   color: #9595ff;
 }
 
-.v-data-table__tr:hover  {
+.v-data-table__tr:hover {
   background-color: #cbd5e1;
 }
+
 .v-data-table__td {
   background-color: transparent !important;
 }
