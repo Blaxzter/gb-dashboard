@@ -188,7 +188,7 @@ export default {
   data: () => ({
     selected_status: null,
     kategorie: null,
-    filter_expanded: [],
+    filter_expanded: false,
     admin: false,
     search: null,
     song_dialog: false,
