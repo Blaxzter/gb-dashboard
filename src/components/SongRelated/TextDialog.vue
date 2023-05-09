@@ -107,9 +107,6 @@ import StrophenList from "@/components/SongRelated/StrophenList.vue";
 export default {
   name: "TextDialog",
   components: {StrophenList},
-  mounted() {
-    console.log(this.text)
-  },
   computed: {
     auftrag_type_to_name() {
       return auftrag_type_to_name

@@ -121,7 +121,6 @@ export default {
         }
 
         if (!_.every(update_text, (val) => val === null || val === undefined)) {
-          console.log("update_text", update_text);
           await axios
             .patch(`${import.meta.env.VITE_BACKEND_URL}/items/text/${this.selected_song.text.id}`, update_text)
         }

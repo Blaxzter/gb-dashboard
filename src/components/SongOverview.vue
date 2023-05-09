@@ -172,7 +172,6 @@ export default {
     if (this.$route.query.filter_kategorie) {
       this.kategorie = [{name: this.$route.query.filter_kategorie}];
       this.filter_expanded = ['filter_expanded'];
-      console.log(this.kategorie)
     }
 
     if (this.admin) {
@@ -236,7 +235,6 @@ export default {
 
       // get kategorie names
       const selected_kategorie_names = _.map(this.kategorie, 'name')
-      console.log(selected_kategorie_names)
 
       filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
         !selected_kategorie_names.length ||
@@ -258,7 +256,6 @@ export default {
     rowClick(item, value) {
       this.song_dialog = true;
       this.selected_song = value.item.raw;
-      console.log(this.selected_song)
     },
     get_icon(item) {
       return gesangbuch_kategorie_name_to_icon(item.title)

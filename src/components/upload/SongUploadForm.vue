@@ -177,17 +177,17 @@
       >
         Senden
       </v-btn>
-      <v-btn
-        prepend-icon="mdi-bug-check"
-        block
-        class="mt-5 py-5"
-        color="warning"
-        elevated
-        size="x-large"
-        @click="see_data"
-      >
-        Show data
-      </v-btn>
+<!--      <v-btn-->
+<!--        prepend-icon="mdi-bug-check"-->
+<!--        block-->
+<!--        class="mt-5 py-5"-->
+<!--        color="warning"-->
+<!--        elevated-->
+<!--        size="x-large"-->
+<!--        @click="see_data"-->
+<!--      >-->
+<!--        Show data-->
+<!--      </v-btn>-->
 
     </v-container>
   </v-form>
@@ -512,7 +512,14 @@ export default {
           // Check if a value is set
           if (!_.every(create_text, (val) => val === null) || !strophen_empty) {
             create_text['status'] = 'uploaded';
-            create_text['strophenEinzeln'] = this.text.strophen;
+            // trim strophen.strophe in every element before assigning to strophenEinzeln
+            create_text['strophenEinzeln'] = _.map(this.text.strophen, (elem) => {
+              return {
+                ...elem,
+                strophe: _.isEmpty(elem.strophe) ? null : elem.strophe.trim(),
+              }
+            })
+
             console.log("create_text", create_text);
             await axios
               .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
