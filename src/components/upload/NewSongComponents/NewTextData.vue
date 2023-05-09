@@ -121,7 +121,6 @@ export default {
   },
   mounted() {
     this.text = this.in_text;
-    console.log(this.in_text)
     this.$emit("update:text", this.text)
   },
   watch: {
@@ -190,7 +189,13 @@ export default {
         // Check if a value is set
         if (!_.every(create_text, (val) => val === null) || !strophen_empty) {
           create_text['status'] = 'uploaded';
-          create_text['strophenEinzeln'] = this.text.strophen;
+          // trim strophen.strophe in every element before assigning to strophenEinzeln
+          create_text['strophenEinzeln'] = _.map(this.text.strophen, (elem) => {
+            return {
+              ...elem,
+              strophe: _.isEmpty(elem.strophe) ? null : elem.strophe.trim(),
+            }
+          })
           console.log("create_text", create_text);
           await axios
             .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)

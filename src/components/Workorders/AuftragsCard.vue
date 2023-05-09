@@ -120,9 +120,6 @@ export default {
   props: {
     auftrag: Object,
   },
-  mounted() {
-    // console.log(this.auftrag)
-  },
   computed: {
     work_group_icon() {
       return work_group_icon;
