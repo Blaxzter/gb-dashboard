@@ -231,11 +231,8 @@ export default {
   },
   methods: {
     handle_click_events(event, legendItem) {
-      console.log(event)
       if (legendItem && legendItem.length) {
         let element_index = legendItem[0].index;
-        console.log(element_index);
-        console.log(this.song_category_label[element_index])
         this.$router.push({name: 'Gesangbuchlieder', query: {filter_kategorie: this.song_category_label[element_index]}})
       }
     }

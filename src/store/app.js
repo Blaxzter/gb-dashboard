@@ -138,7 +138,6 @@ export const useAppStore = defineStore('app', {
         ..._.pickBy(_.groupBy(auftrag, 'textId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))),
         null: undefined
       };
-      console.log(auftragByText_id)
       text = _.map(text, obj => ({
         ...obj,
         authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
@@ -164,8 +163,6 @@ export const useAppStore = defineStore('app', {
         ..._.pickBy(_.groupBy(auftrag, 'melodieId'), (val, key) => !(_.isNil(key) || _.isUndefined(key))),
         null: undefined
       };
-      console.log(file_grouped)
-      console.log(melodie_file_grouped)
       melodie = _.map(melodie, obj => ({
         ...obj,
         authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
@@ -178,7 +175,6 @@ export const useAppStore = defineStore('app', {
         author_name: _.map(obj.authors, elem => `${elem.vorname} ${elem.nachname}` + (elem.geburtsjahr || elem.sterbejahr ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${elem.sterbejahr ? ' - ' + elem.sterbejahr : ''})` : '')).join(", "),
         files: _.map(obj.files_urls, elem => file_grouped[elem]),
       }));
-      console.log(melodie)
       melodie = _.map(melodie, obj => ({
         ...obj,
         autocomplete: obj.titel + obj.author_name
@@ -210,7 +206,7 @@ export const useAppStore = defineStore('app', {
 
       author = _.map(author, obj => ({
         ...obj,
-        author_str: `${obj.vorname} ${obj.nachname} ${obj.geburtsjahr ? obj.geburtsjahr : '?'}-${obj.sterbejahr ? obj.sterbejahr : '?'}`,
+        author_str: `${obj.vorname} ${obj.nachname}` + (obj.geburtsjahr || obj.sterbejahr ? ` (${obj.geburtsjahr ? '*' + obj.geburtsjahr : ''} ${obj.sterbejahr ? ' - ' + obj.sterbejahr : ''})` : ''),
       }));
 
       const kategorieById = {..._.keyBy(kategorie, 'id'), null: 'Keine'};
@@ -274,8 +270,6 @@ export const useAppStore = defineStore('app', {
         let data = JSON.parse(localStorage.getItem('data'));
 
         if (!data) {
-          console.log("Load API");
-
           // Load data from file or API request
           data = await this.fetchData(); // replace with your own function to load data
           // Set the data in localStorage to avoid requesting again

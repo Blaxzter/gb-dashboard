@@ -103,9 +103,6 @@ export default {
     text_dialog: false,
     melodie_dialog: false,
   }),
-  mounted() {
-    console.log(this.selected_song)
-  },
   methods: {
     gesangbuch_kategorie_name_to_icon,
     get_color(category) {

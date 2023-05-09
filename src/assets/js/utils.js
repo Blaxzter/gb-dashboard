@@ -36,13 +36,11 @@ function gesangbuch_kategorie_name_to_icon(gesangbuch_kategorie_name) {
   if (gesangbuch_kategorie_name === "Advent") return "mdi-candle";
   if (gesangbuch_kategorie_name === "Abendmahl") return "mdi-glass-wine";
   if (gesangbuch_kategorie_name === "Heiligabend") return "mdi-pine-tree";
-  if (gesangbuch_kategorie_name === "Joseph Weißenberg – Geburtstag")
-    return "mdi-image-filter-hdr";
-  if (gesangbuch_kategorie_name === "Sakrament des Sterbens / Abschiedsfeie")
-    return "";
-  if (gesangbuch_kategorie_name === "Sakrament des Abendmahls") return "";
+  if (gesangbuch_kategorie_name === "Sakrament des Sterbens / Abschiedsfeier")
+    return "mdi-coffin";
+  if (gesangbuch_kategorie_name === "Sakrament des Abendmahls") return "mdi-glass-wine";
   if (gesangbuch_kategorie_name === "Joseph Weißenberg – Geburtstag (24.08.)")
-    return "";
+    return "mdi-party-popper";
   if (gesangbuch_kategorie_name === "Palmsonntag") return "mdi-palm-tree";
   if (gesangbuch_kategorie_name === "Karfreitag") return "mdi-cross";
   if (gesangbuch_kategorie_name === "Ostersonntag") return "mdi-egg-easter";
@@ -50,24 +48,35 @@ function gesangbuch_kategorie_name_to_icon(gesangbuch_kategorie_name) {
   if (gesangbuch_kategorie_name === "Jahreswechsel") return "mdi-firework";
   if (gesangbuch_kategorie_name === "Sakrament der Taufe")
     return "mdi-human-baby-changing-table";
-  if (gesangbuch_kategorie_name === "Konfirmation") return "mdi-account-group";
-  if (gesangbuch_kategorie_name === "Trauung") return "";
-  if (gesangbuch_kategorie_name === "Verpflichtung") return "";
-  if (gesangbuch_kategorie_name === "Freundschaft") return "";
-  if (gesangbuch_kategorie_name === "Friedensstadt") return "";
+  if (gesangbuch_kategorie_name === "Konfirmation") return "mdi-book-cross";
+  if (gesangbuch_kategorie_name === "Trauung") return "mdi-ring";
+  if (gesangbuch_kategorie_name === "Verpflichtung") return "mdi-hand-pointing-up";
+  if (gesangbuch_kategorie_name === "Freundschaft") return "mdi-account-multiple";
+  if (gesangbuch_kategorie_name === "Friedensstadt") return "mdi-hand-peace";
   if (gesangbuch_kategorie_name === "Joseph Weißenberg – Verurteilung (13.08.)")
-    return "";
+    return "mdi-handcuffs";
   if (gesangbuch_kategorie_name === "Joseph Weißenberg – Heimgang (06.03.)")
-    return "";
-  if (gesangbuch_kategorie_name === "Pfingsten") return "";
-  if (gesangbuch_kategorie_name === "Erntedank") return "";
+    return "mdi-image-filter-hdr";
+  if (gesangbuch_kategorie_name === "Pfingsten") return "mdi-ghost";
+  if (gesangbuch_kategorie_name === "Erntedank") return "mdi-sprout";
   if (gesangbuch_kategorie_name === "Ewigkeitssonntag (Totensonntag)")
-    return "";
-  if (gesangbuch_kategorie_name === "Passion") return "";
-  if (gesangbuch_kategorie_name === "Gemeinschaft") return "";
-  if (gesangbuch_kategorie_name === "Loblied") return "";
-  if (gesangbuch_kategorie_name === "Stille") return "";
-  if (gesangbuch_kategorie_name === "Christi Himmelfahrt") return "";
+    return "mdi-infinity";
+  if (gesangbuch_kategorie_name === "Passion") return "mdi-heart-pulse";
+  if (gesangbuch_kategorie_name === "Gemeinschaft") return "mdi-account-group";
+  if (gesangbuch_kategorie_name === "Loblied") return "mdi-hand-okay";
+  if (gesangbuch_kategorie_name === "Stille") return "mdi-volume-off";
+  if (gesangbuch_kategorie_name === "Christi Himmelfahrt") return "mdi-cloud-upload";
+  if (gesangbuch_kategorie_name === "Einigkeit") return "mdi-handshake-outline";
+  if (gesangbuch_kategorie_name === "Überbrückung") return "mdi-bridge";
+  if (gesangbuch_kategorie_name === "Bekenntnistag") return "mdi-message";
+  if (gesangbuch_kategorie_name === "Geburtstag") return "mdi-cake-variant";
+  if (gesangbuch_kategorie_name === "Frieden") return "mdi-peace";
+  if (gesangbuch_kategorie_name === "Dennoch") return "mdi-hand-pointing-right";
+  if (gesangbuch_kategorie_name === "Abschied") return "mdi-hand-wave";
+  if (gesangbuch_kategorie_name === "Trost") return "mdi-hands-pray";
+  if (gesangbuch_kategorie_name === "Vertrauen") return "mdi-hand-heart";
+  if (gesangbuch_kategorie_name === "Kanon") return "mdi-music-note-sixteenth";
+  if (gesangbuch_kategorie_name === "Andere Sprache") return "mdi-translate";
   return null;
 }
 
