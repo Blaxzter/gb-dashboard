@@ -97,16 +97,22 @@
           </v-row>
           <v-row>
             <v-col cols="12" md="6">
-              <VuetifyDatepicker
-                v-model:date="author.birthdate"
-                label="Geburtsdatum"
-              ></VuetifyDatepicker>
+              <v-text-field
+                label="Geburtsjahr"
+                v-model="author.birthdate"
+                type="number"
+                hide-details="auto"
+                class="mb-0"
+              ></v-text-field>
             </v-col>
             <v-col cols="12" md="6">
-              <VuetifyDatepicker
-                v-model:date="author.deathdate"
-                label="Sterbedatum"
-              ></VuetifyDatepicker>
+              <v-text-field
+                label="Sterbejahr"
+                v-model="author.deathdate"
+                type="number"
+                hide-details="auto"
+                class="mb-0"
+              ></v-text-field>
             </v-col>
           </v-row>
 
@@ -195,7 +201,6 @@ export default {
       const author = this.author_model[index]
       const author_obj = this.store_authors.find(a => a.vorname === author.firstName && a.nachname === author.lastName)
       this.author_model[index].exists = !!author_obj;
-      console.log(this.author_model[index])
     },
     removeAuthor(author_index) {
       this.author_model.splice(author_index, 1);
