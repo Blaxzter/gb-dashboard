@@ -76,7 +76,6 @@ export default {
   }),
   computed: {
     filtered_audio_files() {
-      console.log(this.melodie?.files)
       return this.melodie?.files.filter(file => file.type.includes('audio'))
     },
   },
@@ -91,8 +90,6 @@ export default {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}`;
     },
     fullscreen_pdf(event, file) {
-      console.log(event)
-      console.log(file)
       this.selected_file = file;
       this.noten_dialog = true;
     }
