@@ -16,11 +16,14 @@ const useUserStore = defineStore('user', {
 	actions: {
 		login(authData) {
       const appstore = useAppStore()
+
+      const username = authData.username === '***REMOVED***' ? '***REMOVED***' : authData.username
+
 			return axios({
 				method: 'post',
 				url: `${import.meta.env.VITE_BACKEND_URL}/auth/login`,
 				data: {
-          email: authData.username,
+          email: username,
           password: authData.password
         },
 			})
@@ -38,10 +41,6 @@ const useUserStore = defineStore('user', {
 			localStorage.removeItem('access_token')
 			localStorage.removeItem('refresh_token')
 
-			localStorage.setItem('username', null)
-			localStorage.setItem('access_token', null)
-			localStorage.setItem('refresh_token', null)
-
 			router.replace('/login')
 		},
     autoLogin() {
@@ -55,14 +54,7 @@ const useUserStore = defineStore('user', {
       }
 
       //  check if token is expired
-      axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`)
-        .catch(() => {
-          localStorage.removeItem('access_token')
-          axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {refresh_token: refresh_token})
-            .then(response => {
-              localStorage.setItem('access_token', response.data.data.access_token)
-          })
-         })
+      this.refreshToken()
 
       this.user = {
         username: username,
@@ -70,6 +62,14 @@ const useUserStore = defineStore('user', {
         refresh_token: refresh_token,
       }
       appstore.loadData()
+    },
+    refreshToken() {
+      let refresh_token = localStorage.getItem('refresh_token')
+      axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {refresh_token: refresh_token}, {no_auth: true})
+        .then(response => {
+          localStorage.setItem('access_token', response.data.data.access_token)
+          localStorage.setItem('refresh_token', response.data.data.refresh_token)
+        })
     },
 		set_user_data(authData, response_data) {
 			this.user = {

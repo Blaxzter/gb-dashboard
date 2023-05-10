@@ -202,6 +202,7 @@ import {gesangbuch_kategorie_name_to_icon} from "@/assets/js/utils";
 import UploadProgress from "@/components/upload/NewSongComponents/UploadProgress.vue";
 import NewMelodieData from "@/components/upload/NewSongComponents/NewMelodieData.vue";
 import NewTextData from "@/components/upload/NewSongComponents/NewTextData.vue";
+import {useUserStore} from "@/store/user";
 
 export default {
   name: "SongUploadForm",
@@ -212,6 +213,7 @@ export default {
   },
   data: () => ({
     store: useAppStore(),
+    userStore: useUserStore(),
 
     loading: false,
 
@@ -376,6 +378,9 @@ export default {
       }
     },
     async send_data() {
+
+      this.userStore.refreshToken()
+
       // VALIDATE TEXT AUTHORS
       console.log("VALIDATE TEXT AUTHORS");
       let to_be_created_text_authors = [];
