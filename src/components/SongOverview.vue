@@ -10,6 +10,7 @@
     item-key="id"
     @click:row="rowClick"
     :search="search"
+    locale="de"
   >
     <template v-slot:top>
       <div class="d-flex align-center">
@@ -195,10 +196,10 @@ export default {
     filter: [],
     store: useAppStore(),
     headers: [
-      {title: "Title", align: "start", key: "gesangbuch_titel"},
-      {title: "Text Title", align: "start", key: "text_titel"},
+      {title: "Titel", align: "start", key: "gesangbuch_titel"},
+      {title: "Text Titel", align: "start", key: "text_titel"},
       {title: "Text Auftrag", align: "center", key: "text_work_order"},
-      {title: "Melodie Title", align: "start", key: "melodie_titel"},
+      {title: "Melodie Titel", align: "start", key: "melodie_titel"},
       {title: "Melodie Auftrag", align: "center", key: "melodie_work_order"},
       {title: "Strophe", align: "start", key: "text.strophen_connected_short"},
     ],

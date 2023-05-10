@@ -55,6 +55,11 @@ const routes = [
     path: '/*',
     redirect: '/'
   },
+  // 404 path to redirect to home
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
+  }
 ]
 
 const router = createRouter({

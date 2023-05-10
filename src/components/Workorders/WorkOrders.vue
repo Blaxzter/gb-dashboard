@@ -70,7 +70,17 @@ export default {
   watch: {
     selected_tabs() {
       this.tab = 0
+      localStorage.setItem('default_selected_tabs', this.selected_tabs)
+    },
+    display_style() {
+      // store display style in local storage
+      localStorage.setItem('default_display_style', this.display_style)
     }
+  },
+  beforeMount() {
+    // get default display style from local storage
+    this.display_style = parseInt(localStorage.getItem('default_display_style')) || 0
+    this.selected_tabs = parseInt(localStorage.getItem('default_selected_tabs')) || 0
   },
   mounted() {
     let auftragsartText =  _.groupBy(this.filter_auftraege, (elem) => elem.auftragsartText)
