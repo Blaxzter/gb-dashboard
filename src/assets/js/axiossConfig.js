@@ -1,8 +1,19 @@
-import axios from "axios";
+import axios from 'axios'
 
-const instance = axios.create();
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token')
 
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`
+    }
 
-instance.defaults.headers.common["Authorization"] = `Bearer ${import.meta.env.VITE_AUTH_TOKEN}`;
+    return config
+  },
 
-export default instance;
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+export default axios
