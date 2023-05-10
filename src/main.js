@@ -17,9 +17,4 @@ const app = createApp(App)
 
 registerPlugins(app)
 
-// Load all data into the store
-import { useAppStore } from "./store/app";
-const store = useAppStore();
-store.loadData();
-
 app.mount('#app')
