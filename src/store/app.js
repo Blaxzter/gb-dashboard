@@ -7,6 +7,7 @@ import {status_mapping} from "@/assets/js/utils";
 
 export const useAppStore = defineStore('app', {
   state: () => ({
+    data_loaded: false,
     author: [],
     text: [],
     melodie: [],
@@ -261,6 +262,9 @@ export const useAppStore = defineStore('app', {
 
     async loadData() {
 
+      if (this.data_loaded)
+        return
+
       const dont_cache = import.meta.env.VITE_CACHE_BACKEND
 
       let data = {};
@@ -280,6 +284,7 @@ export const useAppStore = defineStore('app', {
       let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, bewertungKleinerKreis, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
 
       this.update_store(bewertungKleinerKreis, author, text_autor, auftrag, text, melodie_autor, melodie_file, file, melodie, arbeitskreis, termin, kategorie, gesangbuchlied_kategorie, gesangbuchlied, lizenz);
+      this.data_loaded = true
     },
 
     updateGesangbuchlied(gesangbuchlied) {
