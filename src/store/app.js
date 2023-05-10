@@ -281,7 +281,23 @@ export const useAppStore = defineStore('app', {
         }
       }
 
-      let { author, text, melodie, gesangbuchlied, arbeitskreis, kategorie, lizenz, auftrag, termin, bewertungKleinerKreis, text_autor, melodie_autor, melodie_file, gesangbuchlied_kategorie, file} = data
+      let {
+        author,
+        text,
+        melodie,
+        gesangbuchlied,
+        arbeitskreis,
+        kategorie,
+        lizenz,
+        auftrag,
+        termin,
+        bewertungKleinerKreis,
+        text_autor,
+        melodie_autor,
+        melodie_file,
+        gesangbuchlied_kategorie,
+        file
+      } = data
 
       this.update_store(bewertungKleinerKreis, author, text_autor, auftrag, text, melodie_autor, melodie_file, file, melodie, arbeitskreis, termin, kategorie, gesangbuchlied_kategorie, gesangbuchlied, lizenz);
       this.data_loaded = true
@@ -324,7 +340,14 @@ export const useAppStore = defineStore('app', {
     },
     addKategorieGesangbuchlied(gesangbuchlied_kategorie) {
       this.gesangbuchlied_kategorie.push(gesangbuchlied_kategorie)
-    }
+    },
 
+    // Individuall getters
+    getAllFiles() {
+      axios.get(`${import.meta.env.VITE_BACKEND_URL}/files?limit=-1`)
+        .then(response => {
+          this.file = response.data.data
+        })
+    },
   },
 })
