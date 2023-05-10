@@ -751,7 +751,10 @@ export default {
           formData.append('file', file);
 
           await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
-            .then((resp) => this.successfully_created.created_files.push(resp.data.data));
+            .then((resp) => {
+              this.successfully_created.created_files.push(resp.data.data)
+              this.store.addFile(resp.data.data)
+            });
         }
       }
       return this.successfully_created.created_files;
