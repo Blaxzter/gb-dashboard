@@ -10,10 +10,24 @@
         </span>
       </v-list-item-title>
     </v-list-item>
+    <v-divider class="my-2"/>
+    <v-list-item @click="logout" link variant="flat" >
+      <template v-slot:prepend >
+        <v-icon class="text-red">mdi-logout</v-icon>
+      </template>
+
+      <v-list-item-title class="text-wrap" >
+        <span class="text-red">
+          Logout
+        </span>
+      </v-list-item-title>
+    </v-list-item>
   </v-list>
 </template>
 
 <script>
+import {useUserStore} from "@/store/user";
+
 export default {
   name: "MenuList",
   props: {
@@ -23,6 +37,7 @@ export default {
     },
   },
   data: () => ({
+    userStore: useUserStore(),
     links: [
       {
         name: "Dashboard",
@@ -67,6 +82,12 @@ export default {
       },
     ],
   }),
+  methods: {
+    logout() {
+      console.log()
+      this.userStore.logout()
+    }
+  }
 };
 </script>
 

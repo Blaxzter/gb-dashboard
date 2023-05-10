@@ -5,6 +5,7 @@
     Wähle ein Gesangbuchlied aus, bei welchem du Textvorschläge oder neue Melodie Dateien hochladen möchtest.
   </div>
 
+
   <v-form ref="form">
     <v-container>
       <div class="d-flex mb-5">
@@ -32,10 +33,10 @@
           </template>
         </v-autocomplete>
 
-        <v-tooltip text="Neues Lies auswählen." location="bottom">
+        <v-tooltip text="Neues Lies auswählen." location="bottom" :disabled="!selected_song">
           <template v-slot:activator="{ props }">
-            <v-btn icon="mdi-repeat" size="tiny" variant="plain" class="ms-5" v-bind="props" color="primary"
-                   @click="reset_form"/>
+            <v-btn icon="mdi-repeat" size="tiny" variant="text" class="ms-5" v-bind="props" color="primary"
+                   :disabled="!selected_song" @click="reset_form"/>
           </template>
         </v-tooltip>
       </div>
@@ -88,12 +89,14 @@ import axios from "@/assets/js/axiossConfig";
 import _ from "lodash";
 import TextSuggestion from "@/components/upload/ChangeSuggestion/TextSuggestion.vue";
 import AddFiles from "@/components/upload/ChangeSuggestion/AddFiles.vue";
+import {useUserStore} from "@/store/user";
 
 export default {
   name: "ChangeSuggestionUpload",
   components: {AddFiles, TextSuggestion},
   data: () => ({
     store: useAppStore(),
+    userStore: useUserStore(),
     noten: [],
     selected_song: null,
     created_files: [],
@@ -106,6 +109,8 @@ export default {
   },
   methods: {
     async send_data() {
+
+      this.userStore.refreshToken()
 
       let create_new_text = false;
       if (this.selected_song.text) {
@@ -200,7 +205,7 @@ export default {
           .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${this.selected_song.id}`, update_gesangbuchlied)
       }
 
-      this.noten = null;
+      this.noten = [];
       this.selected_song = null;
     },
     async upload_file() {
