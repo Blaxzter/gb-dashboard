@@ -6,6 +6,7 @@
     :items="auftraege"
     item-key="id"
     :search="search"
+    locale="de"
   >
     <template v-slot:top>
       <v-text-field
