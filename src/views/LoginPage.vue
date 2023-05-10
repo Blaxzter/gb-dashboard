@@ -1,13 +1,13 @@
 <template>
   <div class="background">
-    <v-img src="src/assets/images/header-banner.jpg" alt="Hintergrund bild" cover />
+    <v-img src="/src/assets/images/header-banner.jpg" alt="Hintergrund bild" cover />
   </div>
 	<div class="login-wrapper d-flex align-center justify-center">
 		<div class="login-card">
 			<div>
 				<!-- on dashboard show logo -->
 				<v-img
-					src="src/assets/images/logo.png"
+					src="/src/assets/images/logo.png"
 					style="display: block; margin: auto; max-width: 150px"
 				/>
 			</div>
@@ -125,7 +125,7 @@ export default {
           })
           .catch((error) => {
             console.log(error)
-            this.loginError = error.response.data.detail
+            this.loginError = "Das war leider das falsche Passwort. Bitte versuche es erneut."
             this.loadingLogin = false
           })
       }

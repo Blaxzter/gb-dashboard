@@ -6,10 +6,10 @@
 
   <v-row>
     <v-col cols="12" sm="6" md="3">
-      <v-card title="Songs" height="120px">
+      <v-card title="Lieder" height="120px">
         <v-card-text class="text-center pt-4">
             <span class="text-h5">
-              # {{songs.length}}
+              # {{ songs.length }}
             </span>
         </v-card-text>
       </v-card>
@@ -18,7 +18,7 @@
       <v-card title="Texte" height="120px">
         <v-card-text class="text-center pt-4">
             <span class="text-h5">
-              # {{texts.length}}
+              # {{ texts.length }}
             </span>
         </v-card-text>
       </v-card>
@@ -27,7 +27,7 @@
       <v-card title="Melodien" height="120px">
         <v-card-text class="text-center pt-4">
             <span class="text-h5">
-              # {{melodies.length}}
+              # {{ melodies.length }}
             </span>
         </v-card-text>
       </v-card>
@@ -36,7 +36,7 @@
       <v-card title="Arbeitsaufträge" height="120px">
         <v-card-text class="text-center pt-4">
             <span class="text-h5">
-              # {{auftraege.length}}
+              # {{ auftraege.length }}
             </span>
         </v-card-text>
       </v-card>
@@ -47,7 +47,7 @@
     <v-col cols="12" lg="7">
       <v-card class="pa-3">
         <div class="text-h5">
-          Lieder
+          Lieder nach Kategorien
         </div>
         <div class="mt-3">
           <Doughnut :data="song_chart_data" :options="categorie_options" ref="categorie_chart"/>
@@ -65,6 +65,18 @@
       </v-card>
     </v-col>
   </v-row>
+
+  <div class="text-h4 mt-10 d-flex align-center">
+    <v-icon class="me-5">mdi-video</v-icon>
+    Tutorial Video
+  </div>
+
+  <div style="padding:56.25% 0 0 0;position:relative;" class="ma-sd-0 ma-md-10">
+    <iframe
+      src="https://player.vimeo.com/video/825475103?h=97f1880690&title=0&byline=0&portrait=0&speed=0&badge=0&autopause=0&player_id=0&app_id=58479/embed"
+      allow="autoplay; fullscreen; picture-in-picture" allowfullscreen frameborder="0"
+      style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>
+  </div>
 </template>
 
 <script>
@@ -225,7 +237,7 @@ export default {
       return _.uniq(_.map(this.auftraege, 'arbeitskreis_name'))
     },
     work_orders_data_list() {
-      let work_order_data = _.countBy(this.work_orders,  'arbeitskreis_name');
+      let work_order_data = _.countBy(this.work_orders, 'arbeitskreis_name');
       return _.filter(_.map(this.work_order_label, elem => work_order_data[elem]), elem => elem !== 0)
     }
   },
@@ -233,7 +245,10 @@ export default {
     handle_click_events(event, legendItem) {
       if (legendItem && legendItem.length) {
         let element_index = legendItem[0].index;
-        this.$router.push({name: 'Gesangbuchlieder', query: {filter_kategorie: this.song_category_label[element_index]}})
+        this.$router.push({
+          name: 'Gesangbuchlieder',
+          query: {filter_kategorie: this.song_category_label[element_index]}
+        })
       }
     }
   }
