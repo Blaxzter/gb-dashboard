@@ -85,11 +85,7 @@
         <div>
           {{ author.vorname }} {{ author.nachname }}
           {{
-            author.geburtsjahr || author.sterbejahr
-              ? ` (${author.geburtsjahr ? author.geburtsjahr : ""} - ${
-                  author.sterbejahr ? author.sterbejahr : "?"
-                })`
-              : ""
+            (author.geburtsjahr || author.sterbejahr ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''} ${author.sterbejahr ? ' - ' + author.sterbejahr : ''})` : '')
           }}
         </div>
       </div>
