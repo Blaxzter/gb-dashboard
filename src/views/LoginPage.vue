@@ -70,7 +70,7 @@ export default {
 	name: 'LoginPage',
   mounted() {
     if (this.user_store.user) {
-      router.push({ name: 'dashboard' })
+      router.push('dashboard')
     }
   },
   data: () => ({

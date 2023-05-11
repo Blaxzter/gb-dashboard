@@ -31,7 +31,7 @@
             <div class="d-flex align-center mb-4">
               <!-- Select vuetify element if admin is true that has status as values -->
               <v-select
-                v-if="admin"
+                v-if="admin && admin_ansicht"
                 v-model="selected_status"
                 :items="status_list"
                 label="Filter Status nach"
@@ -158,8 +158,9 @@
 </template>
 <script>
 import {useAppStore} from "@/store/app";
-import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComponent.vue";
+import {useUserStore} from "@/store/user";
 
+import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComponent.vue";
 import _ from "lodash"
 import {gesangbuch_kategorie_name_to_icon, rang_to_color, status_mapping} from "@/assets/js/utils";
 
@@ -167,44 +168,44 @@ export default {
   name: "SongOverview",
   components: {GesangbuchLiedComponent},
   mounted() {
-    // if route contains ?ansicht=kleiner_kreis then set admin to true
-    this.admin = this.$route.query.ansicht === "kleiner_kreis";
 
     if (this.$route.query.filter_kategorie) {
       this.kategorie = [{name: this.$route.query.filter_kategorie}];
       this.filter_expanded = ['filter_expanded'];
-    }
-
-    if (this.admin) {
-      // Berwertung kleiner kreis
-      this.headers.push({
-        title: "Bewertung",
-        align: "center",
-        key: "bewertung_kleiner_kreis",
-        sort: (a, b) => a?.rangfolge - b?.rangfolge
-      });
     }
   },
   data: () => ({
     selected_status: null,
     kategorie: null,
     filter_expanded: false,
-    admin: false,
     search: null,
     song_dialog: false,
     selected_song: null,
     filter: [],
     store: useAppStore(),
-    headers: [
-      {title: "Titel", align: "start", key: "gesangbuch_titel"},
-      {title: "Text Titel", align: "start", key: "text_titel"},
-      {title: "Text Auftrag", align: "center", key: "text_work_order"},
-      {title: "Melodie Titel", align: "start", key: "melodie_titel"},
-      {title: "Melodie Auftrag", align: "center", key: "melodie_work_order"},
-      {title: "Strophe", align: "start", key: "text.strophen_connected_short"},
-    ],
+    userStore: useUserStore(),
   }),
   computed: {
+    headers() {
+      let headers = [
+        {title: "Titel", align: "start", key: "gesangbuch_titel"},
+        {title: "Text Titel", align: "start", key: "text_titel"},
+        {title: "Text Auftrag", align: "center", key: "text_work_order"},
+        {title: "Melodie Titel", align: "start", key: "melodie_titel"},
+        {title: "Melodie Auftrag", align: "center", key: "melodie_work_order"},
+        {title: "Strophe", align: "start", key: "text.strophen_connected_short"},
+      ]
+      if (this.admin && this.admin_ansicht) {
+        // Berwertung kleiner kreis
+        headers.push({
+          title: "Bewertung",
+          align: "center",
+          key: "bewertung_kleiner_kreis",
+          sort: (a, b) => a?.rangfolge - b?.rangfolge
+        });
+      }
+      return headers
+    },
     rang_to_color() {
       return rang_to_color
     },
@@ -252,6 +253,12 @@ export default {
     filter_by_suggestions() {
       return this.filter.includes('suggestions')
     },
+    admin() {
+      return this.userStore.is_kleiner_kreis
+    },
+    admin_ansicht() {
+      return this.userStore.is_kleiner_kreis_ansicht
+    }
   },
   methods: {
     rowClick(item, value) {
