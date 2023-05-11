@@ -50,7 +50,9 @@
           Lieder nach Kategorien
         </div>
         <div class="mt-3">
-          <Doughnut :data="song_chart_data" :options="categorie_options" ref="categorie_chart"/>
+          <div style="height: 400px">
+            <Doughnut :data="song_chart_data" :options="categorie_options" ref="categorie_chart" />
+          </div>
         </div>
       </v-card>
     </v-col>
@@ -60,20 +62,29 @@
           Arbeitsaufträge der Arbeitskreise
         </div>
         <div class="mt-3">
-          <Doughnut :data="work_chart_data" :options="chart_options"/>
+          <div style="height: 400px">
+            <Doughnut :data="work_chart_data" :options="chart_options"/>
+          </div>
         </div>
       </v-card>
     </v-col>
   </v-row>
 
-  <div class="text-h4 mt-10 d-flex align-center">
+  <div class="text-h4 mt-10 mb-5 d-flex align-center">
     <v-icon class="me-5">mdi-video</v-icon>
     Tutorial Video
   </div>
 
-  <div style="padding:56.25% 0 0 0;position:relative;" class="ma-sd-0 ma-md-10">
+  <div style="padding:56.25% 0 0 0;position:relative;" class="mb-5">
     <iframe
       src="https://player.vimeo.com/video/825475103?h=97f1880690&title=0&byline=0&portrait=0&speed=0&badge=0&autopause=0&player_id=0&app_id=58479/embed"
+      allow="autoplay; fullscreen; picture-in-picture" allowfullscreen frameborder="0"
+      style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>
+  </div>
+
+  <div style="padding:56.25% 0 0 0;position:relative;" >
+    <iframe
+      src="https://player.vimeo.com/video/825783809?h=d917ebb9bc&badge=0&autopause=0&player_id=0&app_id=58479/embed"
       allow="autoplay; fullscreen; picture-in-picture" allowfullscreen frameborder="0"
       style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>
   </div>
