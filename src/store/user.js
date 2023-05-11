@@ -8,16 +8,31 @@ import {useAppStore} from "@/store/app";
 const useUserStore = defineStore('user', {
 	state: () => ({
 		user: null,
+    kleiner_kreis: false,
+    kleiner_kreis_ansicht: false,
 	}),
 	getters: {
 		get_user: (state) => state.user,
 		is_logged_in: (state) => state.user !== null,
+    is_kleiner_kreis: (state) => state.kleiner_kreis,
+    is_kleiner_kreis_ansicht: (state) => state.kleiner_kreis_ansicht,
 	},
 	actions: {
+    toggle_kleiner_kreis_ansicht() {
+      this.kleiner_kreis_ansicht = !this.kleiner_kreis_ansicht
+      localStorage.setItem('kleiner_kreis_ansicht', this.kleiner_kreis_ansicht ? "true" : "false")
+    },
+
 		login(authData) {
       const appstore = useAppStore()
 
-      const username = authData.username === '***REMOVED***' ? '***REMOVED***' : authData.username
+      // check if authData.username is ***REMOVED*** or ***REMOVED*** and set username accordingly
+      let username = authData.username
+      if (authData.username === '***REMOVED***') {
+        username = '***REMOVED***'
+      } else if (authData.username === '***REMOVED***') {
+        username = '***REMOVED***'
+      }
 
 			return axios({
 				method: 'post',
@@ -28,6 +43,12 @@ const useUserStore = defineStore('user', {
         },
 			})
 				.then((response) => {
+          if (username === '***REMOVED***' || username === '***REMOVED***') {
+            this.kleiner_kreis = true
+            localStorage.setItem('kleiner_kreis', "true")
+            this.kleiner_kreis_ansicht = localStorage.getItem('kleiner_kreis_ansicht') === 'true'
+          }
+
 					this.set_user_data(authData, response.data.data)
           appstore.loadData()
 				})
@@ -40,6 +61,7 @@ const useUserStore = defineStore('user', {
 			localStorage.removeItem('username')
 			localStorage.removeItem('access_token')
 			localStorage.removeItem('refresh_token')
+      localStorage.removeItem('kleiner_kreis')
 
 			router.replace('/login')
 		},
@@ -52,6 +74,9 @@ const useUserStore = defineStore('user', {
       if (!token || !username || token === 'null' || token == null) {
         return
       }
+
+      this.kleiner_kreis_ansicht = localStorage.getItem('kleiner_kreis_ansicht') === 'true'
+      this.kleiner_kreis = localStorage.getItem('kleiner_kreis') === 'true'
 
       //  check if token is expired
       this.refreshToken()
