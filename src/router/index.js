@@ -69,7 +69,6 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const user_store = useUserStore()
-  user_store.autoLogin()
   if (to.matched.some((record) => record.meta.requiresAuth)) {
     if (user_store.is_logged_in) {
       next()
