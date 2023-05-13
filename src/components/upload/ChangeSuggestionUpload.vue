@@ -110,7 +110,7 @@ export default {
   methods: {
     async send_data() {
 
-      this.userStore.refreshToken()
+      await this.userStore.refreshToken()
 
       let create_new_text = false;
       if (this.selected_song.text) {
