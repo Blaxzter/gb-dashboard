@@ -379,7 +379,7 @@ export default {
     },
     async send_data() {
 
-      this.userStore.refreshToken()
+      await this.userStore.refreshToken()
 
       // VALIDATE TEXT AUTHORS
       console.log("VALIDATE TEXT AUTHORS");
