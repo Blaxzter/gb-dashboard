@@ -65,7 +65,7 @@ const useUserStore = defineStore('user', {
 
 			router.replace('/login')
 		},
-    autoLogin() {
+    async autoLogin() {
       const appstore = useAppStore()
       let token = localStorage.getItem('access_token')
       let username = localStorage.getItem('username')
@@ -79,7 +79,7 @@ const useUserStore = defineStore('user', {
       this.kleiner_kreis = localStorage.getItem('kleiner_kreis') === 'true'
 
       //  check if token is expired
-      this.refreshToken()
+      await this.refreshToken()
 
       this.user = {
         username: username,
@@ -88,9 +88,10 @@ const useUserStore = defineStore('user', {
       }
       appstore.loadData()
     },
-    refreshToken() {
+    async refreshToken() {
+      console.log('refreshing token')
       let refresh_token = localStorage.getItem('refresh_token')
-      axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {refresh_token: refresh_token}, {no_auth: true})
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {refresh_token: refresh_token}, {no_auth: true})
         .then(response => {
           localStorage.setItem('access_token', response.data.data.access_token)
           localStorage.setItem('refresh_token', response.data.data.refresh_token)
