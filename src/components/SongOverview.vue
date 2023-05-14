@@ -35,9 +35,20 @@
                 v-model="selected_status"
                 :items="status_list"
                 label="Filter Status nach"
+                class="w-100 me-5"
                 hide-details
                 clearable
                 single-line/>
+
+              <v-checkbox
+                v-if="admin && admin_ansicht"
+                v-model="selected_aenderung"
+                label="Hat Änderungen"
+                style="min-width: 158px"
+                hide-details
+                single-line>
+              </v-checkbox>
+
             </div>
             <div class="d-flex align-center">
               <v-autocomplete
@@ -181,6 +192,7 @@ export default {
     search: null,
     song_dialog: false,
     selected_song: null,
+    selected_aenderung: false,
     filter: [],
     store: useAppStore(),
     userStore: useUserStore(),
@@ -218,8 +230,17 @@ export default {
     },
     filtered_gesangbuchlieder() {
 
+      console.log(this.gesangbuchlieder)
+
       let filtered_gesangbuchlied = _.filter(this.gesangbuchlieder, (elem) =>
         this.selected_status == null || (this.selected_status && status_mapping[elem["status"]] === this.selected_status));
+
+      // filter by selected_aenderung
+      if (this.selected_aenderung) {
+        filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
+          elem.liedHatAenderung
+        ))
+      }
 
       filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => (
         !this.filter_by_suggestions ||
