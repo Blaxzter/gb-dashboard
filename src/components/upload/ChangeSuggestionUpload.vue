@@ -187,7 +187,9 @@ export default {
       }
 
       // UPDATE AUTHOR WITH TEXT AND MELODIE
-      let update_gesangbuchlied = {}
+      let update_gesangbuchlied = {
+        liedHatAenderung: true
+      }
       // text und melodie
       if (created_text_id) {
         update_gesangbuchlied['textId'] = created_text_id

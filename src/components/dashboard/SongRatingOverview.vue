@@ -40,7 +40,7 @@ export default {
       return this.store.gesangbuchlied;
     },
     rated_song_bezeichner() {
-      return _.map(this.songs, elem => elem.bewertung_kleiner_kreis.bezeichner === '' ? 'nicht bewertet' : elem.bewertung_kleiner_kreis.bezeichner)
+      return _.map(this.songs, elem => elem.bewertung_kleiner_kreis.bezeichner === '' ? 'unbewertet' : elem.bewertung_kleiner_kreis.bezeichner)
     },
     rated_song_data_list() {
       return _.countBy(this.rated_song_bezeichner)
