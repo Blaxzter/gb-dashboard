@@ -46,10 +46,11 @@ export default {
       return _.countBy(this.rated_song_bezeichner)
     },
     song_rating_data() {
-      let labels = ["Bewertet", "Unbewertet"]
-      const vibrantPastelPalette = ['#1eb995', '#ff3341'];
+      console.log(this.rated_song_data_list)
+      const labels = _.map(this.rated_song_data_list, (value, key) => key === 'false' ? 'bewertet' : 'unbewertet')
+      const rated_songs = _.map(this.rated_song_data_list, (value, key) => this.rated_song_data_list[key])
 
-      const rated_songs = [this.rated_song_data_list[true], this.rated_song_data_list[false]]
+      const vibrantPastelPalette = ['#1eb995', '#ff3341'];
 
       return {
         labels: labels,

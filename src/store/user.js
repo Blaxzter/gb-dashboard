@@ -10,6 +10,7 @@ const useUserStore = defineStore('user', {
 		user: null,
     kleiner_kreis: false,
     kleiner_kreis_ansicht: false,
+    session_expired: false,
 	}),
 	getters: {
 		get_user: (state) => state.user,
@@ -23,7 +24,7 @@ const useUserStore = defineStore('user', {
       localStorage.setItem('kleiner_kreis_ansicht', this.kleiner_kreis_ansicht ? "true" : "false")
     },
 
-		login(authData) {
+		login(authData, remember_me) {
       const appstore = useAppStore()
 
       // check if authData.username is AK-Gesangbuch or Kleiner-AK and set username accordingly
@@ -49,7 +50,8 @@ const useUserStore = defineStore('user', {
             this.kleiner_kreis_ansicht = localStorage.getItem('kleiner_kreis_ansicht') === 'true'
           }
 
-					this.set_user_data(authData, response.data.data)
+          this.set_user_data(authData, response.data.data, remember_me)
+          this.session_expired = false
           appstore.loadData()
 				})
 				.catch((error) => {
@@ -89,24 +91,28 @@ const useUserStore = defineStore('user', {
       appstore.loadData()
     },
     async refreshToken() {
-      console.log('refreshing token')
       let refresh_token = localStorage.getItem('refresh_token')
-      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {refresh_token: refresh_token}, {no_auth: true})
-        .then(response => {
-          localStorage.setItem('access_token', response.data.data.access_token)
-          localStorage.setItem('refresh_token', response.data.data.refresh_token)
-        })
+      if (refresh_token && refresh_token !== 'null' && refresh_token !== null) {
+        console.log('refreshing token')
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {refresh_token: refresh_token}, {no_auth: true})
+          .then(response => {
+            localStorage.setItem('access_token', response.data.data.access_token)
+            localStorage.setItem('refresh_token', response.data.data.refresh_token)
+          })
+      }
     },
-		set_user_data(authData, response_data) {
+		set_user_data(authData, response_data, remember_me) {
 			this.user = {
 				username: authData.username,
         access_token: response_data.access_token,
 				refresh_token: response_data.refresh_token,
 			}
 
-			localStorage.setItem('username', authData.username)
-			localStorage.setItem('access_token', response_data.access_token)
-			localStorage.setItem('refresh_token', response_data.refresh_token)
+      if (remember_me) {
+        localStorage.setItem('refresh_token', response_data.refresh_token)
+      }
+      localStorage.setItem('username', authData.username)
+      localStorage.setItem('access_token', response_data.access_token)
 		}
 	}
 })

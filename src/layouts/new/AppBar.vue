@@ -12,13 +12,22 @@
       <v-spacer></v-spacer>
 
       <!-- add tooltip  -->
-      <v-tooltip text="Aktiviere die Ansicht für den kleinen Kreis" location="bottom" v-if="is_kleiner_kreis">
+      <v-tooltip text="Aktiviere die Ansicht für den kleinen Kreis" location="bottom" v-if="is_kleiner_kreis && $vuetify.display.lgAndUp">
         <template v-slot:activator="{ props }">
-          <v-btn prepend-icon="mdi-record-circle-outline" class="me-4"
-                 variant="tonal"
+          <v-btn prepend-icon="mdi-record-circle-outline"
+                 density="comfortable" class="me-4" variant="tonal"
                  :color="is_kleiner_kreis_ansicht ? 'primary' : null" v-bind="props"
                  @click="toggle_kleiner_kreis_ansicht">
             Kleiner Kreis
+          </v-btn>
+        </template>
+      </v-tooltip>
+
+      <v-tooltip text="Aktiviere die Ansicht für den kleinen Kreis" location="bottom" v-if="is_kleiner_kreis && !$vuetify.display.lgAndUp">
+        <template v-slot:activator="{ props }">
+          <v-btn icon="mdi-record-circle-outline"
+                 :color="is_kleiner_kreis_ansicht ? 'primary' : null" v-bind="props"
+                 @click="toggle_kleiner_kreis_ansicht">
           </v-btn>
         </template>
       </v-tooltip>
