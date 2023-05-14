@@ -17,18 +17,21 @@
 			</div>
 
       <v-container fluid>
-        <v-form ref="form" v-model="valid" lazy-validation>
+        <v-form ref="form" v-model="valid" lazy-validation class="d-flex flex-column align-center">
           <v-text-field
+            style="max-width: 300px"
             v-model="email"
             @keydown.enter.prevent="submit"
             :rules="[rules.required]"
             label="Benutzernamen"
             required
-            class="mb-3"
+            class="mb-3 w-100"
             variant="outlined"
           ></v-text-field>
 
           <v-text-field
+            style="max-width: 300px"
+            class="w-100"
             v-model="password"
             @keydown.enter.prevent="submit"
             :rules="[rules.required]"
@@ -36,9 +39,15 @@
             :type="show_password ? 'text' : 'password'"
             @click:append="show_password = !show_password"
             label="Passwort"
-            class="mb-3"
             variant="outlined"
           ></v-text-field>
+
+          <div class="w-100" style="max-width: 300px">
+            <v-checkbox
+              v-model="remember_me"
+              label="Eingeloggt bleiben"
+              class="mb-3"></v-checkbox>
+          </div>
 
           <v-alert v-if="loginError" type="error" dismissible transition="scale-transition">
             {{ loginError }}
@@ -69,6 +78,9 @@ import router from '@/router'
 export default {
 	name: 'LoginPage',
   mounted() {
+    if (this.user_store.session_expired) {
+      this.loginError = "Deine Sitzung ist abgelaufen. Bitte logge dich erneut ein."
+    }
     if (this.user_store.user) {
       router.push('dashboard')
     }
@@ -81,6 +93,7 @@ export default {
     valid: false,
     loadingLogin: false,
     show_password: false,
+    remember_me: false,
 		rules: {
 			required: (value) => !!value || 'Bitte ausfüllen',
 			name_rules: [
@@ -107,7 +120,7 @@ export default {
   computed: {
     validate_login() {
       return this.password !== '' && this.email !== ''
-    }
+    },
   },
 	methods: {
     async submit() {
@@ -118,7 +131,7 @@ export default {
           .login({
             username: this.email,
             password: this.password
-          })
+          }, this.remember_me)
           .then(() => {
             router.push('/')
             this.loadingLogin = false
@@ -155,6 +168,13 @@ export default {
 		border-radius: 10px;
 		max-width: 400px;
 		min-width: 400px;
+
+    @media (max-width: 960px) {
+      min-width: 100%;
+      min-height: 100%;
+      border-radius: 0;
+      padding: 2rem 0.5rem;
+    }
 	}
 }
 </style>
