@@ -26,7 +26,10 @@
         </v-row>
 
         <v-row v-if="melodie_authors && upload_page">
-          <v-col cols="12" class="text-grey text-subtitle-1 pt-3 pb-1 d-flex align-center">
+          <v-col
+            cols="12"
+            class="text-grey text-subtitle-1 pt-3 pb-1 d-flex align-center"
+          >
             <div class="mx-4">
               <v-switch
                 v-model="use_same_author_for_text"
@@ -35,9 +38,7 @@
                 class="mb-0"
               ></v-switch>
             </div>
-            <div>
-              Gleichen Autor wie bei Text verwenden
-            </div>
+            <div>Gleichen Autor wie bei Text verwenden</div>
           </v-col>
         </v-row>
 
@@ -56,14 +57,24 @@
               class="text-h6 d-flex justify-space-between align-center pt-3 pb-0"
             >
               <div class="d-flex">
-                <v-tooltip text="Autor existiert bereits" location="bottom" v-if="author.exists">
+                <v-tooltip
+                  text="Autor existiert bereits"
+                  location="bottom"
+                  v-if="author.exists"
+                >
                   <template v-slot:activator="{ props }">
-                    <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning" size="tiny"/>
+                    <v-icon
+                      icon="mdi-alert"
+                      v-bind="props"
+                      class="px-5"
+                      color="warning"
+                      size="tiny"
+                    />
                   </template>
                 </v-tooltip>
                 <span class="text-grey-darken-1 text-subtitle-2">
-                Autor {{ index + 1 }}
-              </span>
+                  Autor {{ index + 1 }}
+                </span>
               </div>
               <v-btn
                 color="error"
@@ -140,7 +151,7 @@
 import VuetifyDatepicker from "@/components/upload/NewSongComponents/VuetifyDatepicker.vue";
 import { useAppStore } from "@/store/app";
 
-import _ from "lodash"
+import _ from "lodash";
 
 export default {
   name: "AuthorenFom",
@@ -148,7 +159,7 @@ export default {
   data: () => ({
     store: useAppStore(),
     selected_author_model: [],
-    use_same_author_for_text: false
+    use_same_author_for_text: false,
   }),
   props: {
     selected_author: Array,
@@ -169,23 +180,26 @@ export default {
       },
     },
     melodie_authors() {
-      return this.label.includes('Melodie')
+      return this.label.includes("Melodie");
     },
     store_authors() {
       return this.store.authors;
     },
     sorted_store_authors() {
-      return _.sortBy(this.store_authors, 'vorname')
-    }
+      return _.sortBy(this.store_authors, "vorname");
+    },
   },
 
   watch: {
     selected_author_model() {
-      this.$emit("update:selected_author", this.selected_author_model)
+      this.$emit("update:selected_author", this.selected_author_model);
     },
     use_same_author_for_text() {
-      this.$emit("update:use_same_author_for_text", this.use_same_author_for_text)
-    }
+      this.$emit(
+        "update:use_same_author_for_text",
+        this.use_same_author_for_text,
+      );
+    },
   },
 
   methods: {
@@ -198,8 +212,10 @@ export default {
       });
     },
     check_author(index) {
-      const author = this.author_model[index]
-      const author_obj = this.store_authors.find(a => a.vorname === author.firstName && a.nachname === author.lastName)
+      const author = this.author_model[index];
+      const author_obj = this.store_authors.find(
+        (a) => a.vorname === author.firstName && a.nachname === author.lastName,
+      );
       this.author_model[index].exists = !!author_obj;
     },
     removeAuthor(author_index) {

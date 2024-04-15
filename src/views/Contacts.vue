@@ -1,5 +1,5 @@
 <template>
-  <WorkOrders/>
+  <WorkOrders />
 </template>
 
 <script setup>

@@ -1,14 +1,7 @@
 <template>
-  <v-menu
-    transition="scale-transition"
-  >
+  <v-menu transition="scale-transition">
     <template v-slot:activator="{ props }">
-      <v-btn
-        color="primary"
-        v-bind="props"
-        icon="mdi-menu"
-      >
-      </v-btn>
+      <v-btn color="primary" v-bind="props" icon="mdi-menu"> </v-btn>
     </template>
 
     <MenuList />
@@ -20,10 +13,8 @@ import MenuList from "@/components/util/MenuList.vue";
 
 export default {
   name: "MenuComponent",
-  components: {MenuList}
-}
+  components: { MenuList },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

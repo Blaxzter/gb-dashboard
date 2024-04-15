@@ -1,22 +1,39 @@
 <template>
-  <v-container class="my-0 py-0">
+  <v-container class="mb-1">
     <v-responsive class="d-flex">
-      <v-footer
-        class="text-center d-flex flex-column"
-      >
-        <v-divider></v-divider>
+      <v-footer class="d-flex">
         <div>
-          &copy; {{ new Date().getFullYear() }} — <strong>Gesangbuch Dashboard</strong>
+          &copy; {{ new Date().getFullYear() }} —
+          <strong>Gesangbuch Dashboard</strong>
+        </div>
+        <div class="flex-grow-1"></div>
+        <div class="d-flex">
+          <div>Brauchst du Hilfe? Schreib uns eine E-Mail:</div>
+          <v-btn
+            icon
+            class="ml-3 mail-icon"
+            href="mailto:gb-it@ml.johannische-kirche.org"
+            target="_blank"
+            variant="text"
+            size="tiny"
+          >
+            <v-icon>mdi-email</v-icon>
+          </v-btn>
         </div>
       </v-footer>
     </v-responsive>
   </v-container>
 </template>
 
-<script setup>
-
-</script>
+<script setup></script>
 
 <style scoped>
-
+.mail-icon {
+  cursor: pointer;
+  &:hover {
+    transition: all 0.2s ease-in-out;
+    transform: scale(1.8);
+    color: #1867c0;
+  }
+}
 </style>

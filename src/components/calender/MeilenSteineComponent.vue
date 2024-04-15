@@ -53,8 +53,8 @@ export default {
       return !moment(start_date).isAfter(moment().add(30, "days"));
     },
     format_date(start_date) {
-      return moment(start_date).format('DD.MM.yyyy')
-    }
+      return moment(start_date).format("DD.MM.yyyy");
+    },
   },
 };
 </script>
