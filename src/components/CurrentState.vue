@@ -43,12 +43,12 @@
   <v-row>
     <v-col cols="12" lg="7">
       <v-card class="pa-3">
-        <SongCategories :chart_options="chart_options" />
+        <SongCategories :chart-options="chart_options" />
       </v-card>
     </v-col>
     <v-col cols="12" lg="5">
       <v-card class="pa-3">
-        <WorkOrder :chart_options="chart_options" />
+        <WorkOrder :chart-options="chart_options" />
       </v-card>
     </v-col>
   </v-row>
@@ -56,17 +56,17 @@
   <v-row v-if="is_kleiner_kreis_ansicht && is_kleiner_kreis">
     <v-col cols="12" lg="6">
       <v-card class="pa-3">
-        <SongRatingStatus :chart_options="chart_options" />
+        <SongRatingStatus :chart-options="chart_options" />
       </v-card>
     </v-col>
     <v-col cols="12" lg="6">
       <v-card class="pa-3">
-        <SongRatingOverview :chart_options="chart_options" />
+        <SongRatingOverview :chart-options="chart_options" />
       </v-card>
     </v-col>
     <v-col cols="12" lg="12">
       <v-card class="pa-3">
-        <SongCategories :chart_options="chart_options" :filtered="true" />
+        <SongCategories :chart-options="chart_options" :filtered="true" />
       </v-card>
     </v-col>
   </v-row>

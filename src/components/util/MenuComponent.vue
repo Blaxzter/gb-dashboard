@@ -1,6 +1,6 @@
 <template>
   <v-menu transition="scale-transition">
-    <template v-slot:activator="{ props }">
+    <template #activator="{ props }">
       <v-btn color="primary" v-bind="props" icon="mdi-menu"> </v-btn>
     </template>
 

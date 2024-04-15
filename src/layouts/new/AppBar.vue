@@ -19,11 +19,11 @@
 
       <!-- add tooltip  -->
       <v-tooltip
+        v-if="is_kleiner_kreis && $vuetify.display.lgAndUp"
         text="Aktiviere die Ansicht für den kleinen Kreis"
         location="bottom"
-        v-if="is_kleiner_kreis && $vuetify.display.lgAndUp"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-btn
             prepend-icon="mdi-record-circle-outline"
             density="comfortable"
@@ -39,11 +39,11 @@
       </v-tooltip>
 
       <v-tooltip
+        v-if="is_kleiner_kreis && !$vuetify.display.lgAndUp"
         text="Aktiviere die Ansicht für den kleinen Kreis"
         location="bottom"
-        v-if="is_kleiner_kreis && !$vuetify.display.lgAndUp"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-btn
             icon="mdi-record-circle-outline"
             :color="is_kleiner_kreis_ansicht ? 'primary' : null"
@@ -66,12 +66,12 @@ import { useUserStore } from "@/store/user";
 
 export default {
   name: "AppBar",
-  data: () => ({
-    userStore: useUserStore(),
-  }),
   components: {
     MenuComponent,
   },
+  data: () => ({
+    userStore: useUserStore(),
+  }),
   computed: {
     is_kleiner_kreis_ansicht() {
       return this.userStore.is_kleiner_kreis_ansicht;

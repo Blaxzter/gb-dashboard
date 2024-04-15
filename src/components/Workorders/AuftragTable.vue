@@ -8,7 +8,7 @@
     locale="de"
     @click:row="rowClick"
   >
-    <template v-slot:top>
+    <template #top>
       <v-text-field
         v-model="search"
         single-line
@@ -38,6 +38,12 @@ import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
 export default {
   name: "AuftragTable",
   components: { MelodieDialog, TextDialog },
+  props: {
+    auftraege: {
+      type: Array,
+      required: true,
+    },
+  },
   data: () => ({
     store: useAppStore(),
     search: "",
@@ -52,9 +58,6 @@ export default {
       { title: "Anmerkung", align: "start", key: "anmerkung" },
     ],
   }),
-  props: {
-    auftraege: Array,
-  },
   methods: {
     rowClick(event, item) {
       this.auftrag = item.item.raw;

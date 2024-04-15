@@ -1,5 +1,5 @@
 <template>
-  <div class="text-h5 my-5" v-if="melodie">Lade neue Dateien hoch</div>
+  <div v-if="melodie" class="text-h5 my-5">Lade neue Dateien hoch</div>
   <div v-if="!melodie">
     <v-alert
       class="mb-5"
@@ -15,8 +15,8 @@
           :color="!show_new_melodie ? 'success' : 'error'"
           :prepend-icon="!show_new_text ? 'mdi-plus' : 'mdi-minus'"
           class="mt-5"
-          @click="show_new_melodie = !show_new_melodie"
           variant="tonal"
+          @click="show_new_melodie = !show_new_melodie"
         >
           {{
             !show_new_melodie
@@ -30,11 +30,11 @@
       <NewMelodieData
         ref="new_melodie_data"
         :in_melodie="new_melodie"
+        :song_title="selectedSong?.titel"
+        :upload_page="false"
         @update:melodie="new_melodie = $event"
         @update:existing_melodie="existing_melodie = $event"
         @update:selected_melodie="selected_melodie = $event"
-        :song_title="selected_song?.titel"
-        :upload_page="false"
       />
     </v-expand-transition>
   </div>
@@ -68,9 +68,17 @@ export default {
   name: "AddFiles",
   components: { NewMelodieData },
   props: {
-    melodie: Object,
-    selected_song: Object,
+    melodie: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+    selectedSong: {
+      type: Object,
+      required: true,
+    },
   },
+  emits: ["update:noten"],
   data: () => ({
     show_new_melodie: false,
     noten: [],

@@ -7,11 +7,11 @@
     style="min-height: 600px"
     :headers="headers"
     :items="filtered_gesangbuchlieder"
-    @click:row="rowClick"
     :search="search"
     locale="de"
+    @click:row="rowClick"
   >
-    <template v-slot:top>
+    <template #top>
       <div class="d-flex align-center">
         <v-text-field
           v-model="search"
@@ -66,9 +66,10 @@
             </div>
             <div class="d-flex align-center mb-4">
               <v-autocomplete
+                v-model="kategorie"
                 label="Zugehörige Kategorie"
                 class="me-3"
-                :items="this.store.kategorie"
+                :items="store.kategorie"
                 item-title="name"
                 item-value="id"
                 hide-details="auto"
@@ -76,9 +77,8 @@
                 multiple
                 chips
                 closable-chips
-                v-model="kategorie"
               >
-                <template v-slot:chip="{ props, item }">
+                <template #chip="{ props, item }">
                   <v-chip
                     v-bind="props"
                     :prepend-icon="get_icon(item)"
@@ -86,7 +86,7 @@
                   ></v-chip>
                 </template>
 
-                <template v-slot:item="{ props, item }">
+                <template #item="{ props, item }">
                   <v-list-item
                     v-bind="props"
                     :prepend-icon="get_icon(item)"
@@ -105,7 +105,7 @@
                   text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen."
                   location="bottom"
                 >
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-btn v-bind="props" value="suggestions">
                       <v-icon color="primary">mdi-text-box-edit</v-icon>
                     </v-btn>
@@ -115,7 +115,7 @@
                   text="Nur Gesangbuchlieder mit Anmerkung anzeigen."
                   location="bottom"
                 >
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-btn v-bind="props" value="remarks">
                       <v-icon color="primary">mdi-message</v-icon>
                     </v-btn>
@@ -126,18 +126,18 @@
             <!-- Drop down with multi select  -->
             <v-select
               :model-value="visible_selected_columns"
-              @update:modelValue="selected_columns = $event"
               chips
               label="Angezeigte Tabellenspalten"
               :items="possible_columns"
               multiple
+              @update:model-value="selected_columns = $event"
             ></v-select>
           </v-card-text>
         </v-card>
       </v-expand-transition>
     </template>
 
-    <template v-slot:[`item.gesangbuch_titel`]="{ value }">
+    <template #[`item.gesangbuch_titel`]="{ value }">
       <span v-if="value !== 'null'">
         {{ value }}
       </span>
@@ -146,46 +146,46 @@
         &lt;keine Angaben&gt;
       </span>
     </template>
-    <template v-slot:[`item.text_titel`]="{ item }">
+    <template #[`item.text_titel`]="{ item }">
       <v-tooltip
+        v-if="item.titel === item.text_titel"
         text="Wie Liedtitel"
         location="bottom"
-        v-if="item.titel === item.text_titel"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-icon icon="mdi-arrow-left" v-bind="props" />
         </template>
       </v-tooltip>
 
       <v-tooltip
+        v-else-if="undefined === item.text_titel"
         text="Keine Text oder Text-Titel"
         location="bottom"
-        v-else-if="undefined === item.text_titel"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-icon icon="mdi-alert-circle-outline" v-bind="props" color="grey" />
         </template>
       </v-tooltip>
 
       <span v-else>{{ item.text_titel }}</span>
     </template>
-    <template v-slot:[`item.melodie_titel`]="{ item }">
+    <template #[`item.melodie_titel`]="{ item }">
       <v-tooltip
+        v-if="item.titel === item.melodie_titel"
         text="Wie Liedtitel"
         location="bottom"
-        v-if="item.titel === item.melodie_titel"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-icon icon="mdi-arrow-left" v-bind="props" />
         </template>
       </v-tooltip>
 
       <v-tooltip
+        v-else-if="undefined === item.melodie_titel"
         text="Keine Melodie oder Melodie-Titel"
         location="bottom"
-        v-else-if="undefined === item.melodie_titel"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-icon icon="mdi-alert-circle-outline" v-bind="props" color="grey" />
         </template>
       </v-tooltip>
@@ -193,14 +193,14 @@
       <span v-else>{{ item.melodie_titel }}</span>
     </template>
 
-    <template v-slot:[`item.text_work_order`]="{ item }">
+    <template #[`item.text_work_order`]="{ item }">
       <v-tooltip
         :text="
           item.text_work_order ? 'Text Arbeitsauftrag' : 'Keinen Arbeitsauftrag'
         "
         location="bottom"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-icon
             v-if="item.text_work_order"
             :icon="
@@ -212,7 +212,7 @@
         </template>
       </v-tooltip>
     </template>
-    <template v-slot:[`item.melodie_work_order`]="{ item }">
+    <template #[`item.melodie_work_order`]="{ item }">
       <v-tooltip
         :text="
           item.melodie_work_order
@@ -221,7 +221,7 @@
         "
         location="bottom"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-icon
             v-if="item.melodie_work_order"
             :icon="item.melodie_work_order === 2 ? 'mdi-music' : 'mdi-check'"
@@ -231,12 +231,12 @@
         </template>
       </v-tooltip>
     </template>
-    <template v-slot:[`item.bewertung_kleiner_kreis`]="{ item }">
+    <template #[`item.bewertung_kleiner_kreis`]="{ item }">
       <v-tooltip
         :text="item.bewertungAnmerkung || 'Keine Anmerkung'"
         location="bottom"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <div
             :style="{
               color: rang_to_color[item.bewertung_kleiner_kreis?.rangfolge],
@@ -256,7 +256,7 @@
         :text="item.text?.bewertungAnmerkung || 'Keine Anmerkung'"
         location="bottom"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <div
             :style="{
               color:
@@ -277,7 +277,7 @@
         :text="item.melodie?.bewertungAnmerkung || 'Keine Anmerkung'"
         location="bottom"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <div
             :style="{
               color:
@@ -298,7 +298,7 @@
 
   <v-dialog v-model="song_dialog" width="700" @close="modalClose">
     <GesangbuchLiedComponent
-      :selected_song="selected_song"
+      :selected-song="selected_song"
       @close="song_dialog = false"
     />
   </v-dialog>
@@ -318,42 +318,6 @@ import {
 export default {
   name: "SongOverview",
   components: { GesangbuchLiedComponent },
-  mounted() {
-    if (this.$route.query.filter_kategorie) {
-      this.kategorie = [{ name: this.$route.query.filter_kategorie }];
-      this.filter_expanded = ["filter_expanded"];
-    }
-
-    // get selected columns from local storage
-    if (localStorage.getItem("selected_columns")) {
-      this.selected_columns = JSON.parse(
-        localStorage.getItem("selected_columns"),
-      );
-    } else {
-      // check for admin
-      if (this.admin && this.admin_ansicht) {
-        this.selected_columns.push("Bewertung");
-      }
-    }
-
-    if (this.$route.params.id) {
-      this.selected_song = _.find(this.gesangbuchlieder, {
-        id: parseInt(this.$route.params.id),
-      });
-      console.log(this.selected_song);
-      this.song_dialog = true;
-    }
-  },
-  watch: {
-    selected_columns(newValue) {
-      localStorage.setItem("selected_columns", JSON.stringify(newValue));
-    },
-    song_dialog: function (newValue) {
-      if (!newValue) {
-        this.$router.replace(`/gesangbuchlieder`);
-      }
-    },
-  },
   data: () => ({
     selected_columns: [
       "Titel",
@@ -561,6 +525,42 @@ export default {
     admin_ansicht() {
       return this.userStore.is_kleiner_kreis_ansicht;
     },
+  },
+  watch: {
+    selected_columns(newValue) {
+      localStorage.setItem("selected_columns", JSON.stringify(newValue));
+    },
+    song_dialog: function (newValue) {
+      if (!newValue) {
+        this.$router.replace(`/gesangbuchlieder`);
+      }
+    },
+  },
+  mounted() {
+    if (this.$route.query.filter_kategorie) {
+      this.kategorie = [{ name: this.$route.query.filter_kategorie }];
+      this.filter_expanded = ["filter_expanded"];
+    }
+
+    // get selected columns from local storage
+    if (localStorage.getItem("selected_columns")) {
+      this.selected_columns = JSON.parse(
+        localStorage.getItem("selected_columns"),
+      );
+    } else {
+      // check for admin
+      if (this.admin && this.admin_ansicht) {
+        this.selected_columns.push("Bewertung");
+      }
+    }
+
+    if (this.$route.params.id) {
+      this.selected_song = _.find(this.gesangbuchlieder, {
+        id: parseInt(this.$route.params.id),
+      });
+      console.log(this.selected_song);
+      this.song_dialog = true;
+    }
   },
   methods: {
     rowClick(item, value) {

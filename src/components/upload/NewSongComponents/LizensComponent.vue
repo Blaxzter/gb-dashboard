@@ -7,8 +7,8 @@
             <v-checkbox
               :checked="use_lizenz"
               hide-details="auto"
-              @change="$emit('update:use_lizenz', $event.target.checked)"
               label="Besitzt eine Lizens"
+              @change="$emit('update:use_lizenz', $event.target.checked)"
             ></v-checkbox>
           </v-col>
         </v-row>

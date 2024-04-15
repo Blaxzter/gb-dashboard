@@ -32,6 +32,7 @@
       <v-row class="my-0">
         <v-col cols="12" class="my-0">
           <v-autocomplete
+            v-model="selected_text"
             :disabled="!existing_text"
             label="Suche nach existierenden Texten"
             :items="sorted_store_text"
@@ -41,9 +42,8 @@
             hide-details="auto"
             class="py-0"
             return-object
-            v-model="selected_text"
           >
-            <template v-slot:item="{ props, item }">
+            <template #item="{ props, item }">
               <v-list-item
                 v-bind="props"
                 :title="
@@ -65,8 +65,8 @@
 
       <v-expansion-panels class="mt-0 mb-5" :disabled="existing_text">
         <v-expansion-panel
-          title="Neuer Text des Gesangbuchlieds"
           ref="text_expansion_panel"
+          title="Neuer Text des Gesangbuchlieds"
           :value="existing_text"
         >
           <v-expansion-panel-text>
@@ -84,12 +84,12 @@
 
             <TextStrophen :strophen="text.strophen" class="mb-3" />
             <AuthorenFom
-              :label="'Text Autoren'"
-              @update:selected_author="text.selected_authors = $event"
-              :selected_author="text.selected_authors"
               v-model:authors="text.authors"
+              :label="'Text Autoren'"
+              :selected-author="text.selected_authors"
               class="mb-3"
               :upload_page="upload_page"
+              @update:selected_author="text.selected_authors = $event"
             />
             <!--                <LizensComponent-->
             <!--                  :label="'Text Lizensen'"-->
@@ -115,6 +115,11 @@ import moment from "moment/moment";
 export default {
   name: "NewTextData",
   components: { TextData, TextStrophen, AuthorenFom },
+  props: {
+    song_title: String,
+    in_text: Object,
+    upload_page: Boolean,
+  },
   data: () => ({
     store: useAppStore(),
     text: {},
@@ -126,14 +131,13 @@ export default {
       text: null,
     },
   }),
-  props: {
-    song_title: String,
-    in_text: Object,
-    upload_page: Boolean,
-  },
-  mounted() {
-    this.text = this.in_text;
-    this.$emit("update:text", this.text);
+  computed: {
+    store_text() {
+      return this.store.texts;
+    },
+    sorted_store_text() {
+      return _.sortBy(this.store_text, "titel");
+    },
   },
   watch: {
     text: {
@@ -149,13 +153,9 @@ export default {
       this.$emit("update:selected_text", this.selected_text);
     },
   },
-  computed: {
-    store_text() {
-      return this.store.texts;
-    },
-    sorted_store_text() {
-      return _.sortBy(this.store_text, "titel");
-    },
+  mounted() {
+    this.text = this.in_text;
+    this.$emit("update:text", this.text);
   },
   methods: {
     validate() {

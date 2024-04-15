@@ -77,19 +77,19 @@ export default {
   <div class="text-h4 mb-6">Fehlende Zuordnungen</div>
   <div class="mb-2 d-flex align-center">
     <v-btn-toggle v-model="toggle" mandatory variant="tonal">
-      <v-btn @click="toggle = 0" color="primary">
+      <v-btn color="primary" @click="toggle = 0">
         <v-icon class="me-2">mdi-text-box</v-icon>
         Texte
       </v-btn>
-      <v-btn @click="toggle = 1" color="primary">
+      <v-btn color="primary" @click="toggle = 1">
         <v-icon class="me-2">mdi-music-note</v-icon>
         Melodien
       </v-btn>
-      <v-btn @click="toggle = 2" color="primary">
+      <v-btn color="primary" @click="toggle = 2">
         <v-icon class="me-2">mdi-file-document</v-icon>
         Dateien
       </v-btn>
-      <v-btn @click="toggle = 3" color="primary">
+      <v-btn color="primary" @click="toggle = 3">
         <v-icon class="me-2">mdi-account</v-icon>
         Autor
       </v-btn>
@@ -100,9 +100,9 @@ export default {
   </div>
   <v-list dense>
     <v-list-item
-      prepend-icon="mdi-square-medium"
       v-for="(entry, i) in selectedElements"
       :key="i"
+      prepend-icon="mdi-square-medium"
       :title="
         entry.titel ??
         entry.author_str ??
