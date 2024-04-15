@@ -22,7 +22,7 @@
         v-if="auftrag.text"
         @click="text_dialog = true"
         :class="`${arbeitskreis_name_to_css(
-          auftrag.arbeitskreis_name
+          auftrag.arbeitskreis_name,
         )}-bg-dark ${auftrag.melodie || auftrag.anmerkung ? 'mb-3' : ''}`"
         class="hover_card"
       >
@@ -46,7 +46,7 @@
 
       <v-card
         v-if="auftrag.melodie"
-        :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg-dark ${auftrag.anmerkung? 'mb-3' : ''}`"
+        :class="`${arbeitskreis_name_to_css(auftrag.arbeitskreis_name)}-bg-dark ${auftrag.anmerkung ? 'mb-3' : ''}`"
         class="mb-3"
         @click="melodie_dialog = true"
       >
@@ -73,7 +73,7 @@
       <v-card
         v-if="auftrag.anmerkung"
         :class="`${arbeitskreis_name_to_css(
-          auftrag.arbeitskreis_name
+          auftrag.arbeitskreis_name,
         )}-bg-dark`"
       >
         <template v-slot:title>
@@ -86,7 +86,7 @@
           </div>
         </template>
         <template v-slot:text>
-          <div>
+          <div class="white-space-pre">
             {{ auftrag.anmerkung }}
           </div>
         </template>

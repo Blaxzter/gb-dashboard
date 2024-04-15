@@ -3,7 +3,15 @@
     <div class="d-flex align-center mb-3">
       <v-tooltip text="Den Gesangbuchlied-Titel kopieren" location="bottom">
         <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-content-copy" size="tiny" variant="plain" class="me-5" v-bind="props" color="primary" @click="copy_song_title"/>
+          <v-btn
+            icon="mdi-content-copy"
+            size="tiny"
+            variant="plain"
+            class="me-5"
+            v-bind="props"
+            color="primary"
+            @click="copy_song_title"
+          />
         </template>
       </v-tooltip>
 
@@ -16,7 +24,12 @@
       <div v-if="title_already_exists">
         <v-tooltip text="Titel existiert bereits" location="bottom">
           <template v-slot:activator="{ props }">
-            <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning"/>
+            <v-icon
+              icon="mdi-alert"
+              v-bind="props"
+              class="px-5"
+              color="warning"
+            />
           </template>
         </v-tooltip>
       </div>
@@ -50,7 +63,7 @@
 
 <script>
 import _ from "lodash";
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
 
 export default {
   name: "TextData",
@@ -66,32 +79,32 @@ export default {
     title: "",
     quelle: "",
     quellelink: "",
-    anmerkung: ""
+    anmerkung: "",
   }),
   mounted() {
-    this.title = this.in_title
-    this.quelle = this.in_quelle
-    this.quellelink = this.in_quellelink
-    this.anmerkung = this.in_anmerkung
+    this.title = this.in_title;
+    this.quelle = this.in_quelle;
+    this.quellelink = this.in_quellelink;
+    this.anmerkung = this.in_anmerkung;
   },
   computed: {
     store_text() {
       return this.store.texts;
     },
     existing_text_title() {
-      return _.map(this.store_text, 'titel')
+      return _.map(this.store_text, "titel");
     },
     title_already_exists() {
-      console.log(this.title)
-      return this.existing_text_title.includes(this.title)
+      console.log(this.title);
+      return this.existing_text_title.includes(this.title);
     },
   },
   methods: {
-    copy_song_title(){
-      this.$emit('update:title', this.song_title);
+    copy_song_title() {
+      this.$emit("update:title", this.song_title);
       this.title = this.song_title;
-    }
-  }
+    },
+  },
 };
 </script>
 

@@ -50,7 +50,7 @@ export default {
   props: {
     lizenz: Object,
     use_lizenz: Boolean,
-    label: String
+    label: String,
   },
   computed: {
     lizenz_model: {

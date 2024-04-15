@@ -1,5 +1,5 @@
 <template>
-  <CalenderComponent/>
+  <CalenderComponent />
 </template>
 
 <script setup>

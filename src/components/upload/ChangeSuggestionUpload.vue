@@ -2,13 +2,13 @@
   <div class="text-h4 mb-5">Änderung Hochladen</div>
 
   <div class="text-body-1">
-    Wähle ein Gesangbuchlied aus, bei welchem du Textvorschläge oder neue Melodie Dateien hochladen möchtest.
+    Wähle ein Gesangbuchlied aus, bei welchem du Textvorschläge oder neue
+    Melodie Dateien hochladen möchtest.
   </div>
-
 
   <v-form ref="form">
     <v-container>
-      <div class="d-flex mb-5">
+      <div class="d-flex mb-5 justify-center align-center">
         <v-autocomplete
           :disabled="selected_song !== null"
           label="Suche nach existierenden Gesangbuchliedern"
@@ -25,75 +25,111 @@
           <template v-slot:item="{ props, item }">
             <v-list-item
               v-bind="props"
-              :title="item?.raw?.titel +  (item?.raw?.text?.strophenEinzeln ? ' - #' + item?.raw?.text?.strophenEinzeln?.length + ' Strophen' : '')"
+              :title="
+                item?.raw?.titel +
+                (item?.raw?.text?.strophenEinzeln
+                  ? ' - #' +
+                    item?.raw?.text?.strophenEinzeln?.length +
+                    ' Strophen'
+                  : '')
+              "
               :subtitle="item?.raw?.author_name"
             >
-              <span style="font-size: 0.8rem">{{ item?.raw?.text?.strophe_short }}</span>
+              <span style="font-size: 0.8rem">{{
+                item?.raw?.text?.strophe_short
+              }}</span>
             </v-list-item>
           </template>
         </v-autocomplete>
 
-        <v-tooltip text="Neues Lies auswählen." location="bottom" :disabled="!selected_song">
+        <v-tooltip
+          text="Neues Lies auswählen."
+          location="bottom"
+          :disabled="!selected_song"
+        >
           <template v-slot:activator="{ props }">
-            <v-btn icon="mdi-repeat" size="tiny" variant="text" class="ms-5" v-bind="props" color="primary"
-                   :disabled="!selected_song" @click="reset_form"/>
+            <v-btn
+              icon="mdi-repeat"
+              variant="tonal"
+              size="small"
+              v-bind="props"
+              color="primary"
+              class="ms-5"
+              :disabled="!selected_song"
+              @click="reset_form"
+            />
           </template>
         </v-tooltip>
       </div>
 
-
       <v-expand-transition>
-      <div v-if="selected_song !== null">
-        <AddFiles
-          ref="add_files"
-          :melodie="selected_song?.melodie"
-          @update:noten="noten = $event"
-          :selected_song="selected_song"
-        />
+        <div v-if="selected_song !== null">
+          <div v-if="selected_song.status === 'accepted'">
+            <v-alert
+              class="mb-5"
+              border="top"
+              border-color="success"
+              elevation="2"
+              icon="$success"
+              title="Hinweis"
+            >
+              Das ausgewählte Gesangbuchlied wurde bereits akzeptiert. <br />
+              Eine Aktualisierung der Noten oder des Textes ist deshalb nicht
+              mehr möglich.
+            </v-alert>
+          </div>
+          <div v-else>
+            <AddFiles
+              ref="add_files"
+              :melodie="selected_song?.melodie"
+              @update:noten="noten = $event"
+              :selected_song="selected_song"
+            />
 
-        <TextSuggestion
-          ref="text_suggestion"
-          :text="selected_song?.text"
-          :selected_song="selected_song"
-          @add_strophe="add_strophe"
-          @remove_strophe="remove_strophe($event)"
-        />
-      </div>
+            <TextSuggestion
+              ref="text_suggestion"
+              :text="selected_song?.text"
+              :selected_song="selected_song"
+              @add_strophe="add_strophe"
+              @remove_strophe="remove_strophe($event)"
+            />
+
+            <SongMetaData ref="song_data" :selected_song="selected_song" />
+
+            <v-btn
+              prepend-icon="mdi-send"
+              block
+              class="mt-5 py-5"
+              color="primary"
+              elevated
+              size="x-large"
+              @click="send_data"
+            >
+              Änderung Hochladen
+            </v-btn>
+          </div>
+        </div>
       </v-expand-transition>
-
-      <v-btn
-        v-if="selected_song !== null"
-        prepend-icon="mdi-send"
-        block
-        class="mt-5 py-5"
-        color="primary"
-        elevated
-        size="x-large"
-        @click="send_data"
-      >
-        Änderung Hochladen
-      </v-btn>
     </v-container>
   </v-form>
 
   <div class="text-h6" v-if="melodie_files.length">
-    Es wurden {{melodie_files.length}} Datein Hochgeladen.
+    Es wurden {{ melodie_files.length }} Datein Hochgeladen.
   </div>
 </template>
 
 <script>
-
-
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
 import axios from "@/assets/js/axiossConfig";
 import _ from "lodash";
 import TextSuggestion from "@/components/upload/ChangeSuggestion/TextSuggestion.vue";
 import AddFiles from "@/components/upload/ChangeSuggestion/AddFiles.vue";
-import {useUserStore} from "@/store/user";
+import { useUserStore } from "@/store/user";
+import SongMetaData from "@/components/upload/ChangeSuggestion/SongMetaData.vue";
 
 export default {
   name: "ChangeSuggestionUpload",
-  components: {AddFiles, TextSuggestion},
+  components: { SongMetaData, AddFiles, TextSuggestion },
   data: () => ({
     store: useAppStore(),
     userStore: useUserStore(),
@@ -104,13 +140,15 @@ export default {
   }),
   computed: {
     store_gesangbuchlieder() {
-      return _.sortBy(this.store.gesangbuchlieder, 'titel');
+      return _.sortBy(this.store.gesangbuchlieder, "titel");
+    },
+    top_100_songs() {
+      return _.take(this.store_gesangbuchlieder, 100);
     },
   },
   methods: {
     async send_data() {
-
-      await this.userStore.refreshToken()
+      console.log(this.$refs.song_data.text_anmerkung);
 
       let create_new_text = false;
       if (this.selected_song.text) {
@@ -121,14 +159,13 @@ export default {
           delete strophe.new_strophe;
         });
 
-        let update_text = {
-          strophenEinzeln: this.selected_song?.text?.strophenEinzeln
-        }
-
-        if (!_.every(update_text, (val) => val === null || val === undefined)) {
-          await axios
-            .patch(`${import.meta.env.VITE_BACKEND_URL}/items/text/${this.selected_song.text.id}`, update_text)
-        }
+        await axios.patch(
+          `${import.meta.env.VITE_BACKEND_URL}/items/text/${this.selected_song.text.id}`,
+          {
+            anmerkung: this.$refs.song_data.text_anmerkung,
+            strophenEinzeln: this.selected_song?.text?.strophenEinzeln,
+          },
+        );
       } else {
         if (this.$refs.text_suggestion.show_new_text) {
           // CREATE NEW TEXT
@@ -139,6 +176,14 @@ export default {
 
       let create_new_melodie = false;
       if (this.selected_song.melodie) {
+        // Update melodie anmerkung
+        await axios.patch(
+          `${import.meta.env.VITE_BACKEND_URL}/items/melodie/${this.selected_song.melodie.id}`,
+          {
+            anmerkung: this.$refs.song_data.melodie_anmerkung,
+          },
+        );
+
         // MELODIE TO FILE MELODIE MAPPING
         const created_files = await this.upload_file();
         let to_be_created_melodie_file_mapping = [];
@@ -153,15 +198,15 @@ export default {
         if (to_be_created_melodie_file_mapping.length !== 0) {
           console.log(
             "to_be_created_melodie_file_mapping",
-            to_be_created_melodie_file_mapping
+            to_be_created_melodie_file_mapping,
           );
           await axios
-            .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
+            .post(
+              `${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`,
+              to_be_created_melodie_file_mapping,
+            )
             .then((resp) => {
-              console.log(
-                "created melodie_files",
-                resp.data.data
-              );
+              console.log("created melodie_files", resp.data.data);
               this.melodie_files = resp.data.data;
             });
         }
@@ -187,24 +232,27 @@ export default {
       }
 
       // UPDATE AUTHOR WITH TEXT AND MELODIE
+      // Set the field lied hat aenderung to true in the gesangbuchlied
       let update_gesangbuchlied = {
-        liedHatAenderung: true
-      }
+        liedHatAenderung: true,
+      };
       // text und melodie
       if (created_text_id) {
-        update_gesangbuchlied['textId'] = created_text_id
+        update_gesangbuchlied["textId"] = created_text_id;
         this.selected_song.text = this.$refs.text_suggestion.text;
       }
       if (created_melodie_id) {
-        update_gesangbuchlied['melodieId'] = created_melodie_id
+        update_gesangbuchlied["melodieId"] = created_melodie_id;
         this.selected_song.melodie = this.$refs.add_files.melodie;
       }
 
-      console.log(update_gesangbuchlied)
+      console.log(update_gesangbuchlied);
       if (!_.every(update_gesangbuchlied, (val) => val === null)) {
         console.log("update_gesangbuchlied", update_gesangbuchlied);
-        await axios
-          .patch(`${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${this.selected_song.id}`, update_gesangbuchlied)
+        await axios.patch(
+          `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${this.selected_song.id}`,
+          update_gesangbuchlied,
+        );
       }
 
       this.noten = [];
@@ -215,12 +263,13 @@ export default {
         console.log("Upload file ", file);
         const formData = new FormData();
         formData.append("title", file.name);
-        formData.append('file', file);
+        formData.append("file", file);
 
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
+        await axios
+          .post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
           .then((resp) => {
-            this.created_files.push(resp.data.data)
-            this.selected_song.melodie.files.push(resp.data.data)
+            this.created_files.push(resp.data.data);
+            this.selected_song.melodie.files.push(resp.data.data);
           });
       }
       return this.created_files;
@@ -236,12 +285,14 @@ export default {
     song_selected() {
       if (this.selected_song.text) {
         if (!this.selected_song.text.strophenEinzeln) {
-          this.selected_song.text.strophenEinzeln = [{
-            strophe: "",
-            aenderungsvorschlag: "",
-            anmerkung: "",
-            new_strophe: true,
-          }];
+          this.selected_song.text.strophenEinzeln = [
+            {
+              strophe: "",
+              aenderungsvorschlag: "",
+              anmerkung: "",
+              new_strophe: true,
+            },
+          ];
         }
       }
     },
@@ -249,15 +300,15 @@ export default {
       this.selected_song?.text?.strophenEinzeln.splice(index, 1);
     },
     custom_filter(item, queryText, itemText) {
-      return itemText.value.autocomplete.toLowerCase().includes(queryText.toLowerCase())
+      return itemText.raw.autocomplete
+        .toLowerCase()
+        .includes(queryText.toLowerCase());
     },
     reset_form() {
       this.selected_song = null;
-    }
-  }
-}
+    },
+  },
+};
 </script>
 
-<style>
-
-</style>
+<style></style>

@@ -1,5 +1,5 @@
 <template>
-  <ChangeSuggestionUpload/>
+  <ChangeSuggestionUpload />
 </template>
 
 <script setup>

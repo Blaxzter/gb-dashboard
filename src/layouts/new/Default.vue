@@ -1,17 +1,14 @@
 <template>
   <v-app id="inspire">
-    <default-bar/>
+    <default-bar />
 
-    <default-view/>
+    <default-view />
   </v-app>
 </template>
 
 <script setup>
-import DefaultBar from './AppBar.vue'
-import DefaultView from './View.vue'
-
+import DefaultBar from "./AppBar.vue";
+import DefaultView from "./View.vue";
 </script>
 
-<style>
-
-</style>
+<style></style>
