@@ -9,132 +9,176 @@
 //   $color-pack: false
 // );
 
-html { overflow-y: auto }
+html {
+  overflow-y: auto;
+}
+
+.white-space-pre {
+  white-space: pre-line;
+}
 
 .text {
-  color: #5D3E92 !important;
-  background-color: #D5C5E3 !important;
+  color: #5d3e92 !important;
+  background-color: #d5c5e3 !important;
 }
 .text-bg {
-  background-color: #D5C5E3 !important;
+  background-color: #d5c5e3 !important;
 }
 .melodie {
-  color: #FFC107 !important;
-  background-color: #FFF9C4 !important;
+  color: #ffc107 !important;
+  background-color: #fff9c4 !important;
 }
 .melodie-bg {
-  background-color: #FFF9C4 !important;
+  background-color: #fff9c4 !important;
 }
 .jugend {
-  color: #4CAF50 !important;
-  background-color: #C8E6C9 !important;
+  color: #4caf50 !important;
+  background-color: #c8e6c9 !important;
 }
 .jugend-bg {
-  background-color: #C8E6C9 !important;
+  background-color: #c8e6c9 !important;
 }
 .kinder {
-  color: #EC407A !important;
-  background-color: #F8BBD0 !important;
+  color: #ec407a !important;
+  background-color: #f8bbd0 !important;
 }
 .kinder-bg {
-  background-color: #F8BBD0 !important;
+  background-color: #f8bbd0 !important;
 }
 .it {
-  color: #2196F3 !important;
-  background-color: #BBDEFB !important;
+  color: #2196f3 !important;
+  background-color: #bbdefb !important;
 }
 .it-bg {
-  background-color: #BBDEFB !important;
+  background-color: #bbdefb !important;
 }
 .kleiner-kreis {
-  color: #673AB7 !important;
-  background-color: #D1C4E9 !important;
+  color: #673ab7 !important;
+  background-color: #d1c4e9 !important;
 }
 .kleiner-kreis-bg {
-  background-color: #D1C4E9 !important;
+  background-color: #d1c4e9 !important;
 }
 .allgemein {
-  color: #9C27B0 !important;
-  background-color: #E1BEE7 !important;
+  color: #9c27b0 !important;
+  background-color: #e1bee7 !important;
 }
 .allgemein-bg {
-  background-color: #E1BEE7 !important;
+  background-color: #e1bee7 !important;
 }
 .grosser-ak-gesangbuch {
-  color: #F44336 !important;
-  background-color: #FFCDD2 !important;
+  color: #f44336 !important;
+  background-color: #ffcdd2 !important;
 }
 .grosser-ak-gesangbuch-bg {
-  background-color: #FFCDD2 !important;
+  background-color: #ffcdd2 !important;
 }
 .layout {
-  color: #607D8B !important;
-  background-color: #CFD8DC !important;
+  color: #607d8b !important;
+  background-color: #cfd8dc !important;
 }
 .layout-bg {
-  background-color: #CFD8DC !important;
+  background-color: #cfd8dc !important;
 }
 
 .text-dark {
-  color: #4D327C !important;
-  background-color: #C5B5DB !important;
+  color: #4d327c !important;
+  background-color: #c5b5db !important;
 }
 .text-bg-dark {
-  background-color: #C5B5DB !important;
+  background-color: #c5b5db !important;
 }
 .melodie-dark {
-  color: #E6A200 !important;
-  background-color: #FFED99 !important;
+  color: #e6a200 !important;
+  background-color: #ffed99 !important;
 }
 .melodie-bg-dark {
-  background-color: #FFED99 !important;
+  background-color: #ffed99 !important;
 }
 .jugend-dark {
   color: #449945 !important;
-  background-color: #B2D8B3 !important;
+  background-color: #b2d8b3 !important;
 }
 .jugend-bg-dark {
-  background-color: #B2D8B3 !important;
+  background-color: #b2d8b3 !important;
 }
 .kinder-dark {
-  color: #D9366E !important;
-  background-color: #F2AFC2 !important;
+  color: #d9366e !important;
+  background-color: #f2afc2 !important;
 }
 .kinder-bg-dark {
-  background-color: #F2AFC2 !important;
+  background-color: #f2afc2 !important;
 }
 .it-dark {
-  color: #1E88E5 !important;
-  background-color: #AACCFF !important;
+  color: #1e88e5 !important;
+  background-color: #aaccff !important;
 }
 .it-bg-dark {
-  background-color: #AACCFF !important;
+  background-color: #aaccff !important;
 }
 .kleiner-kreis-dark {
-  color: #5A2D8B !important;
-  background-color: #B8ADDA !important;
+  color: #5a2d8b !important;
+  background-color: #b8adda !important;
 }
 .kleiner-kreis-bg-dark {
-  background-color: #B8ADDA !important;
+  background-color: #b8adda !important;
 }
 .allgemein-dark {
-  color: #88279E !important;
-  background-color: #D6AEE4 !important;
+  color: #88279e !important;
+  background-color: #d6aee4 !important;
 }
 .allgemein-bg-dark {
-  background-color: #D6AEE4 !important;
+  background-color: #d6aee4 !important;
 }
 .grosser-ak-gesangbuch-dark {
-  color: #DB312C !important;
-  background-color: #FFB2B2 !important;
+  color: #db312c !important;
+  background-color: #ffb2b2 !important;
 }
 .grosser-ak-gesangbuch-bg-dark {
-  background-color: #FFB2B2 !important;
+  background-color: #ffb2b2 !important;
 }
 .layout-dark {
-  color: #546E7A !important;
-  background-color: #B7C5CD !important;
+  color: #546e7a !important;
+  background-color: #b7c5cd !important;
 }
 .layout-bg-dark {
-  background-color: #B7C5CD !important;
+  background-color: #b7c5cd !important;
+}
+
+::-webkit-scrollbar {
+  height: 1rem;
+  width: 0.5rem;
+}
+
+::-webkit-scrollbar:horizontal {
+  height: 0.5rem;
+  width: 1rem;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  --tw-border-opacity: 1;
+  background-color: hsla(0, 0%, 89%, 0.8);
+  border-color: rgba(255, 255, 255, var(--tw-border-opacity));
+  border-radius: 9999px;
+  border-width: 1px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgba(227, 227, 227, var(--tw-bg-opacity));
+}
+
+@media (min-width: 768px) {
+  .scrollbar-trigger ::-webkit-scrollbar-thumb {
+    visibility: hidden;
+  }
+
+  .scrollbar-trigger:hover ::-webkit-scrollbar-thumb {
+    visibility: visible;
+  }
 }

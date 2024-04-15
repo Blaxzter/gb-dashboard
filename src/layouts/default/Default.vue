@@ -1,18 +1,17 @@
 <template>
   <v-app id="inspire" class="app-root-style">
-    <default-bar/>
+    <default-bar />
 
-    <default-view/>
+    <default-view />
 
-    <footer-bar/>
+    <footer-bar />
   </v-app>
 </template>
 
 <script setup>
-import DefaultBar from './AppBar.vue'
-import DefaultView from './View.vue'
-import FooterBar from './FooterBar.vue'
-
+import DefaultBar from "./AppBar.vue";
+import DefaultView from "./View.vue";
+import FooterBar from "./FooterBar.vue";
 </script>
 
 <style>

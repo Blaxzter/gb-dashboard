@@ -1,14 +1,20 @@
 <template>
   <v-card class="mb-5" :elevation="$vuetify.display.xs ? 0 : 1">
-    <v-card-title class="text-grey text-subtitle-1" :class="{'px-0': $vuetify.display.xs}">
+    <v-card-title
+      class="text-grey text-subtitle-1"
+      :class="{ 'px-0': $vuetify.display.xs }"
+    >
       Melodie Daten
     </v-card-title>
-    <v-card-text :class="{'px-0': $vuetify.display.xs}">
+    <v-card-text :class="{ 'px-0': $vuetify.display.xs }">
       <v-row class="my-0">
-        <v-col cols="12" class="d-flex align-center py-0 flex-column flex-sm-row">
-              <span class="mr-4 mb-3 mb-sm-0">
-                Nach Melodie in Datenbank suchen oder neuen Anlegen:
-              </span>
+        <v-col
+          cols="12"
+          class="d-flex align-center py-0 flex-column flex-sm-row"
+        >
+          <span class="mr-4 mb-3 mb-sm-0">
+            Nach Melodie in Datenbank suchen oder neuen Anlegen:
+          </span>
           <v-switch
             v-model="existing_melodie"
             class="ps-5"
@@ -16,10 +22,10 @@
             density="compact"
             hide-details
             :label="
-                  existing_melodie
-                    ? 'Bestehenden Melodie verwenden'
-                    : 'Neue Melodie anlegen'
-                "
+              existing_melodie
+                ? 'Bestehenden Melodie verwenden'
+                : 'Neue Melodie anlegen'
+            "
           ></v-switch>
         </v-col>
       </v-row>
@@ -38,7 +44,6 @@
             return-object
             v-model="selected_melodie"
           >
-
             <template v-slot:item="{ props, item }">
               <v-list-item
                 v-bind="props"
@@ -73,7 +78,9 @@
             <AuthorenFom
               :label="'Melodie Autoren'"
               @update:selected_author="melodie.selected_authors = $event"
-              @update:use_same_author_for_text="melodie.use_same_author_for_text = $event"
+              @update:use_same_author_for_text="
+                melodie.use_same_author_for_text = $event
+              "
               :selected_author="melodie.selected_authors"
               v-model:authors="melodie.authors"
               class="mb-3"
@@ -95,13 +102,13 @@
 import MelodieData from "@/components/upload/NewSongComponents/MelodieData.vue";
 import AuthorenFom from "@/components/upload/NewSongComponents/AuthorenFom.vue";
 import _ from "lodash";
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
 import moment from "moment";
 import axios from "@/assets/js/axiossConfig";
 
 export default {
   name: "NewMelodieData",
-  components: {AuthorenFom, MelodieData},
+  components: { AuthorenFom, MelodieData },
   data: () => ({
     store: useAppStore(),
     existing_melodie: false,
@@ -123,36 +130,38 @@ export default {
   },
   mounted() {
     this.melodie = this.in_melodie;
-    this.$emit("update:melodie", this.melodie)
+    this.$emit("update:melodie", this.melodie);
   },
   watch: {
     melodie: {
       handler() {
-        this.$emit("update:melodie", this.melodie)
+        this.$emit("update:melodie", this.melodie);
       },
-      deep: true
+      deep: true,
     },
     existing_melodie() {
-      this.$emit("update:existing_melodie", this.existing_melodie)
+      this.$emit("update:existing_melodie", this.existing_melodie);
     },
     selected_melodie() {
-      this.$emit("update:selected_melodie", this.selected_melodie)
-    }
+      this.$emit("update:selected_melodie", this.selected_melodie);
+    },
   },
   computed: {
     store_melodie() {
       return this.store.melodies;
     },
     sorted_store_melodie() {
-      return _.sortBy(this.store_melodie, 'titel');
+      return _.sortBy(this.store_melodie, "titel");
     },
   },
   methods: {
     custom_filter(item, queryText, itemText) {
-      return itemText.value.autocomplete.toLowerCase().includes(queryText.toLowerCase())
+      return itemText.raw.autocomplete
+        .toLowerCase()
+        .includes(queryText.toLowerCase());
     },
     update_file(event) {
-      this.melodie.noten = event
+      this.melodie.noten = event;
     },
     validate() {
       // VALIDATE MELODIE AUTHORS
@@ -167,12 +176,18 @@ export default {
           let to_be_created_melodie_author = {
             vorname: author.firstName === "" ? null : author.firstName,
             nachname: author.lastName === "" ? null : author.lastName,
-            geburtsjahr: author.birthdate ? Number(moment(author.birthdate).format('YYYY')) : null,
-            sterbejahr: author.deathdate ? Number(moment(author.deathdate).format('YYYY')) : null,
+            geburtsjahr: author.birthdate
+              ? Number(moment(author.birthdate).format("YYYY"))
+              : null,
+            sterbejahr: author.deathdate
+              ? Number(moment(author.deathdate).format("YYYY"))
+              : null,
           };
           if (!_.every(to_be_created_melodie_author, (val) => val === null)) {
-            to_be_created_melodie_author['status'] = 'uploaded';
-            this.to_be_created_melodie_authors.push(to_be_created_melodie_author);
+            to_be_created_melodie_author["status"] = "uploaded";
+            this.to_be_created_melodie_authors.push(
+              to_be_created_melodie_author,
+            );
           }
         }
       }
@@ -185,23 +200,25 @@ export default {
         let create_melodie = {
           titel: _.isEmpty(this.melodie.title) ? null : this.melodie.title,
           quelle: _.isEmpty(this.melodie.quelle) ? null : this.melodie.quelle,
-          quelllink:
-            _.isEmpty(this.melodie.quelllink) ? null : this.melodie.quelllink,
-          anmerkung:
-            _.isEmpty(this.melodie.anmerkung) ? null : this.melodie.anmerkung,
+          quelllink: _.isEmpty(this.melodie.quelllink)
+            ? null
+            : this.melodie.quelllink,
+          anmerkung: _.isEmpty(this.melodie.anmerkung)
+            ? null
+            : this.melodie.anmerkung,
         };
 
         if (!_.every(create_melodie, (val) => val === null)) {
-          create_melodie['status'] = 'uploaded';
+          create_melodie["status"] = "uploaded";
           console.log("create_melodie", create_melodie);
 
           await axios
-            .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie`, create_melodie)
+            .post(
+              `${import.meta.env.VITE_BACKEND_URL}/items/melodie`,
+              create_melodie,
+            )
             .then((resp) => {
-              console.log(
-                "created created_melodie",
-                resp.data.data
-              );
+              console.log("created created_melodie", resp.data.data);
               created_melodie = resp.data.data;
               this.successfully_created.melodie = resp.data.data;
             });
@@ -215,15 +232,15 @@ export default {
           ) {
             console.log(
               "created_melodie_author",
-              this.to_be_created_melodie_authors
+              this.to_be_created_melodie_authors,
             );
             await axios
-              .post(`${import.meta.env.VITE_BACKEND_URL}/items/autor`, this.to_be_created_melodie_authors)
+              .post(
+                `${import.meta.env.VITE_BACKEND_URL}/items/autor`,
+                this.to_be_created_melodie_authors,
+              )
               .then((resp) => {
-                console.log(
-                  "created melodie authors",
-                  resp.data.data
-                );
+                console.log("created melodie authors", resp.data.data);
                 created_melodie_authors = resp.data.data;
                 this.successfully_created.authors.push(...resp.data.data);
               });
@@ -239,24 +256,24 @@ export default {
               autor_id: created_author.id,
             };
             if (!_.every(create_author_melodie, (val) => val === null))
-              to_be_created_melodie_author_mapping.push(
-                create_author_melodie
-              );
+              to_be_created_melodie_author_mapping.push(create_author_melodie);
           }
           if (to_be_created_melodie_author_mapping.length !== 0) {
             console.log(
               "to_be_created_melodie_author_mapping",
-              to_be_created_melodie_author_mapping
+              to_be_created_melodie_author_mapping,
             );
             await axios
-              .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`, to_be_created_melodie_author_mapping)
+              .post(
+                `${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`,
+                to_be_created_melodie_author_mapping,
+              )
               .then((resp) => {
-                console.log(
-                  "created melodie_author_mapping",
-                  resp.data.data
+                console.log("created melodie_author_mapping", resp.data.data);
+                this.successfully_created.melodie_author_mapping.push(
+                  ...resp.data.data,
                 );
-                this.successfully_created.melodie_author_mapping.push(...resp.data.data)
-              })
+              });
           }
 
           // MELODIE TO FILE MELODIE MAPPING
@@ -273,26 +290,33 @@ export default {
           if (to_be_created_melodie_file_mapping.length !== 0) {
             console.log(
               "to_be_created_melodie_file_mapping",
-              to_be_created_melodie_file_mapping
+              to_be_created_melodie_file_mapping,
             );
             await axios
-              .post(`${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`, to_be_created_melodie_file_mapping)
+              .post(
+                `${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`,
+                to_be_created_melodie_file_mapping,
+              )
               .then((resp) => {
-                console.log(
-                  "created melodie_files",
-                  resp.data.data
-                );
+                console.log("created melodie_files", resp.data.data);
                 this.successfully_created.melodie_files = resp.data.data;
               });
           }
         }
       }
-      return this.existing_melodie ? this.selected_melodie?.id : (created_melodie ? created_melodie.id : null);
+      return this.existing_melodie
+        ? this.selected_melodie?.id
+        : created_melodie
+          ? created_melodie.id
+          : null;
     },
     validate_author(author) {
-      if (!_.isEmpty(author.firstName) || !_.isEmpty(author.birthdate) || !_.isEmpty(author.deathdate))
-        if (_.isEmpty(author.firstName))
-          return false
+      if (
+        !_.isEmpty(author.firstName) ||
+        !_.isEmpty(author.birthdate) ||
+        !_.isEmpty(author.deathdate)
+      )
+        if (_.isEmpty(author.firstName)) return false;
       return true;
     },
     async upload_file() {
@@ -301,18 +325,19 @@ export default {
           console.log("Upload file ", file);
           const formData = new FormData();
           formData.append("title", file.name);
-          formData.append('file', file);
+          formData.append("file", file);
 
-          await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
-            .then((resp) => this.successfully_created.created_files.push(resp.data.data));
+          await axios
+            .post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
+            .then((resp) =>
+              this.successfully_created.created_files.push(resp.data.data),
+            );
         }
       }
       return this.successfully_created.created_files;
     },
-  }
-}
+  },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

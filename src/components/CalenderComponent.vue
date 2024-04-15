@@ -21,7 +21,7 @@
       <v-card-title
         class="d-flex justify-center align-center pa-4"
         :class="`${arbeitskreis_name_to_css(
-          selectedEvent.event.arbeitskreis_name
+          selectedEvent.event.arbeitskreis_name,
         )}-bg`"
       >
         <v-icon class="mr-3">{{ selectedEvent.icon }}</v-icon>
@@ -32,7 +32,8 @@
         }}</strong>
       </v-card-title>
       <v-card-subtitle class="bg-grey-lighten-2 py-2">
-        <strong>Arbeitskreis:</strong> {{selectedEvent.event.arbeitskreis_name}}
+        <strong>Arbeitskreis:</strong>
+        {{ selectedEvent.event.arbeitskreis_name }}
       </v-card-subtitle>
       <v-card-text class="px-12">
         <p v-html="selectedEvent.contentFull" />
@@ -63,7 +64,7 @@ import VueCal from "vue-cal";
 import "vue-cal/dist/vuecal.css";
 import moment from "moment";
 import MeilenSteineComponent from "@/components/calender/MeilenSteineComponent.vue";
-import {work_group_icon} from "@/assets/js/utils";
+import { work_group_icon } from "@/assets/js/utils";
 
 export default {
   name: "CalenderComponent",
@@ -82,10 +83,10 @@ export default {
 
         return {
           start: moment(event.start).format(
-            event_start === event_end ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm"
+            event_start === event_end ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm",
           ),
           end: moment(event.ende).format(
-            event_start === event_end ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm"
+            event_start === event_end ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm",
           ),
           allDay: event_start === event_end,
           class: this.arbeitskreis_name_to_css(event.arbeitskreis_name),
@@ -102,7 +103,8 @@ export default {
     meilenstein_event() {
       return _.filter(
         this.db_events,
-        (event) => event.istMeilenstein && moment(event.start).isAfter(moment())
+        (event) =>
+          event.istMeilenstein && moment(event.start).isAfter(moment()),
       );
     },
   },

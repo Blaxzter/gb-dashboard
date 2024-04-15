@@ -1,23 +1,34 @@
 <template>
   <div class="background">
-    <v-img src="/src/assets/images/header-banner.jpg" alt="Hintergrund bild" cover />
+    <v-img
+      src="/src/assets/images/header-banner.jpg"
+      alt="Hintergrund bild"
+      cover
+    />
   </div>
-	<div class="login-wrapper d-flex align-center justify-center">
-		<div class="login-card">
-			<div>
-				<!-- on dashboard show logo -->
-				<v-img
-					src="/src/assets/images/logo.png"
-					style="display: block; margin: auto; max-width: 150px"
-				/>
-			</div>
-			<!-- slogan -->
-			<div class="d-flex justify-center mt-8">
-				<span class="mb-4 text-body-1">Willkommen auf der Seite fürs<br>Gesangbuch 2026</span>
-			</div>
+  <div class="login-wrapper d-flex align-center justify-center">
+    <div class="login-card">
+      <div>
+        <!-- on dashboard show logo -->
+        <v-img
+          src="/src/assets/images/logo.png"
+          style="display: block; margin: auto; max-width: 150px"
+        />
+      </div>
+      <!-- slogan -->
+      <div class="d-flex justify-center mt-8">
+        <span class="mb-4 text-body-1"
+          >Willkommen auf der Seite fürs<br />Gesangbuch 2026</span
+        >
+      </div>
 
       <v-container fluid>
-        <v-form ref="form" v-model="valid" lazy-validation class="d-flex flex-column align-center">
+        <v-form
+          ref="form"
+          v-model="valid"
+          lazy-validation
+          class="d-flex flex-column align-center"
+        >
           <v-text-field
             style="max-width: 300px"
             v-model="email"
@@ -46,10 +57,16 @@
             <v-checkbox
               v-model="remember_me"
               label="Eingeloggt bleiben"
-              class="mb-3"></v-checkbox>
+              class="mb-3"
+            ></v-checkbox>
           </div>
 
-          <v-alert v-if="loginError" type="error" dismissible transition="scale-transition">
+          <v-alert
+            v-if="loginError"
+            type="error"
+            dismissible
+            transition="scale-transition"
+          >
             {{ loginError }}
           </v-alert>
 
@@ -67,84 +84,87 @@
           </div>
         </v-form>
       </v-container>
-		</div>
-	</div>
+    </div>
+  </div>
 </template>
 
 <script>
-import { useUserStore } from '@/store/user'
-import router from '@/router'
+import { useUserStore } from "@/store/user";
+import router from "@/router";
 
 export default {
-	name: 'LoginPage',
+  name: "LoginPage",
   mounted() {
-    if (this.user_store.session_expired) {
-      this.loginError = "Deine Sitzung ist abgelaufen. Bitte logge dich erneut ein."
-    }
-    if (this.user_store.user) {
-      router.push('dashboard')
+    if (this.user_store.is_logged_in) {
+      router.push("dashboard");
     }
   },
   data: () => ({
     user_store: useUserStore(),
-    email: '',
-    password: '',
-    loginError: '',
+    email: "",
+    password: "",
+    loginError: "",
     valid: false,
     loadingLogin: false,
     show_password: false,
     remember_me: false,
-		rules: {
-			required: (value) => !!value || 'Bitte ausfüllen',
-			name_rules: [
-				(v) => !!v || 'Bitte ausfüllen',
-				(v) => (v && v.length >= 1) || 'Mindestens 1 Buchstabe',
-				(v) => (v && v.length <= 20) || 'Maximal 20 Buchstaben'
-			],
-			emailRules: [
-				(v) => !!v || 'Bitte geben Sie eine gültige E-Mail-Adresse an.',
-				(v) => /.+@.+\..+/.test(v) || 'Bitte geben Sie eine gültige E-Mail-Adresse an.'
-			],
-			password_confirmation_rule: [
-				(v) => !!v || 'Bitte ausfüllen',
-				(v) => (v && v.length >= 8) || 'Mindestens 8 Zeichen',
-				(v) => (v && /\d/.test(v)) || 'Passwort muss eine Zahl enthalten',
-				(v) =>
-					(v && /[ `!@#$%^&§*()_+\-=[\]{};':"\\|,.<>/?~]/.test(v)) ||
-					'Passwort muss ein Sonderzeichen enthalten'
-			]
-		},
-		input_mail: '',
-		query: undefined
-	}),
+    rules: {
+      required: (value) => !!value || "Bitte ausfüllen",
+      name_rules: [
+        (v) => !!v || "Bitte ausfüllen",
+        (v) => (v && v.length >= 1) || "Mindestens 1 Buchstabe",
+        (v) => (v && v.length <= 20) || "Maximal 20 Buchstaben",
+      ],
+      emailRules: [
+        (v) => !!v || "Bitte geben Sie eine gültige E-Mail-Adresse an.",
+        (v) =>
+          /.+@.+\..+/.test(v) ||
+          "Bitte geben Sie eine gültige E-Mail-Adresse an.",
+      ],
+      password_confirmation_rule: [
+        (v) => !!v || "Bitte ausfüllen",
+        (v) => (v && v.length >= 8) || "Mindestens 8 Zeichen",
+        (v) => (v && /\d/.test(v)) || "Passwort muss eine Zahl enthalten",
+        (v) =>
+          (v && /[ `!@#$%^&§*()_+\-=[\]{};':"\\|,.<>/?~]/.test(v)) ||
+          "Passwort muss ein Sonderzeichen enthalten",
+      ],
+    },
+    input_mail: "",
+    query: undefined,
+  }),
   computed: {
     validate_login() {
-      return this.password !== '' && this.email !== ''
+      return this.password !== "" && this.email !== "";
     },
   },
-	methods: {
+  methods: {
     async submit() {
-      const valid = await this.$refs.form.validate()
+      const valid = await this.$refs.form.validate();
       if (valid.valid) {
-        this.loadingLogin = true
+        this.loadingLogin = true;
         this.user_store
-          .login({
-            username: this.email,
-            password: this.password
-          }, this.remember_me)
+          .login(
+            {
+              username: this.email,
+              password: this.password,
+            },
+            this.remember_me,
+          )
           .then(() => {
-            router.push('/')
-            this.loadingLogin = false
+            router.push("/");
+            this.loadingLogin = false;
           })
           .catch((error) => {
-            console.log(error)
-            this.loginError = "Das war leider das falsche Passwort. Bitte versuche es erneut."
-            this.loadingLogin = false
-          })
+            console.log(error);
+            this.loginError =
+              "Das war leider das falsche Passwort. Bitte versuche es erneut.";
+            this.loadingLogin = false;
+          });
       }
-    }
-	}
-}
+    },
+  },
+};
 </script>
 
 <style>
@@ -160,14 +180,14 @@ export default {
 }
 
 .login-wrapper {
-	height: 100vh;
+  height: 100vh;
 
-	.login-card {
-		background-color: white;
-		padding: 2rem;
-		border-radius: 10px;
-		max-width: 400px;
-		min-width: 400px;
+  .login-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    max-width: 400px;
+    min-width: 400px;
 
     @media (max-width: 960px) {
       min-width: 100%;
@@ -175,6 +195,6 @@ export default {
       border-radius: 0;
       padding: 2rem 0.5rem;
     }
-	}
+  }
 }
 </style>

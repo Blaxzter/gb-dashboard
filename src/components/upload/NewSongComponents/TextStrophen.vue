@@ -15,7 +15,7 @@
               type="text"
               hide-details="auto"
               class="mb-3"
-              @click:append="remove_strophe(index);"
+              @click:append="remove_strophe(index)"
               @click:clear="strophe.strophe = ''"
             ></v-textarea>
           </v-col>
@@ -56,11 +56,11 @@ export default {
   methods: {
     remove_strophe(index) {
       if (this.strophen_model[index].strophe.length === 0)
-        this.strophen_model.splice(index, 1)
+        this.strophen_model.splice(index, 1);
       else {
         const response = confirm("Strophe wirklich löschen?");
         if (response) {
-          this.strophen_model.splice(index, 1)
+          this.strophen_model.splice(index, 1);
         }
       }
     },
@@ -69,5 +69,4 @@ export default {
     },
   },
 };
-
 </script>

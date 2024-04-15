@@ -1,19 +1,24 @@
 <template>
-  <router-view />
+  <LoaderComponent v-if="!currentState" />
+  <router-view v-else />
 </template>
 
 <script setup>
-
 // On mounted preform autologin
-import {onBeforeMount} from "vue";
+import { computed, onMounted } from "vue";
 
 // get pinia store from useeAppStore
-import { useUserStore } from "@/store/user";
+import { useAppStore } from "@/store/app";
+import LoaderComponent from "@/components/util/LoaderComponent.vue";
 
-const user = useUserStore()
+const app = useAppStore();
 
-onBeforeMount(() => {
-  user.autoLogin()
-})
+// computed that returns the current state
+const currentState = computed(() => {
+  return app.data_loaded;
+});
 
+onMounted(() => {
+  console.log(app.data_loaded);
+});
 </script>
