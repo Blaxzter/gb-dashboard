@@ -23,7 +23,7 @@
     @reset="reset_data"
   />
 
-  <v-form ref="form" v-else v-model="form_valid" lazy-validation>
+  <v-form v-else ref="form" v-model="form_valid" lazy-validation>
     <v-container>
       <div class="py-0 mb-3 d-flex align-center">
         <v-text-field
@@ -34,7 +34,7 @@
         ></v-text-field>
         <div v-if="title_already_exists">
           <v-tooltip text="Titel existiert bereits" location="bottom">
-            <template v-slot:activator="{ props }">
+            <template #activator="{ props }">
               <v-icon
                 icon="mdi-alert"
                 v-bind="props"
@@ -47,9 +47,10 @@
       </div>
 
       <v-autocomplete
+        v-model="kategorie"
         label="Zugehörige Kategorie"
         class="mb-3"
-        :items="this.store.kategorie"
+        :items="store.kategorie"
         item-title="name"
         item-value="id"
         hide-details="auto"
@@ -57,9 +58,8 @@
         multiple
         chips
         closable-chips
-        v-model="kategorie"
       >
-        <template v-slot:chip="{ props, item }">
+        <template #chip="{ props, item }">
           <v-chip
             v-bind="props"
             :prepend-icon="get_icon(item)"
@@ -67,7 +67,7 @@
           ></v-chip>
         </template>
 
-        <template v-slot:item="{ props, item }">
+        <template #item="{ props, item }">
           <v-list-item
             v-bind="props"
             :prepend-icon="get_icon(item)"
@@ -78,24 +78,24 @@
 
       <NewTextData
         :in_text="text"
+        :song_title="title"
+        :upload_page="true"
         @update:text="text = $event"
         @update:existing_text="existing_text = $event"
         @update:selected_text="selected_text = $event"
-        :song_title="title"
-        :upload_page="true"
       />
 
       <NewMelodieData
         :in_melodie="melodie"
+        :song_title="title"
+        :upload_page="true"
         @update:melodie="melodie = $event"
         @update:existing_melodie="existing_melodie = $event"
         @update:selected_melodie="selected_melodie = $event"
-        :song_title="title"
-        :upload_page="true"
       />
 
       <v-row>
-        <v-col cols="6" v-show="false">
+        <v-col v-show="false" cols="6">
           <v-text-field
             v-model="externer_link"
             hide-details="auto"

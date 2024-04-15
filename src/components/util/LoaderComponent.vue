@@ -17,13 +17,13 @@ const complete = () => {
 <template>
   <div class="loader-component">
     <LottieAnimation
+      ref="anim"
       :animation-data="book"
       :auto-play="true"
       :loop="false"
       :speed="1"
-      ref="anim"
-      @complete="complete"
       class="book-animation"
+      @complete="complete"
     />
     <div class="loader-text">Lade Gesangbuch Daten</div>
   </div>

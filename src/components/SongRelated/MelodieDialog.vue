@@ -11,11 +11,11 @@
     <v-card-text class="px-8">
       <v-carousel
         v-if="melodie.files.length"
+        v-model="pdf_carousel_model"
         :show-arrows="melodie.files?.length <= 1 ? false : 'hover'"
         hide-delimiter-background
         :hide-delimiters="melodie.files?.length <= 1"
         height="300"
-        v-model="pdf_carousel_model"
       >
         <v-carousel-item
           v-for="(file, i) in melodie.files"
@@ -23,8 +23,8 @@
           :src="file.type.includes('image') ? getImgUrl(file.id) : null"
         >
           <div
-            class="d-flex align-center justify-center fill-height bg-grey"
             v-if="file.type === 'application/pdf'"
+            class="d-flex align-center justify-center fill-height bg-grey"
           >
             <vue-pdf-embed
               height="300"
@@ -35,9 +35,9 @@
         </v-carousel-item>
       </v-carousel>
       <div
+        v-if="melodie.files.length"
         class="d-flex flex-row text-subtitle-2"
         style="max-width: 600px"
-        v-if="melodie.files.length"
       >
         <div class="me-3">Dateiname:</div>
         <div>
@@ -46,8 +46,8 @@
       </div>
 
       <div
-        class="text-subtitle-1 font-weight-medium"
         v-if="melodie?.auftrag?.length"
+        class="text-subtitle-1 font-weight-medium"
       >
         Aufträge:
       </div>
@@ -101,15 +101,15 @@
       </div>
 
       <div
-        class="text-subtitle-1 font-weight-medium"
         v-if="melodie?.authors?.length"
+        class="text-subtitle-1 font-weight-medium"
       >
         Autoren
       </div>
       <div
-        class="d-flex flex-row mb-1 ps-3"
         v-for="(author, index) in melodie?.authors"
         :key="index"
+        class="d-flex flex-row mb-1 ps-3"
       >
         <div class="me-2">{{ index + 1 }}.</div>
         <div>
@@ -131,9 +131,9 @@
     <div class="position-relative" style="overflow: scroll">
       <v-btn
         icon="mdi-close"
-        @click="noten_dialog = false"
         class="position-fixed ma-10"
         style="z-index: 10000; right: 0"
+        @click="noten_dialog = false"
       ></v-btn>
       <vue-pdf-embed
         v-if="selected_file"
@@ -150,6 +150,19 @@ import { auftrag_type_to_name, status_mapping } from "@/assets/js/utils";
 
 export default {
   name: "MelodieDialog",
+  components: { VuePdfEmbed },
+  props: {
+    melodie: {
+      type: Object,
+      required: true,
+    },
+  },
+  emits: ["close"],
+  data: () => ({
+    noten_dialog: false,
+    selected_file: null,
+    pdf_carousel_model: 0,
+  }),
   computed: {
     auftrag_type_to_name() {
       return auftrag_type_to_name;
@@ -158,16 +171,6 @@ export default {
       return status_mapping;
     },
   },
-  components: { VuePdfEmbed },
-  props: {
-    melodie: Object,
-  },
-  emits: ["close"],
-  data: () => ({
-    noten_dialog: false,
-    selected_file: null,
-    pdf_carousel_model: 0,
-  }),
   methods: {
     getPdfUrl(file_id) {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;

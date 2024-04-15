@@ -1,17 +1,17 @@
 <template>
-  <div class="text-h6 mx-auto mb-1" v-if="!show_text_only">
+  <div v-if="!showTextOnly" class="text-h6 mx-auto mb-1">
     <span class="me-2"> Strophen </span>
   </div>
   <div
-    :style="{ 'max-width': show_text_only ? '' : '500px' }"
-    class="mx-auto"
     v-for="(strophe, index) in show_strophen"
     :key="index"
+    :style="{ 'max-width': showTextOnly ? '' : '500px' }"
+    class="mx-auto"
   >
     <div
       class="d-flex py-3 px-5"
       :class="
-        (strophe.aenderungsvorschlag || strophe.anmerkung) && !show_text_only
+        (strophe.aenderungsvorschlag || strophe.anmerkung) && !showTextOnly
           ? 'hover-border'
           : ''
       "
@@ -20,17 +20,17 @@
       <div
         class="pb-0"
         style="white-space: pre-line"
-        @click="strophe.show = !strophe.show && !show_text_only"
+        @click="strophe.show = !strophe.show && !showTextOnly"
       >
         {{ strophe.strophe }}
       </div>
       <div class="d-flex flex-column align-center ms-3">
         <v-tooltip
-          v-if="strophe.aenderungsvorschlag && !show_text_only"
+          v-if="strophe.aenderungsvorschlag && !showTextOnly"
           text="Strophe hat einen Änderungsvorschlag"
           location="bottom"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props }">
             <v-icon
               v-bind="props"
               icon="mdi-pencil"
@@ -41,11 +41,11 @@
         </v-tooltip>
 
         <v-tooltip
-          v-if="strophe.anmerkung && !show_text_only"
+          v-if="strophe.anmerkung && !showTextOnly"
           text="Strophe hat eine Anmerkung"
           location="bottom"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props }">
             <v-icon
               v-bind="props"
               icon="mdi-message"
@@ -59,7 +59,7 @@
     </div>
     <v-expand-transition>
       <div v-if="strophe.show">
-        <div class="pt-2 d-flex" v-if="strophe.aenderungsvorschlag">
+        <div v-if="strophe.aenderungsvorschlag" class="pt-2 d-flex">
           <div class="d-flex align-center pt-0"></div>
           <div
             class="pt-0 ms-7"
@@ -75,7 +75,7 @@
             {{ strophe.aenderungsvorschlag }}
           </div>
         </div>
-        <div class="pt-2 d-flex" v-if="strophe.anmerkung">
+        <div v-if="strophe.anmerkung" class="pt-2 d-flex">
           <div class="d-flex align-center pt-0"></div>
           <div
             class="pt-0 ms-7"
@@ -96,9 +96,15 @@ import _ from "lodash";
 export default {
   name: "StrophenList",
   props: {
-    text: Object,
-    show_extra_strophen_data: Boolean,
-    show_text_only: {
+    text: {
+      type: Object,
+      required: true,
+    },
+    showExtraStrophenData: {
+      type: Boolean,
+      default: false,
+    },
+    showTextOnly: {
       type: Boolean,
       default: false,
     },
@@ -109,7 +115,7 @@ export default {
   mounted() {
     this.show_strophen = _.map(this.text?.strophenEinzeln, (obj) => ({
       ...obj,
-      show: this.show_extra_strophen_data,
+      show: this.showExtraStrophenData,
     }));
   },
 };

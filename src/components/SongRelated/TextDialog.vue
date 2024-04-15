@@ -13,20 +13,20 @@
 
     <v-card-text class="px-8">
       <div class="mb-4">
-        <StrophenList :text="text" :show_extra_strophen_data="true" />
+        <StrophenList :text="text" :show-extra-strophen-data="true" />
       </div>
 
       <div>
         <v-card
-          :text-dialog="true"
           v-for="(auftrag, index) in text.auftrag"
           :key="index"
+          :text-dialog="true"
         />
       </div>
 
       <div
-        class="text-subtitle-1 font-weight-medium"
         v-if="text?.auftrag?.length"
+        class="text-subtitle-1 font-weight-medium"
       >
         Aufträge:
       </div>
@@ -47,7 +47,7 @@
                 :text="`Auftrag ist erledigt.`"
                 location="bottom"
               >
-                <template v-slot:activator="{ props }">
+                <template #activator="{ props }">
                   <v-icon
                     v-bind="props"
                     icon="mdi-check"
@@ -61,7 +61,7 @@
                 :text="`Auftrag ist in Bearbeitung.`"
                 location="bottom"
               >
-                <template v-slot:activator="{ props }">
+                <template #activator="{ props }">
                   <v-icon
                     v-bind="props"
                     icon="mdi-progress-clock"
@@ -122,15 +122,15 @@
       </div>
 
       <div
-        class="text-subtitle-1 font-weight-medium"
         v-if="text?.authors?.length"
+        class="text-subtitle-1 font-weight-medium"
       >
         Text Autoren
       </div>
       <div
-        class="d-flex flex-row mb-4"
         v-for="(author, index) in text?.authors"
         :key="index"
+        class="d-flex flex-row mb-4"
       >
         <div class="me-2">{{ index + 1 }}.</div>
         <div>
@@ -156,6 +156,12 @@ import StrophenList from "@/components/SongRelated/StrophenList.vue";
 export default {
   name: "TextDialog",
   components: { StrophenList },
+  props: {
+    text: {
+      type: Object,
+      required: true,
+    },
+  },
   emits: ["close"],
   computed: {
     auftrag_type_to_name() {
@@ -164,9 +170,6 @@ export default {
     status_mapping() {
       return status_mapping;
     },
-  },
-  props: {
-    text: Object,
   },
 };
 </script>

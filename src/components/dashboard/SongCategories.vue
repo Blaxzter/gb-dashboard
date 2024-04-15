@@ -6,9 +6,9 @@
   <div class="mt-3">
     <div style="height: 400px">
       <Doughnut
+        ref="categorie_chart"
         :data="song_chart_data"
         :options="categorie_options"
-        ref="categorie_chart"
       />
     </div>
   </div>
@@ -31,11 +31,8 @@ export default {
   components: {
     Doughnut,
   },
-  data: () => ({
-    store: useAppStore(),
-  }),
   props: {
-    chart_options: {
+    chartOptions: {
       type: Object,
       required: true,
     },
@@ -45,9 +42,12 @@ export default {
       default: false,
     },
   },
+  data: () => ({
+    store: useAppStore(),
+  }),
   computed: {
     categorie_options() {
-      const ret_options = _.cloneDeep(this.chart_options);
+      const ret_options = _.cloneDeep(this.chartOptions);
       ret_options.onClick = this.handle_click_events;
       ret_options.onHover = function (event, chartElement) {
         event.native.target.style.cursor = chartElement[0]

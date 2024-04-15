@@ -3,7 +3,7 @@
     class="d-flex align-start align-md-center justify-space-between mb-0 mb-md-6 flex-column flex-md-row"
   >
     <div class="text-h4 mb-4 text-no-wrap">
-      {{ this.filter_auftraege.length }} Arbeitsaufträge
+      {{ filter_auftraege.length }} Arbeitsaufträge
     </div>
     <div
       class="d-flex align-end justify-end mb-6 flex-column flex-md-row w-100"
@@ -41,12 +41,12 @@
       <v-window v-model="tab">
         <v-window-item value="alle">
           <AuftragCards
-            :auftraege="filter_auftraege"
             v-if="display_style === 0"
+            :auftraege="filter_auftraege"
           />
           <AuftragTable
-            :auftraege="filter_auftraege"
             v-else-if="display_style === 1"
+            :auftraege="filter_auftraege"
           />
         </v-window-item>
         <v-window-item
@@ -55,12 +55,12 @@
           :value="index"
         >
           <AuftragCards
-            :auftraege="current_group[label]"
             v-if="display_style === 0"
+            :auftraege="current_group[label]"
           />
           <AuftragTable
-            :auftraege="current_group[label]"
             v-else-if="display_style === 1"
+            :auftraege="current_group[label]"
           />
         </v-window-item>
       </v-window>
@@ -90,26 +90,6 @@ export default {
     group_by_auftrag: {},
     group_by_arbeitskreis: {},
   }),
-  watch: {
-    selected_tabs() {
-      this.tab = 0;
-      localStorage.setItem("default_selected_tabs", this.selected_tabs);
-    },
-    display_style() {
-      // store display style in local storage
-      localStorage.setItem("default_display_style", this.display_style);
-    },
-  },
-  beforeMount() {
-    // get default display style from local storage
-    this.display_style =
-      parseInt(localStorage.getItem("default_display_style")) || 0;
-    this.selected_tabs =
-      parseInt(localStorage.getItem("default_selected_tabs")) || 0;
-  },
-  mounted() {
-    this.load_data_loop(0);
-  },
   computed: {
     auftrag_type_to_name() {
       return auftrag_type_to_name;
@@ -136,6 +116,26 @@ export default {
         ? this.group_by_arbeitskreis
         : this.group_by_auftrag;
     },
+  },
+  watch: {
+    selected_tabs() {
+      this.tab = 0;
+      localStorage.setItem("default_selected_tabs", this.selected_tabs);
+    },
+    display_style() {
+      // store display style in local storage
+      localStorage.setItem("default_display_style", this.display_style);
+    },
+  },
+  beforeMount() {
+    // get default display style from local storage
+    this.display_style =
+      parseInt(localStorage.getItem("default_display_style")) || 0;
+    this.selected_tabs =
+      parseInt(localStorage.getItem("default_selected_tabs")) || 0;
+  },
+  mounted() {
+    this.load_data_loop(0);
   },
   methods: {
     load_data_loop(timeout = 500) {
