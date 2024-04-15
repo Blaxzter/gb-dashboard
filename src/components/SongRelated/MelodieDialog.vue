@@ -64,7 +64,7 @@
                 {{ auftrag_type_to_name[auftrag.auftragsartMelodie] }}
               </div>
               <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
-              <div>
+              <div class="white-space-pre">
                 {{ auftrag.anmerkung }}
               </div>
             </v-card-text>
@@ -74,13 +74,13 @@
 
       <div v-if="melodie?.anmerkung" class="mb-2">
         <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
-        <div class="ps-3">
+        <div class="ps-3 white-space-pre">
           {{ melodie?.anmerkung }}
         </div>
       </div>
 
       <div v-if="melodie?.rueckfrageAutor" class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium">Rückfrage Author:</div>
+        <div class="text-subtitle-1 font-weight-medium">Rückfrage Autor:</div>
         <div class="ps-3">
           {{ melodie?.rueckfrageAutor }}
         </div>
@@ -104,7 +104,7 @@
         class="text-subtitle-1 font-weight-medium"
         v-if="melodie?.authors?.length"
       >
-        Authoren
+        Autoren
       </div>
       <div
         class="d-flex flex-row mb-1 ps-3"
@@ -115,7 +115,9 @@
         <div>
           {{ author.vorname }} {{ author.nachname }}
           {{
-            (author.geburtsjahr || author.sterbejahr ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''} ${author.sterbejahr ? ' - ' + author.sterbejahr : ''})` : '')
+            author.geburtsjahr || author.sterbejahr
+              ? ` (${author.geburtsjahr ? "*" + author.geburtsjahr : ""} ${author.sterbejahr ? " - " + author.sterbejahr : ""})`
+              : ""
           }}
         </div>
       </div>
@@ -160,6 +162,7 @@ export default {
   props: {
     melodie: Object,
   },
+  emits: ["close"],
   data: () => ({
     noten_dialog: false,
     selected_file: null,

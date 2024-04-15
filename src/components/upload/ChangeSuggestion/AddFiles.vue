@@ -1,7 +1,5 @@
 <template>
-  <div class="text-h5 mb-5" v-if="melodie">
-    Lade neue Dateien hoch
-  </div>
+  <div class="text-h5 my-5" v-if="melodie">Lade neue Dateien hoch</div>
   <div v-if="!melodie">
     <v-alert
       class="mb-5"
@@ -13,8 +11,18 @@
       text="Das ausgewählte Gesangbuchlied hat keine Melodie zugeordnet. Eine Aktualisierung der Noten ist deshalb nicht möglich."
     >
       <div class="d-flex justify-end">
-        <v-btn :color="!show_new_melodie? 'success': 'error'" :prepend-icon="!show_new_text? 'mdi-plus': 'mdi-minus'" class="mt-5" @click="show_new_melodie = !show_new_melodie" variant="tonal" >
-          {{ !show_new_melodie ? "Neuen Melodie hinzufügen" : "Doch kein Lied Hinzufügen." }}
+        <v-btn
+          :color="!show_new_melodie ? 'success' : 'error'"
+          :prepend-icon="!show_new_text ? 'mdi-plus' : 'mdi-minus'"
+          class="mt-5"
+          @click="show_new_melodie = !show_new_melodie"
+          variant="tonal"
+        >
+          {{
+            !show_new_melodie
+              ? "Neuen Melodie hinzufügen"
+              : "Doch kein Lied Hinzufügen."
+          }}
         </v-btn>
       </div>
     </v-alert>
@@ -32,7 +40,11 @@
   </div>
   <div v-else>
     <v-chip-group>
-      <v-chip v-for="(file, index) in melodie?.files" :key="index" prepend-icon="mdi-file-music" >
+      <v-chip
+        v-for="(file, index) in melodie?.files"
+        :key="index"
+        prepend-icon="mdi-file-music"
+      >
         {{ file.filename_download }}
       </v-chip>
     </v-chip-group>
@@ -54,7 +66,7 @@ import NewMelodieData from "@/components/upload/NewSongComponents/NewMelodieData
 
 export default {
   name: "AddFiles",
-  components: {NewMelodieData},
+  components: { NewMelodieData },
   props: {
     melodie: Object,
     selected_song: Object,
@@ -93,11 +105,9 @@ export default {
     },
     upload() {
       return this.$refs.new_melodie_data.upload();
-    }
+    },
   },
-}
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

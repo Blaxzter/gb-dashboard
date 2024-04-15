@@ -1,32 +1,35 @@
 <template>
   <v-list :rounded="rounded ? 'lg' : 'none'" :lines="false" nav>
-    <v-list-item v-for="(item, i) in links" :key="i" :to="item.route" :class="{'mb-3': item.marginButton}">
+    <v-list-item
+      v-for="(item, i) in filtered_list"
+      :key="i"
+      :to="item.route"
+      :class="{ 'mb-3': item.marginButton }"
+    >
       <template v-slot:prepend v-if="item.icon">
         <v-icon :icon="item.icon" />
       </template>
 
-      <v-list-item-title class="text-wrap" >
-        <span :class="{'text-subtitle-1': !item.icon}" v-html="item.name">
+      <v-list-item-title class="text-wrap">
+        <span :class="{ 'text-subtitle-1': !item.icon }" v-html="item.name">
         </span>
       </v-list-item-title>
     </v-list-item>
-    <v-divider class="my-2"/>
-    <v-list-item @click="logout" link variant="flat" >
-      <template v-slot:prepend >
+    <v-divider class="my-2" />
+    <v-list-item @click="logout" link variant="flat">
+      <template v-slot:prepend>
         <v-icon class="text-red">mdi-logout</v-icon>
       </template>
 
-      <v-list-item-title class="text-wrap" >
-        <span class="text-red">
-          Logout
-        </span>
+      <v-list-item-title class="text-wrap">
+        <span class="text-red"> Logout </span>
       </v-list-item-title>
     </v-list-item>
   </v-list>
 </template>
 
 <script>
-import {useUserStore} from "@/store/user";
+import { useUserStore } from "@/store/user";
 
 export default {
   name: "MenuList",
@@ -41,53 +44,91 @@ export default {
     links: [
       {
         name: "Dashboard",
-        route: "dashboard",
+        route: "/dashboard",
         icon: "mdi-home",
         marginButton: true,
+        public: true,
       },
       {
         name: "Kalender",
-        route: "kalender",
+        route: "/kalender",
         icon: "mdi-calendar-month",
         marginButton: true,
+        public: true,
       },
       {
         name: "Gesangbuch<wbr>lieder",
-        route: "gesangbuchlieder",
+        route: "/gesangbuchlieder",
         icon: "mdi-music",
         marginButton: true,
+        public: true,
       },
       {
         name: "Arbeitsaufträge",
-        route: "arbeitsauftraege",
+        route: "/arbeitsauftraege",
         icon: "mdi-file-document-outline",
         marginButton: true,
-      },{
+        public: true,
+      },
+      {
         name: "Hochladen",
         route: "",
         icon: null,
         marginButton: false,
+        public: true,
       },
       {
         name: "Lied/Text/Melodie <wbr>hochladen",
-        route: "gesangbuchliedhochladen",
+        route: "/gesangbuchliedhochladen",
         icon: "mdi-upload",
         marginButton: false,
+        public: true,
       },
       {
         name: "Änderung eintragen",
-        route: "aenderunghochladen",
+        route: "/aenderunghochladen",
         icon: "mdi-pencil",
         marginButton: true,
+        public: true,
+      },
+      {
+        name: "Kleiner Kreis",
+        route: "",
+        icon: null,
+        marginButton: false,
+        public: false,
+      },
+      {
+        name: "Doppelte Einträge",
+        route: "/doppelteeintraege",
+        icon: "mdi-content-copy",
+        marginButton: true,
+        public: false,
+      },
+      {
+        name: "Verlorene Einträge",
+        route: "/missing-match",
+        icon: "mdi-select-search",
+        marginButton: true,
+        public: false,
       },
     ],
   }),
+  computed: {
+    filtered_list() {
+      return this.links.filter((item) => {
+        return item.public ? true : this.isKleinerKreis;
+      });
+    },
+    isKleinerKreis() {
+      return this.userStore.is_kleiner_kreis;
+    },
+  },
   methods: {
     logout() {
-      console.log()
-      this.userStore.logout()
-    }
-  }
+      this.userStore.logout();
+    },
+  },
 };
 </script>
 
