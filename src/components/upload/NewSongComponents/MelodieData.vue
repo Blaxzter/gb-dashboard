@@ -4,10 +4,20 @@
       <v-col cols="12" class="pb-0">
         <div class="d-flex align-center">
           <div class="h-100">
-            <v-tooltip text="Den Gesangbuchlied-Titel kopieren" location="bottom">
+            <v-tooltip
+              text="Den Gesangbuchlied-Titel kopieren"
+              location="bottom"
+            >
               <template v-slot:activator="{ props }">
-                <v-btn icon="mdi-content-copy" size="tiny" variant="plain" class="me-5" v-bind="props" color="primary"
-                       @click="copy_song_title"/>
+                <v-btn
+                  icon="mdi-content-copy"
+                  size="tiny"
+                  variant="plain"
+                  class="me-5"
+                  v-bind="props"
+                  color="primary"
+                  @click="copy_song_title"
+                />
               </template>
             </v-tooltip>
           </div>
@@ -21,7 +31,12 @@
           <div v-if="title_already_exists">
             <v-tooltip text="Titel existiert bereits" location="bottom">
               <template v-slot:activator="{ props }">
-                <v-icon icon="mdi-alert" v-bind="props" class="px-5" color="warning"/>
+                <v-icon
+                  icon="mdi-alert"
+                  v-bind="props"
+                  class="px-5"
+                  color="warning"
+                />
               </template>
             </v-tooltip>
           </div>
@@ -80,7 +95,7 @@
 
 <script>
 import _ from "lodash";
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
 
 export default {
   name: "MelodieData",
@@ -101,29 +116,29 @@ export default {
     anmerkung: "",
   }),
   mounted() {
-    this.noten = this.in_noten
-    this.quellelink = this.in_quellelink
-    this.title = this.in_title
-    this.quelle = this.in_quelle
-    this.anmerkung = this.in_anmerkung
+    this.noten = this.in_noten;
+    this.quellelink = this.in_quellelink;
+    this.title = this.in_title;
+    this.quelle = this.in_quelle;
+    this.anmerkung = this.in_anmerkung;
   },
   computed: {
     store_melodies() {
       return this.store.melodies;
     },
     existing_melodies_title() {
-      return _.map(this.store_melodies, 'titel')
+      return _.map(this.store_melodies, "titel");
     },
     title_already_exists() {
-      return this.existing_melodies_title.includes(this.title)
+      return this.existing_melodies_title.includes(this.title);
     },
   },
   methods: {
     copy_song_title() {
-      this.$emit('update:title', this.song_title);
+      this.$emit("update:title", this.song_title);
       this.title = this.song_title;
-    }
-  }
+    },
+  },
 };
 </script>
 

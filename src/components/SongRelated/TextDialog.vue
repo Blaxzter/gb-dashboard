@@ -12,26 +12,72 @@
     </v-card-title>
 
     <v-card-text class="px-8">
-
-      <StrophenList :text="text" :show_extra_strophen_data="true" />
-
-      <div>
-        <v-card :text-dialog="true" v-for="(auftrag, index) in text.auftrag" :key="index"/>
+      <div class="mb-4">
+        <StrophenList :text="text" :show_extra_strophen_data="true" />
       </div>
 
-      <div class="text-subtitle-1 font-weight-medium" v-if="text?.auftrag?.length">
+      <div>
+        <v-card
+          :text-dialog="true"
+          v-for="(auftrag, index) in text.auftrag"
+          :key="index"
+        />
+      </div>
+
+      <div
+        class="text-subtitle-1 font-weight-medium"
+        v-if="text?.auftrag?.length"
+      >
         Aufträge:
       </div>
       <div v-if="text?.auftrag?.length">
-        <div v-for="(auftrag, index) in text?.auftrag" :key="index" class="mb-3">
-          <v-card :subtitle="`Auftrag ${index + 1}`">
+        <div
+          v-for="(auftrag, index) in text?.auftrag"
+          :key="index"
+          class="mb-3"
+        >
+          <v-card>
+            <v-card-subtitle class="d-flex align-center pt-2">
+              <!-- icon that shows if a auftrag is done -->
+              <div class="text-body-1 me-3">Auftrag {{ index + 1 }}</div>
+
+              <v-spacer />
+              <v-tooltip
+                v-if="auftrag.status === 'done'"
+                :text="`Auftrag ist erledigt.`"
+                location="bottom"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-icon
+                    v-bind="props"
+                    icon="mdi-check"
+                    size="large"
+                    color="success"
+                  />
+                </template>
+              </v-tooltip>
+              <v-tooltip
+                v-else
+                :text="`Auftrag ist in Bearbeitung.`"
+                location="bottom"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-icon
+                    v-bind="props"
+                    icon="mdi-progress-clock"
+                    size="large"
+                    color="warning"
+                  />
+                </template>
+              </v-tooltip>
+            </v-card-subtitle>
             <v-card-text>
               <div class="text-subtitle-1 font-weight-medium">Auftragsart:</div>
               <div>
                 {{ auftrag_type_to_name[auftrag.auftragsartText] }}
               </div>
               <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
-              <div>
+              <div class="white-space-pre">
                 {{ auftrag.anmerkung }}
               </div>
             </v-card-text>
@@ -41,13 +87,13 @@
 
       <div v-if="text?.anmerkung" class="mb-2">
         <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
-        <div>
+        <div class="white-space-pre">
           {{ text?.anmerkung }}
         </div>
       </div>
 
       <div v-if="text?.rueckfrageAutor" class="mb-2">
-        <div class="text-subtitle-1 font-weight-medium">Rückfrage Author:</div>
+        <div class="text-subtitle-1 font-weight-medium">Rückfrage Autor:</div>
         <div>
           {{ text?.rueckfrageAutor }}
         </div>
@@ -75,7 +121,12 @@
         </div>
       </div>
 
-      <div class="text-subtitle-1 font-weight-medium" v-if="text?.authors?.length">Text Authoren</div>
+      <div
+        class="text-subtitle-1 font-weight-medium"
+        v-if="text?.authors?.length"
+      >
+        Text Autoren
+      </div>
       <div
         class="d-flex flex-row mb-4"
         v-for="(author, index) in text?.authors"
@@ -85,7 +136,9 @@
         <div>
           {{ author.vorname }} {{ author.nachname }}
           {{
-            (author.geburtsjahr || author.sterbejahr ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''} ${author.sterbejahr ? ' - ' + author.sterbejahr : ''})` : '')
+            author.geburtsjahr || author.sterbejahr
+              ? ` (${author.geburtsjahr ? "*" + author.geburtsjahr : ""} ${author.sterbejahr ? " - " + author.sterbejahr : ""})`
+              : ""
           }}
         </div>
       </div>
@@ -97,15 +150,16 @@
 </template>
 
 <script>
-import {auftrag_type_to_name, status_mapping} from "../../assets/js/utils";
+import { auftrag_type_to_name, status_mapping } from "../../assets/js/utils";
 import StrophenList from "@/components/SongRelated/StrophenList.vue";
 
 export default {
   name: "TextDialog",
-  components: {StrophenList},
+  components: { StrophenList },
+  emits: ["close"],
   computed: {
     auftrag_type_to_name() {
-      return auftrag_type_to_name
+      return auftrag_type_to_name;
     },
     status_mapping() {
       return status_mapping;
