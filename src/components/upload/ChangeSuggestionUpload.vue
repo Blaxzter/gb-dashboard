@@ -10,6 +10,7 @@
     <v-container>
       <div class="d-flex mb-5 justify-center align-center">
         <v-autocomplete
+          v-model="selected_song"
           :disabled="selected_song !== null"
           label="Suche nach existierenden Gesangbuchliedern"
           :items="store_gesangbuchlieder"
@@ -20,9 +21,8 @@
           class="py-0"
           return-object
           @change="song_selected"
-          v-model="selected_song"
         >
-          <template v-slot:item="{ props, item }">
+          <template #item="{ props, item }">
             <v-list-item
               v-bind="props"
               :title="
@@ -47,7 +47,7 @@
           location="bottom"
           :disabled="!selected_song"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props }">
             <v-btn
               icon="mdi-repeat"
               variant="tonal"
@@ -82,8 +82,8 @@
             <AddFiles
               ref="add_files"
               :melodie="selected_song?.melodie"
+              :selected-song="selected_song"
               @update:noten="noten = $event"
-              :selected_song="selected_song"
             />
 
             <TextSuggestion
@@ -113,7 +113,7 @@
     </v-container>
   </v-form>
 
-  <div class="text-h6" v-if="melodie_files.length">
+  <div v-if="melodie_files.length" class="text-h6">
     Es wurden {{ melodie_files.length }} Datein Hochgeladen.
   </div>
 </template>

@@ -7,6 +7,18 @@ import "splitpanes/dist/splitpanes.css";
 
 export default {
   name: "SingModeDialog",
+  components: { MediaComponent, StrophenList, Splitpanes, Pane },
+  props: {
+    selectedSong: {
+      type: Object,
+      required: true,
+    },
+    selectedMediaFile: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+  },
   data: () => ({
     show_sing_mode_dialog: false,
     text_font_size: 1.3,
@@ -14,11 +26,6 @@ export default {
     book_fully_open: false,
     position: 50,
   }),
-  components: { MediaComponent, StrophenList, Splitpanes, Pane },
-  props: {
-    selected_song: Object,
-    selected_media_file: Object,
-  },
   methods: {
     setPosition(event) {
       console.log(event[0].size);
@@ -49,8 +56,8 @@ export default {
   <v-btn
     icon="mdi-music-clef-treble"
     variant="text"
-    @click="open_dialog"
     color="primary"
+    @click="open_dialog"
   />
   <v-dialog v-model="show_sing_mode_dialog" fullscreen>
     <div class="book-wrapper">
@@ -78,36 +85,36 @@ export default {
           <div style="position: absolute; z-index: 20" class="pl-5 pt-2">
             <v-btn
               icon="mdi-magnify-minus-outline"
+              variant="text"
+              :disabled="text_font_size - 0.1 < 0.5"
+              color="primary"
               @click="
                 text_font_size =
                   text_font_size - 0.1 < 0.5
                     ? text_font_size
                     : text_font_size - 0.1
               "
-              variant="text"
-              :disabled="text_font_size - 0.1 < 0.5"
-              color="primary"
             />
             <v-btn
               icon="mdi-magnify-plus-outline"
+              variant="text"
+              :disabled="text_font_size + 0.1 > 2"
+              color="primary"
               @click="
                 text_font_size =
                   text_font_size + 0.1 > 2
                     ? text_font_size
                     : text_font_size + 0.1
               "
-              variant="text"
-              :disabled="text_font_size + 0.1 > 2"
-              color="primary"
             />
           </div>
           <div class="pl-10 pt-10">
-            <h2>{{ selected_song.titel }}</h2>
+            <h2>{{ selectedSong.titel }}</h2>
             <div style="overflow: scroll">
               <StrophenList
-                :text="selected_song?.text"
-                :show_extra_strophen_data="false"
-                :show_text_only="true"
+                :text="selectedSong?.text"
+                :show-extra-strophen-data="false"
+                :show-text-only="true"
               />
             </div>
           </div>
@@ -118,11 +125,11 @@ export default {
           style="overflow: hidden"
         >
           <div
-            class="flip-content position-relative h-100"
             v-if="!book_fully_open"
+            class="flip-content position-relative h-100"
           >
             <MediaComponent
-              :file="selected_media_file"
+              :file="selectedMediaFile"
               :sing-mode-screen="true"
             />
           </div>
@@ -141,18 +148,18 @@ export default {
         ></div>
       </div>
     </div>
-    <div class="display-pane" v-if="book_fully_open">
+    <div v-if="book_fully_open" class="display-pane">
       <v-icon
         icon="mdi-arrow-split-vertical"
         color="primary"
         class="splitter-icon"
         :style="{ left: `${position}%` }"
       />
-      <splitpanes @resize="setPosition" :dbl-click-splitter="false">
+      <splitpanes :dbl-click-splitter="false" @resize="setPosition">
         <pane min-size="20">
           <div class="position-relative h-100" style="overflow: auto">
             <MediaComponent
-              :file="selected_media_file"
+              :file="selectedMediaFile"
               :sing-mode-screen="true"
             />
           </div>
@@ -161,39 +168,39 @@ export default {
           <div style="position: absolute; z-index: 20" class="pl-5 pt-2">
             <v-btn
               icon="mdi-magnify-minus-outline"
+              variant="text"
+              :disabled="text_font_size - 0.1 < 0.5"
+              color="primary"
               @click="
                 text_font_size =
                   text_font_size - 0.1 < 0.5
                     ? text_font_size
                     : text_font_size - 0.1
               "
-              variant="text"
-              :disabled="text_font_size - 0.1 < 0.5"
-              color="primary"
             />
             <v-btn
               icon="mdi-magnify-plus-outline"
+              variant="text"
+              :disabled="text_font_size + 0.1 > 3"
+              color="primary"
               @click="
                 text_font_size =
                   text_font_size + 0.1 > 3
                     ? text_font_size
                     : text_font_size + 0.1
               "
-              variant="text"
-              :disabled="text_font_size + 0.1 > 3"
-              color="primary"
             />
           </div>
           <div
             class="pl-10 pt-10"
             :style="{ 'font-size': `${text_font_size}em` }"
           >
-            <h2>{{ selected_song.titel }}</h2>
+            <h2>{{ selectedSong.titel }}</h2>
             <div style="overflow: scroll">
               <StrophenList
-                :text="selected_song?.text"
-                :show_extra_strophen_data="false"
-                :show_text_only="true"
+                :text="selectedSong?.text"
+                :show-extra-strophen-data="false"
+                :show-text-only="true"
               />
             </div>
           </div>
@@ -202,10 +209,10 @@ export default {
     </div>
     <v-btn
       icon="mdi-close"
-      @click="close_dialog"
       size="small"
       class="close-button"
       variant="text"
+      @click="close_dialog"
     />
   </v-dialog>
 </template>

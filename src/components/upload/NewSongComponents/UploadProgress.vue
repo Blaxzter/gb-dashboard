@@ -3,7 +3,7 @@
     <v-card-text>
       <div class="text-h6 mb-5">Hochgeladene Elemente:</div>
 
-      <v-card title="Gesangbuchlied" v-if="gesangbuchlied" class="mb-4">
+      <v-card v-if="gesangbuchlied" title="Gesangbuchlied" class="mb-4">
         <v-card-text>
           <div>
             <strong>ID: </strong>{{ gesangbuchlied.id }} <strong>Titel: </strong
@@ -12,11 +12,11 @@
 
           <div class="d-flex flex-row">
             <v-card
+              v-for="(elem, index) of category_gesangbuchlied_mapping"
+              :key="index"
               width="200"
               class="me-5"
               :title="'Kategorie ' + (index + 1)"
-              v-for="(elem, index) of category_gesangbuchlied_mapping"
-              :key="index"
             >
               <v-card-text>
                 <div>
@@ -35,15 +35,15 @@
         </v-card-text>
       </v-card>
 
-      <v-card title="Autoren" v-if="authors.length" class="mb-5">
+      <v-card v-if="authors.length" title="Autoren" class="mb-5">
         <v-card-text>
           <div class="d-flex flex-row flex-wrap">
             <v-card
+              v-for="(elem, index) of authors"
+              :key="index"
               width="200"
               class="me-5 mb-5"
               :title="'Autor ' + (index + 1)"
-              v-for="(elem, index) of authors"
-              :key="index"
             >
               <v-card-text>
                 <div>
@@ -57,7 +57,7 @@
         </v-card-text>
       </v-card>
 
-      <v-card title="Text" v-if="text" class="mb-5">
+      <v-card v-if="text" title="Text" class="mb-5">
         <v-card-text class="mb-0">
           <div>
             <div>
@@ -67,10 +67,10 @@
 
             <div class="d-flex flex-row flex-wrap">
               <v-card
-                width="200"
-                class="me-5 mb-5"
                 v-for="(elem, index) of text_author_mapping"
                 :key="index"
+                width="200"
+                class="me-5 mb-5"
                 :title="'Text Author ' + (index + 1)"
               >
                 <v-card-text>
@@ -86,7 +86,7 @@
         </v-card-text>
       </v-card>
 
-      <v-card title="Melodie" v-if="melodie">
+      <v-card v-if="melodie" title="Melodie">
         <v-card-text>
           <div class="mb-5">
             <strong>ID: </strong>{{ melodie.id }} <strong>Titel: </strong
@@ -96,11 +96,11 @@
           <div class="text-h6">Melodie Autoren</div>
           <div class="d-flex flex-row flex-wrap">
             <v-card
+              v-for="(elem, index) of melodie_author_mapping"
+              :key="index"
               width="200"
               :title="'Melodie Autor ' + (index + 1)"
               class="me-5 mb-5"
-              v-for="(elem, index) of melodie_author_mapping"
-              :key="index"
             >
               <v-card-text>
                 <div>
@@ -115,11 +115,11 @@
           <div class="text-h6">Melodie Datein</div>
           <div class="d-flex flex-row">
             <v-card
+              v-for="(elem, index) of melodie_files"
+              :key="index"
               width="200"
               :title="'Melodie File ' + (index + 1)"
               class="me-5 mb-5"
-              v-for="(elem, index) of melodie_files"
-              :key="index"
             >
               <v-card-text>
                 <div>

@@ -1,12 +1,12 @@
 <template>
   <v-carousel
-    ref="carousel"
     v-if="carousel_files.length"
+    ref="carousel"
+    v-model="pdf_carousel_model"
     :show-arrows="carousel_files?.length <= 1 ? false : 'hover'"
     hide-delimiter-background
     :hide-delimiters="carousel_files?.length <= 1"
     height="300"
-    v-model="pdf_carousel_model"
   >
     <v-carousel-item
       v-for="(file, i) in carousel_files"
@@ -17,9 +17,9 @@
     </v-carousel-item>
   </v-carousel>
   <div
+    v-if="carousel_files.length"
     class="d-flex flex-row text-subtitle-2 align-center"
     style="max-width: 600px"
-    v-if="carousel_files.length"
   >
     <div class="me-3">Dateiname:</div>
     <div>
@@ -32,9 +32,9 @@
     <v-btn
       icon
       class="ml-3"
-      @click="download_file(carousel_files[pdf_carousel_model])"
       variant="text"
       size="tiny"
+      @click="download_file(carousel_files[pdf_carousel_model])"
     >
       <v-icon>mdi-download</v-icon>
     </v-btn>
@@ -56,9 +56,9 @@
     <div class="position-relative" style="overflow: scroll">
       <v-btn
         icon="mdi-close"
-        @click="noten_dialog = false"
         class="position-fixed ma-10"
         style="z-index: 10000; right: 0"
+        @click="noten_dialog = false"
       ></v-btn>
       <vue-pdf-embed
         v-if="selected_file"
@@ -77,33 +77,26 @@ export default {
   name: "NotenCarousel",
   components: { MediaComponent, VuePdfEmbed },
   props: {
-    melodie: Object,
-    gesangbuchlied_satz_mit_melodie_und_text: Object,
+    melodie: {
+      type: Object,
+      required: true,
+    },
+    gesangbuchliedSatzMitMelodieUndText: {
+      type: Array,
+      required: true,
+    },
   },
+  emits: ["visible_file"],
   data: () => ({
     selected_file: null,
     noten_dialog: false,
     pdf_carousel_model: 0,
   }),
-  mounted() {
-    this.colorDelimiters();
-    this.$emit("visible_file", this.carousel_files[this.pdf_carousel_model]);
-  },
-  emits: ["visible_file"],
-  watch: {
-    pdf_carousel_model() {
-      console.log(
-        this.pdf_carousel_model,
-        this.carousel_files[this.pdf_carousel_model],
-      );
-      this.$emit("visible_file", this.carousel_files[this.pdf_carousel_model]);
-    },
-  },
   computed: {
     carousel_files() {
       let uniqBy = _.uniqBy(
         _.concat(
-          _.map(this.gesangbuchlied_satz_mit_melodie_und_text, (obj) => {
+          _.map(this.gesangbuchliedSatzMitMelodieUndText, (obj) => {
             return {
               ...obj,
               from_melodie: false,
@@ -128,6 +121,19 @@ export default {
           file.type.includes("application/octet-stream"),
       );
     },
+  },
+  watch: {
+    pdf_carousel_model() {
+      console.log(
+        this.pdf_carousel_model,
+        this.carousel_files[this.pdf_carousel_model],
+      );
+      this.$emit("visible_file", this.carousel_files[this.pdf_carousel_model]);
+    },
+  },
+  mounted() {
+    this.colorDelimiters();
+    this.$emit("visible_file", this.carousel_files[this.pdf_carousel_model]);
   },
   methods: {
     getPdfUrl(file_id) {

@@ -3,23 +3,23 @@
     <div class="text-h4 mb-6">Doppelte Elemente</div>
     <div class="mb-2 d-flex align-center">
       <v-btn-toggle v-model="toggle" mandatory variant="tonal">
-        <v-btn @click="toggle = 0" color="primary">
+        <v-btn color="primary" @click="toggle = 0">
           <v-icon class="me-2">mdi-music</v-icon>
           Gesangbuchlieder
         </v-btn>
-        <v-btn @click="toggle = 1" color="primary">
+        <v-btn color="primary" @click="toggle = 1">
           <v-icon class="me-2">mdi-text-box</v-icon>
           Texte
         </v-btn>
-        <v-btn @click="toggle = 2" color="primary">
+        <v-btn color="primary" @click="toggle = 2">
           <v-icon class="me-2">mdi-music-note</v-icon>
           Melodien
         </v-btn>
-        <v-btn @click="toggle = 3" color="primary">
+        <v-btn color="primary" @click="toggle = 3">
           <v-icon class="me-2">mdi-file-document</v-icon>
           Dateien
         </v-btn>
-        <v-btn @click="toggle = 4" color="primary">
+        <v-btn color="primary" @click="toggle = 4">
           <v-icon class="me-2">mdi-account</v-icon>
           Autor
         </v-btn>
@@ -33,16 +33,16 @@
         <v-icon
           size="40"
           class="me-2"
-          @click="similarity_type_show = !similarity_type_show"
           :color="similarity_type_show ? 'primary' : ''"
+          @click="similarity_type_show = !similarity_type_show"
         >
           mdi-magnify
         </v-icon>
         <v-expand-x-transition :duration="500">
           <div
+            v-if="similarity_type_show"
             class="d-flex justify-center"
             style="width: 90px"
-            v-if="similarity_type_show"
           >
             <v-text-field
               v-model="dice_threshold_temp"
@@ -50,12 +50,12 @@
               append-icon="mdi-send"
               type="number"
               label="Prozent"
+              density="compact"
+              hide-details
               @click:append="
                 dice_threshold = dice_threshold_temp;
                 similarity_type = true;
               "
-              density="compact"
-              hide-details
             >
             </v-text-field>
           </div>
@@ -72,7 +72,7 @@
         :key="idx + 'toggle' + toggle"
         prepend-icon="mdi-cursor-pointer"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-list-item
             v-bind="props"
             :title="duplicates[0].titel + ' (' + duplicates.length + 'x)'"
@@ -83,11 +83,11 @@
           <v-list-item
             v-for="(song, i) in duplicates"
             :key="'song' + i"
-            @click="openSong(song)"
             variant="outlined"
             class="mb-2 rounded-lg"
+            @click="openSong(song)"
           >
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon>mdi-music</v-icon>
             </template>
             <v-list-item-title class="text-wrap text-body-1 v-row align-center">
@@ -125,11 +125,11 @@
           <v-list-item
             v-for="(text, i) in duplicates"
             :key="'text' + i"
-            @click="openSong(text)"
             variant="outlined"
             class="mb-2 rounded-lg"
+            @click="openSong(text)"
           >
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon>mdi-text-box</v-icon>
             </template>
             <v-list-item-title class="text-wrap text-body-1 v-row align-center">
@@ -152,11 +152,11 @@
           <v-list-item
             v-for="(melodie, i) in duplicates"
             :key="'melodie' + i"
-            @click="openSong(melodie)"
             variant="outlined"
             class="mb-2 rounded-lg"
+            @click="openSong(melodie)"
           >
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon>mdi-music-note</v-icon>
             </template>
             <v-list-item-title class="text-wrap text-body-1 v-row align-center">
@@ -180,7 +180,7 @@
     </v-list>
     <v-list v-else>
       <v-list-item v-for="(duplicates, idx) in filtered_entries" :key="idx">
-        <template v-slot:title>
+        <template #title>
           <template v-if="toggle === 3">
             <div class="d-flex flex-wrap">
               <span class="me-2"
@@ -217,9 +217,7 @@
                     : "")
                 }}
                 -
-                {{
-                  count_text_and_melodie_entries_per_author(obj)
-                }}
+                {{ count_text_and_melodie_entries_per_author(obj) }}
                 Lieder/Texte
               </v-chip>
             </div>
@@ -229,29 +227,29 @@
     </v-list>
 
     <v-dialog
+      v-if="toggle === 0"
       v-model="duplicates_dialog"
       width="700"
       @close="modalClose"
-      v-if="toggle === 0"
     >
       <GesangbuchLiedComponent
-        :selected_song="selected_element"
+        :selected-song="selected_element"
         @close="duplicates_dialog = false"
       />
     </v-dialog>
     <v-dialog
+      v-else-if="toggle === 1"
       v-model="duplicates_dialog"
       width="700"
       @close="modalClose"
-      v-else-if="toggle === 1"
     >
       <TextDialog :text="selected_element" @close="duplicates_dialog = false" />
     </v-dialog>
     <v-dialog
+      v-else-if="toggle === 2"
       v-model="duplicates_dialog"
       width="700"
       @close="modalClose"
-      v-else-if="toggle === 2"
     >
       <MelodieDialog
         :melodie="selected_element"
@@ -282,39 +280,6 @@ export default defineComponent({
     duplicates_dialog: false,
     selected_element: null,
   }),
-  mounted() {
-    if (this.$route.query.kategorie) {
-      switch (this.$route.query.kategorie) {
-        case "Gesangbuchlieder":
-          this.toggle = 0;
-          break;
-        case "Texte":
-          this.toggle = 1;
-          break;
-        case "Melodien":
-          this.toggle = 2;
-          break;
-        case "Dateien":
-          this.toggle = 3;
-          break;
-        case "Autoren":
-          this.toggle = 4;
-          break;
-      }
-    }
-  },
-  watch: {
-    toggle() {
-      this.$router.replace({
-        query: { kategorie: this.toggle_to_kategorie(this.toggle) },
-      });
-    },
-    similarity_type_show() {
-      if (!this.similarity_type_show) {
-        this.similarity_type = false;
-      }
-    },
-  },
   computed: {
     filtered_entries() {
       let entries = this.entries;
@@ -373,7 +338,6 @@ export default defineComponent({
               return false;
             }
 
-            // eslint-disable-next-line no-undef
             return (
               stringSimilarity.compareTwoStrings(entry.titel, entry2.titel) >
               this.dice_threshold / 100
@@ -400,7 +364,6 @@ export default defineComponent({
               return false;
             }
 
-            // eslint-disable-next-line no-undef
             return (
               stringSimilarity.compareTwoStrings(entry.titel, entry2.titel) >
               this.dice_threshold / 100
@@ -427,7 +390,6 @@ export default defineComponent({
               return false;
             }
 
-            // eslint-disable-next-line no-undef
             return (
               stringSimilarity.compareTwoStrings(entry.titel, entry2.titel) >
               this.dice_threshold / 100
@@ -454,7 +416,6 @@ export default defineComponent({
               return _.isEmpty(second);
             }
 
-            // eslint-disable-next-line no-undef
             return (
               stringSimilarity.compareTwoStrings(first, second) >
               this.dice_threshold / 100
@@ -479,7 +440,6 @@ export default defineComponent({
                 return entry.title === entry2.title;
               }
 
-              // eslint-disable-next-line no-undef
               return (
                 stringSimilarity.compareTwoStrings(entry.title, entry2.title) >
                 0.8
@@ -492,6 +452,39 @@ export default defineComponent({
         },
       );
     },
+  },
+  watch: {
+    toggle() {
+      this.$router.replace({
+        query: { kategorie: this.toggle_to_kategorie(this.toggle) },
+      });
+    },
+    similarity_type_show() {
+      if (!this.similarity_type_show) {
+        this.similarity_type = false;
+      }
+    },
+  },
+  mounted() {
+    if (this.$route.query.kategorie) {
+      switch (this.$route.query.kategorie) {
+        case "Gesangbuchlieder":
+          this.toggle = 0;
+          break;
+        case "Texte":
+          this.toggle = 1;
+          break;
+        case "Melodien":
+          this.toggle = 2;
+          break;
+        case "Dateien":
+          this.toggle = 3;
+          break;
+        case "Autoren":
+          this.toggle = 4;
+          break;
+      }
+    }
   },
   methods: {
     copy_to_clipboard(text) {

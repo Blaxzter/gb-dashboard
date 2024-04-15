@@ -6,6 +6,18 @@ import "vue3-pdf-app/dist/icons/main.css";
 
 export default {
   name: "MediaComponent",
+  components: { VuePdfEmbed, VuePdfApp },
+  props: {
+    file: {
+      type: Object,
+      required: true,
+    },
+    singModeScreen: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ["fullscreen_pdf"],
   data: () => ({
     maxWidth: 100,
     config: {
@@ -20,20 +32,11 @@ export default {
       },
     },
   }),
-  props: {
-    file: Object,
-    singModeScreen: {
-      type: Boolean,
-      default: false,
-    },
-  },
   watch: {
     file() {
       console.log("file changed");
     },
   },
-  components: { VuePdfEmbed, VuePdfApp },
-  emits: ["fullscreen_pdf"],
   methods: {
     changeToHandTool(pdfApp) {
       pdfApp.pdfCursorTools.switchTool(1);
@@ -69,33 +72,33 @@ export default {
 
 <template>
   <div
-    style="position: absolute; z-index: 20"
     v-if="singModeScreen && file.type !== 'application/pdf'"
+    style="position: absolute; z-index: 20"
     class="pl-5 pt-2"
   >
     <v-btn
       icon="mdi-magnify-minus-outline"
-      @click="maxWidth = maxWidth - 5 < 20 ? maxWidth : maxWidth - 5"
       variant="text"
       :disabled="maxWidth === 20"
       color="primary"
+      @click="maxWidth = maxWidth - 5 < 20 ? maxWidth : maxWidth - 5"
     />
     <v-btn
       icon="mdi-magnify-plus-outline"
-      @click="maxWidth = maxWidth + 5 > 100 ? maxWidth : maxWidth + 5"
       variant="text"
       :disabled="maxWidth === 100"
       color="primary"
+      @click="maxWidth = maxWidth + 5 > 100 ? maxWidth : maxWidth + 5"
     />
   </div>
   <div v-if="file.type === 'application/pdf'" class="h-100">
     <div v-if="singModeScreen" class="h-100">
       <vue-pdf-app
+        ref="pdfApp"
         :config="config"
-        @pages-rendered="changeToHandTool"
         :pdf="getPdfUrl(file.id)"
         theme="light"
-        ref="pdfApp"
+        @pages-rendered="changeToHandTool"
       ></vue-pdf-app>
     </div>
     <div
@@ -106,15 +109,15 @@ export default {
       <vue-pdf-embed
         :height="300"
         :source="getPdfUrl(file.id)"
-        @click="fullscreen_pdf($event, file)"
         :page="1"
         style="cursor: pointer"
+        @click="fullscreen_pdf($event, file)"
       />
     </div>
   </div>
   <div
-    class="d-flex flex-column align-center justify-center h-100"
     v-else-if="is_audio(file)"
+    class="d-flex flex-column align-center justify-center h-100"
   >
     <div>
       <div class="text-h6 mb-3">
@@ -124,18 +127,18 @@ export default {
         <v-icon class="me-4" size="40">mdi-music-note-eighth</v-icon>
         <audio controls>
           <source
+            v-if="is_opus(file)"
             :src="getImgUrl(file.id)"
             type="audio/ogg; codecs=opus"
-            v-if="is_opus(file)"
           />
-          <source :src="getImgUrl(file.id)" :type="file.type" v-else />
+          <source v-else :src="getImgUrl(file.id)" :type="file.type" />
         </audio>
       </div>
     </div>
   </div>
   <div
-    class="d-flex flex-column align-center justify-center h-100"
     v-else-if="is_video(file)"
+    class="d-flex flex-column align-center justify-center h-100"
   >
     <div>
       <div class="text-h6 mb-3">
@@ -151,8 +154,8 @@ export default {
     </div>
   </div>
   <div
-    class="d-flex flex-column align-center pt-5 h-100"
     v-else-if="is_image(file) && singModeScreen"
+    class="d-flex flex-column align-center pt-5 h-100"
   >
     <div :class="{ 'pa-10': singModeScreen }">
       <div class="text-h6 mb-3">
@@ -170,8 +173,8 @@ export default {
     </div>
   </div>
   <div
-    class="d-flex flex-column align-center justify-center h-100"
     v-else-if="!is_image(file)"
+    class="d-flex flex-column align-center justify-center h-100"
   >
     <div class="d-flex align-center">
       <div class="me-4">

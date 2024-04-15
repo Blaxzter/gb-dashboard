@@ -6,7 +6,7 @@
       :to="item.route"
       :class="{ 'mb-3': item.marginButton }"
     >
-      <template v-slot:prepend v-if="item.icon">
+      <template v-if="item.icon" #prepend>
         <v-icon :icon="item.icon" />
       </template>
 
@@ -16,8 +16,8 @@
       </v-list-item-title>
     </v-list-item>
     <v-divider class="my-2" />
-    <v-list-item @click="logout" link variant="flat">
-      <template v-slot:prepend>
+    <v-list-item link variant="flat" @click="logout">
+      <template #prepend>
         <v-icon class="text-red">mdi-logout</v-icon>
       </template>
 

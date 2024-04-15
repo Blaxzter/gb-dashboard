@@ -71,13 +71,6 @@ const routes = [
     ],
   },
   {
-    path: "/animation-test",
-    name: "Animation Test",
-    component: () =>
-      import(/* webpackChunkName: "home" */ "@/views/AnimationTest.vue"),
-    meta: { requiresAuth: false },
-  },
-  {
     path: "/login",
     name: "Login",
     component: () =>
