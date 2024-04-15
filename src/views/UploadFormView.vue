@@ -1,5 +1,5 @@
 <template>
-  <SongUploadForm/>
+  <SongUploadForm />
 </template>
 
 <script setup>

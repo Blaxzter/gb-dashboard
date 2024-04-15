@@ -1,88 +1,135 @@
 <template>
-
-    <v-carousel
-      v-if="melodie?.files.length"
-      :show-arrows="melodie?.files?.length <= 1 ? false : 'hover'"
-      hide-delimiter-background
-      :hide-delimiters="melodie?.files?.length <= 1"
-      height="300"
-      v-model="pdf_carousel_model"
+  <v-carousel
+    ref="carousel"
+    v-if="carousel_files.length"
+    :show-arrows="carousel_files?.length <= 1 ? false : 'hover'"
+    hide-delimiter-background
+    :hide-delimiters="carousel_files?.length <= 1"
+    height="300"
+    v-model="pdf_carousel_model"
+  >
+    <v-carousel-item
+      v-for="(file, i) in carousel_files"
+      :key="i"
+      :src="file.type.includes('image') ? getImgUrl(file.id) : null"
     >
-      <v-carousel-item
-        v-for="(file, i) in melodie?.files"
-        :key="i"
-        :src="file.type.includes('image') ? getImgUrl(file.id) : null"
-      >
-        <div class="d-flex align-center justify-center fill-height bg-grey" v-if="file.type === 'application/pdf'">
-          <vue-pdf-embed
-            height="300"
-            :source="getPdfUrl(file.id)"
-            @click="fullscreen_pdf($event, file)"
-            :page="1"
-            style="cursor: pointer;"
-          />
-        </div>
-
-        <div class="d-flex flex-column align-center justify-center h-100" v-if="is_audio(file)">
-          <div>
-            <div class="text-h6">
-              {{file.title}}
-            </div>
-            <div class="d-flex align-center">
-              <v-icon class="me-4" size="40">mdi-music-note-eighth</v-icon>
-              <audio controls>
-                <source :src="getImgUrl(file.id)" :type="file.type">
-              </audio>
-            </div>
-          </div>
-        </div>
-      </v-carousel-item>
-    </v-carousel>
-    <div class="d-flex flex-row text-subtitle-2" style="max-width: 600px;" v-if="melodie?.files.length">
-      <div class="me-3">
-        Dateiname:
-      </div>
-      <div>
-        {{melodie?.files[pdf_carousel_model]?.title}}
-      </div>
+      <MediaComponent :file="file" @fullscreen_pdf="fullscreen_pdf" />
+    </v-carousel-item>
+  </v-carousel>
+  <div
+    class="d-flex flex-row text-subtitle-2 align-center"
+    style="max-width: 600px"
+    v-if="carousel_files.length"
+  >
+    <div class="me-3">Dateiname:</div>
+    <div>
+      {{ carousel_files[pdf_carousel_model]?.filename_download }}
     </div>
 
-    <AudioCarousel v-if="filtered_audio_files?.length" :files="filtered_audio_files"/>
+    <div class="flex-grow-1" />
 
-    <v-dialog v-model="noten_dialog" style="height: 100vh; width: 100vw">
-      <div class="position-relative" style="overflow: scroll">
-        <v-btn icon="mdi-close" @click="noten_dialog = false" class="position-fixed ma-10" style="z-index: 10000; right: 0"></v-btn>
-        <vue-pdf-embed
-          v-if="selected_file"
-          :source="getPdfUrl(selected_file.id)"
-        />
-      </div>
-    </v-dialog>
+    <!-- Download button -->
+    <v-btn
+      icon
+      class="ml-3"
+      @click="download_file(carousel_files[pdf_carousel_model])"
+      variant="text"
+      size="tiny"
+    >
+      <v-icon>mdi-download</v-icon>
+    </v-btn>
+    <!-- Open in new tab      -->
+    <v-btn
+      icon
+      class="ml-3"
+      :href="getImgUrl(carousel_files[pdf_carousel_model]?.id)"
+      target="_blank"
+      :download="carousel_files[pdf_carousel_model]?.filename_download"
+      variant="text"
+      size="tiny"
+    >
+      <v-icon>mdi-open-in-new</v-icon>
+    </v-btn>
+  </div>
+
+  <v-dialog v-model="noten_dialog">
+    <div class="position-relative" style="overflow: scroll">
+      <v-btn
+        icon="mdi-close"
+        @click="noten_dialog = false"
+        class="position-fixed ma-10"
+        style="z-index: 10000; right: 0"
+      ></v-btn>
+      <vue-pdf-embed
+        v-if="selected_file"
+        :source="getPdfUrl(selected_file.id)"
+      />
+    </div>
+  </v-dialog>
 </template>
 
 <script>
 import VuePdfEmbed from "vue-pdf-embed";
+import _ from "lodash";
+import MediaComponent from "@/components/SongRelated/MediaComponent.vue";
 
 export default {
   name: "NotenCarousel",
-  components: {VuePdfEmbed},
+  components: { MediaComponent, VuePdfEmbed },
   props: {
-    melodie: Array
+    melodie: Object,
+    gesangbuchlied_satz_mit_melodie_und_text: Object,
   },
   data: () => ({
     selected_file: null,
     noten_dialog: false,
-    pdf_carousel_model: 0
+    pdf_carousel_model: 0,
   }),
+  mounted() {
+    this.colorDelimiters();
+    this.$emit("visible_file", this.carousel_files[this.pdf_carousel_model]);
+  },
+  emits: ["visible_file"],
+  watch: {
+    pdf_carousel_model() {
+      console.log(
+        this.pdf_carousel_model,
+        this.carousel_files[this.pdf_carousel_model],
+      );
+      this.$emit("visible_file", this.carousel_files[this.pdf_carousel_model]);
+    },
+  },
   computed: {
+    carousel_files() {
+      let uniqBy = _.uniqBy(
+        _.concat(
+          _.map(this.gesangbuchlied_satz_mit_melodie_und_text, (obj) => {
+            return {
+              ...obj,
+              from_melodie: false,
+            };
+          }),
+          _.map(this.melodie?.files, (obj) => {
+            return {
+              ...obj,
+              from_melodie: true,
+            };
+          }),
+        ),
+        "id",
+      );
+      console.log(uniqBy);
+      return uniqBy;
+    },
     filtered_audio_files() {
-      return this.melodie?.files.filter(file => file.type.includes('audio'))
+      return this.melodie?.files.filter(
+        (file) =>
+          file.type.includes("audio") ||
+          file.type.includes("application/octet-stream"),
+      );
     },
   },
   methods: {
-    is_audio(file) {
-      return file.type.includes('audio')
-    },
     getPdfUrl(file_id) {
       return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;
     },
@@ -92,11 +139,60 @@ export default {
     fullscreen_pdf(event, file) {
       this.selected_file = file;
       this.noten_dialog = true;
-    }
-  }
-}
+    },
+    download_file(file) {
+      console.log(file);
+      const file_url = this.getImgUrl(file?.id);
+      // create local file blob with name filename_download
+      fetch(file_url)
+        .then((res) => {
+          return res.blob();
+        })
+        .then((blob) => {
+          const href = window.URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.download = file?.filename_download;
+          a.href = href;
+          // open download link in new tab
+          a.target = "_blank";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        })
+        .catch((err) => console.error(err));
+    },
+    colorDelimiters() {
+      // Wait for the next tick to ensure the DOM has been updated
+      this.$nextTick(() => {
+        const delimiters = this.$refs.carousel.$el.querySelectorAll(
+          ".v-carousel__controls .v-btn",
+        );
+
+        delimiters.forEach((delimiter, index) => {
+          // Apply color based on the index (position) of the delimiter
+          if (this.carousel_files[index]["from_melodie"]) {
+            delimiter.style.color = "#4CAF50"; // First delimiter
+            // also style the ::before of the nested i child in span v-btn__content
+            delimiter
+              .querySelector("i")
+              .classList.add("melodie-delimiter-color");
+          } else {
+            delimiter.style.color = "#9595ff"; // Middle delimiters
+            delimiter.querySelector("i").classList.add("song-delimiter-color");
+          }
+        });
+      });
+    },
+  },
+};
 </script>
 
-<style scoped>
-
+<style>
+.melodie-delimiter-color::before {
+  color: #4caf50 !important;
+}
+.song-delimiter-color::before {
+  color: #9595ff !important;
+}
 </style>

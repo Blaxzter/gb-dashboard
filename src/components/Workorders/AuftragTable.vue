@@ -1,5 +1,4 @@
 <template>
-
   <v-data-table
     style="min-height: 600px"
     :headers="headers"
@@ -7,6 +6,7 @@
     item-key="id"
     :search="search"
     locale="de"
+    @click:row="rowClick"
   >
     <template v-slot:top>
       <v-text-field
@@ -19,17 +19,31 @@
       ></v-text-field>
     </template>
   </v-data-table>
+
+  <v-dialog v-model="text_dialog" width="700">
+    <TextDialog :text="auftrag.text" @close="text_dialog = false" />
+  </v-dialog>
+  <v-dialog v-model="melodie_dialog" width="700">
+    <MelodieDialog :melodie="auftrag.melodie" @close="melodie_dialog = false" />
+  </v-dialog>
 </template>
 
 <script>
+import _ from "lodash";
 
-import {useAppStore} from "@/store/app";
+import { useAppStore } from "@/store/app";
+import TextDialog from "@/components/SongRelated/TextDialog.vue";
+import MelodieDialog from "@/components/SongRelated/MelodieDialog.vue";
 
 export default {
   name: "AuftragTable",
+  components: { MelodieDialog, TextDialog },
   data: () => ({
     store: useAppStore(),
-    search: '',
+    search: "",
+    text_dialog: false,
+    melodie_dialog: false,
+    auftrag: {},
     headers: [
       { title: "Arbeitskreis", align: "start", key: "arbeitskreis_name" },
       { title: "Abgabetermin", align: "start", key: "abgabetermin" },
@@ -41,9 +55,17 @@ export default {
   props: {
     auftraege: Array,
   },
-}
+  methods: {
+    rowClick(event, item) {
+      this.auftrag = item.item.raw;
+      if (!_.isNil(item.item.raw.text)) {
+        this.text_dialog = true;
+      } else if (!_.isNil(item.item.raw.melodie)) {
+        this.melodie_dialog = true;
+      }
+    },
+  },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

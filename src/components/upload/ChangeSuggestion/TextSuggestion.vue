@@ -13,8 +13,18 @@
       text="Das ausgewählte Gesangbuchlied hat keinen Text zugeordnet. Eine Aktualisierung der Noten ist deshalb nicht möglich."
     >
       <div class="d-flex justify-end">
-        <v-btn :color="!show_new_text? 'success': 'error'" :prepend-icon="!show_new_text? 'mdi-plus': 'mdi-minus'" class="mt-5" @click="show_new_text = !show_new_text" variant="tonal">
-          {{ !show_new_text ? "Neuen Text hinzufügen" : "Doch kein Text hinzufügen." }}
+        <v-btn
+          :color="!show_new_text ? 'success' : 'error'"
+          :prepend-icon="!show_new_text ? 'mdi-plus' : 'mdi-minus'"
+          class="mt-5"
+          @click="show_new_text = !show_new_text"
+          variant="tonal"
+        >
+          {{
+            !show_new_text
+              ? "Neuen Text hinzufügen"
+              : "Doch kein Text hinzufügen."
+          }}
         </v-btn>
       </div>
     </v-alert>
@@ -32,10 +42,17 @@
     </v-expand-transition>
   </div>
   <div v-else>
-    <div v-for="(strophe, index) in text?.strophenEinzeln" :key="index" class="d-flex flex-column mb-2">
-      <div class="d-flex justify-space-between align-center" :class="{'mb-3': strophe?.new_strophe}">
-        <div class="text-h6 mb-1" >
-          {{strophe?.new_strophe ? 'Neue' : ''}} Strophe {{ index + 1 }}
+    <div
+      v-for="(strophe, index) in text?.strophenEinzeln"
+      :key="index"
+      class="d-flex flex-column mb-2"
+    >
+      <div
+        class="d-flex justify-space-between align-center"
+        :class="{ 'mb-3': strophe?.new_strophe }"
+      >
+        <div class="text-h6 mb-1">
+          {{ strophe?.new_strophe ? "Neue" : "" }} Strophe {{ index + 1 }}
         </div>
         <div>
           <v-icon
@@ -43,7 +60,8 @@
             icon="mdi-delete"
             class="px-5"
             color="error"
-            @click="$emit('remove_strophe', index)" />
+            @click="$emit('remove_strophe', index)"
+          />
         </div>
       </div>
 
@@ -94,8 +112,7 @@
       @click="$emit('add_strophe', text)"
     >
       Neue Strophe hinzufügen
-      </v-btn>
-
+    </v-btn>
   </div>
 </template>
 
@@ -104,7 +121,7 @@ import NewTextData from "@/components/upload/NewSongComponents/NewTextData.vue";
 
 export default {
   name: "TextSuggestion",
-  components: {NewTextData},
+  components: { NewTextData },
   props: {
     text: Object,
     selected_song: Object,
@@ -125,7 +142,7 @@ export default {
     show_new_text: false,
     new_text: {
       title: "",
-      strophen: [{strophe: ""}],
+      strophen: [{ strophe: "" }],
       quelle: "",
       quelllink: "",
       anmerkung: "",
@@ -154,11 +171,9 @@ export default {
     },
     upload() {
       return this.$refs.new_text_data.upload();
-    }
-  }
-}
+    },
+  },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

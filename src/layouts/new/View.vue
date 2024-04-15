@@ -2,20 +2,21 @@
   <v-main class="bg-grey-lighten-3">
     <v-container fluid class="main-container">
       <v-row>
-        <v-col v-if="$vuetify.display.lgAndUp" cols="2" >
+        <v-col v-if="$vuetify.display.lgAndUp" cols="2">
           <v-sheet rounded="lg">
-            <MenuList rounded/>
+            <MenuList rounded />
           </v-sheet>
         </v-col>
 
         <v-col cols="12" lg="10">
-          <v-sheet
-            min-height="70vh"
-            rounded="lg"
-          >
+          <v-sheet min-height="70vh" rounded="lg">
             <v-container>
-              <router-view/>
+              <router-view />
             </v-container>
+
+            <v-divider class="my-4"></v-divider>
+
+            <footer-bar />
           </v-sheet>
         </v-col>
       </v-row>
@@ -25,6 +26,7 @@
 
 <script setup>
 import MenuList from "@/components/util/MenuList.vue";
+import FooterBar from "@/layouts/new/FooterBar.vue";
 </script>
 
 <style>
