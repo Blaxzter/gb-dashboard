@@ -24,12 +24,15 @@ import AuftragCard from "@/components/Workorders/AuftragsCard.vue";
 export default {
   name: "AuftragCards",
   components: { AuftragCard },
+  props: {
+    auftraege: {
+      type: Array,
+      required: true,
+    },
+  },
   data: () => ({
     store: useAppStore(),
   }),
-  props: {
-    auftraege: Array,
-  },
   computed: {
     chunked_auftraege() {
       return _.chunk(this.auftraege, Math.ceil(this.auftraege.length / 3));

@@ -2,7 +2,7 @@
   <div class="text-h5">Arbeitsaufträge der Arbeitskreise</div>
   <div class="mt-3">
     <div style="height: 400px">
-      <Doughnut :data="work_chart_data" :options="chart_options" />
+      <Doughnut :data="work_chart_data" :options="chartOptions" />
     </div>
   </div>
 </template>
@@ -24,15 +24,15 @@ export default {
   components: {
     Doughnut,
   },
-  data: () => ({
-    store: useAppStore(),
-  }),
   props: {
-    chart_options: {
+    chartOptions: {
       type: Object,
       required: true,
     },
   },
+  data: () => ({
+    store: useAppStore(),
+  }),
   computed: {
     auftraege() {
       return this.store.auftraege;

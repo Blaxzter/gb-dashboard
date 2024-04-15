@@ -10,6 +10,7 @@
         <v-row>
           <v-col>
             <v-autocomplete
+              v-model="selected_author_model"
               label="Suche nach existierenden Autoren"
               :items="sorted_store_authors"
               item-title="author_str"
@@ -20,7 +21,6 @@
               chips
               closable-chips
               multiple
-              v-model="selected_author_model"
             ></v-autocomplete>
           </v-col>
         </v-row>
@@ -58,11 +58,11 @@
             >
               <div class="d-flex">
                 <v-tooltip
+                  v-if="author.exists"
                   text="Autor existiert bereits"
                   location="bottom"
-                  v-if="author.exists"
                 >
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-icon
                       icon="mdi-alert"
                       v-bind="props"
@@ -77,20 +77,20 @@
                 </span>
               </div>
               <v-btn
-                color="error"
-                @click="removeAuthor(index)"
-                icon="mdi-minus"
                 v-if="author_model.length > 1"
+                color="error"
+                icon="mdi-minus"
                 size="small"
                 density="compact"
+                @click="removeAuthor(index)"
               />
             </v-col>
           </v-row>
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
-                label="Vorname des Autors"
                 v-model="author.firstName"
+                label="Vorname des Autors"
                 hide-details="auto"
                 class="mb-0"
                 @update:model-value="check_author(index)"
@@ -98,8 +98,8 @@
             </v-col>
             <v-col cols="12" md="6">
               <v-text-field
-                label="Nachname des Autors"
                 v-model="author.lastName"
+                label="Nachname des Autors"
                 hide-details="auto"
                 class="mb-0"
                 @update:model-value="check_author(index)"
@@ -109,8 +109,8 @@
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
-                label="Geburtsjahr"
                 v-model="author.birthdate"
+                label="Geburtsjahr"
                 type="number"
                 hide-details="auto"
                 class="mb-0"
@@ -118,8 +118,8 @@
             </v-col>
             <v-col cols="12" md="6">
               <v-text-field
-                label="Sterbejahr"
                 v-model="author.deathdate"
+                label="Sterbejahr"
                 type="number"
                 hide-details="auto"
                 class="mb-0"
@@ -128,17 +128,17 @@
           </v-row>
 
           <v-divider
-            class="mt-2 mb-4"
             v-if="author_model.length > 1 && index + 1 < author_model.length"
+            class="mt-2 mb-4"
           />
         </template>
 
         <v-btn
           color="primary"
-          @click="addAuthor"
           prepend-icon="mdi-plus"
           variant="tonal"
           class="mt-4"
+          @click="addAuthor"
         >
           Einen weiteren Author
         </v-btn>
@@ -148,28 +148,38 @@
 </template>
 
 <script>
-import VuetifyDatepicker from "@/components/upload/NewSongComponents/VuetifyDatepicker.vue";
+// import VuetifyDatepicker from "@/components/upload/NewSongComponents/VuetifyDatepicker.vue";
 import { useAppStore } from "@/store/app";
 
 import _ from "lodash";
 
 export default {
   name: "AuthorenFom",
-  components: { VuetifyDatepicker },
+  // components: { VuetifyDatepicker },
+  props: {
+    selectedAuthor: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    authors: {
+      type: Array,
+      required: true,
+    },
+    label: {
+      type: String,
+      required: true,
+    },
+    upload_page: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   data: () => ({
     store: useAppStore(),
     selected_author_model: [],
     use_same_author_for_text: false,
   }),
-  props: {
-    selected_author: Array,
-    authors: Array,
-    label: String,
-    upload_page: Boolean,
-  },
-  mounted() {
-    this.selected_author_model = this.selected_author;
-  },
   computed: {
     author_model: {
       get() {
@@ -200,6 +210,9 @@ export default {
         this.use_same_author_for_text,
       );
     },
+  },
+  mounted() {
+    this.selected_author_model = this.selectedAuthor;
   },
 
   methods: {

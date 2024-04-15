@@ -47,7 +47,7 @@
         </div>
       </v-card-text>
       <v-card-actions>
-        <v-btn @click="showDialog = false" color="error">Schließen</v-btn>
+        <v-btn color="error" @click="showDialog = false">Schließen</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
