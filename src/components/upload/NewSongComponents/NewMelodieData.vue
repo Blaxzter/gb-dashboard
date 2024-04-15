@@ -33,6 +33,7 @@
       <v-row class="my-0">
         <v-col cols="12" class="my-0">
           <v-autocomplete
+            v-model="selected_melodie"
             :disabled="!existing_melodie"
             label="Suche nach existierenden Melodien"
             :items="sorted_store_melodie"
@@ -42,9 +43,8 @@
             hide-details="auto"
             class="py-0"
             return-object
-            v-model="selected_melodie"
           >
-            <template v-slot:item="{ props, item }">
+            <template #item="{ props, item }">
               <v-list-item
                 v-bind="props"
                 :title="item?.raw?.titel"
@@ -76,15 +76,15 @@
             />
 
             <AuthorenFom
+              v-model:authors="melodie.authors"
               :label="'Melodie Autoren'"
+              :selected-author="melodie.selected_authors"
+              class="mb-3"
+              :upload_page="upload_page"
               @update:selected_author="melodie.selected_authors = $event"
               @update:use_same_author_for_text="
                 melodie.use_same_author_for_text = $event
               "
-              :selected_author="melodie.selected_authors"
-              v-model:authors="melodie.authors"
-              class="mb-3"
-              :upload_page="upload_page"
             />
             <!--                <LizensComponent-->
             <!--                  :label="'Melodie Lizensen'"-->
@@ -109,6 +109,11 @@ import axios from "@/assets/js/axiossConfig";
 export default {
   name: "NewMelodieData",
   components: { AuthorenFom, MelodieData },
+  props: {
+    song_title: String,
+    in_melodie: Object,
+    upload_page: Boolean,
+  },
   data: () => ({
     store: useAppStore(),
     existing_melodie: false,
@@ -123,14 +128,13 @@ export default {
     },
     to_be_created_melodie_authors: [],
   }),
-  props: {
-    song_title: String,
-    in_melodie: Object,
-    upload_page: Boolean,
-  },
-  mounted() {
-    this.melodie = this.in_melodie;
-    this.$emit("update:melodie", this.melodie);
+  computed: {
+    store_melodie() {
+      return this.store.melodies;
+    },
+    sorted_store_melodie() {
+      return _.sortBy(this.store_melodie, "titel");
+    },
   },
   watch: {
     melodie: {
@@ -146,13 +150,9 @@ export default {
       this.$emit("update:selected_melodie", this.selected_melodie);
     },
   },
-  computed: {
-    store_melodie() {
-      return this.store.melodies;
-    },
-    sorted_store_melodie() {
-      return _.sortBy(this.store_melodie, "titel");
-    },
+  mounted() {
+    this.melodie = this.in_melodie;
+    this.$emit("update:melodie", this.melodie);
   },
   methods: {
     custom_filter(item, queryText, itemText) {

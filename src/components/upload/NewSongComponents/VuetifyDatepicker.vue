@@ -6,16 +6,16 @@
       location="top"
       class="mb-0"
     >
-      <template v-slot:activator="{ props }">
+      <template #activator="{ props }">
         <v-text-field
           v-bind="props"
+          v-model="visible_date"
           outlined
           :label="label"
-          v-model="visible_date"
-          @input="date_changed"
           append-icon="mdi-calendar"
           hide-details="auto"
           class="mb-0"
+          @input="date_changed"
         ></v-text-field>
       </template>
 
@@ -40,12 +40,12 @@ export default {
     label: String,
     date: Date,
   },
+  emits: ["update:date"],
   data: () => ({
     menu: false,
     visible_date: null,
     hidden_date: null,
   }),
-  emits: ["update:date"],
   computed: {
     selected_date() {
       return this.hidden_date;

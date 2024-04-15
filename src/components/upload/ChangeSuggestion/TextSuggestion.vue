@@ -1,5 +1,5 @@
 <template>
-  <div class="text-h5 ps-0 my-5" v-if="text">
+  <div v-if="text" class="text-h5 ps-0 my-5">
     Änderungsvorschlag oder Anmerkungen
   </div>
   <div v-if="!text" class="mb-5">
@@ -17,8 +17,8 @@
           :color="!show_new_text ? 'success' : 'error'"
           :prepend-icon="!show_new_text ? 'mdi-plus' : 'mdi-minus'"
           class="mt-5"
-          @click="show_new_text = !show_new_text"
           variant="tonal"
+          @click="show_new_text = !show_new_text"
         >
           {{
             !show_new_text
@@ -33,11 +33,11 @@
       <NewTextData
         ref="new_text_data"
         :in_text="new_text"
+        :song_title="selected_song?.titel"
+        :upload_page="false"
         @update:text="new_text = $event"
         @update:existing_text="existing_text = $event"
         @update:selected_text="selected_text = $event"
-        :song_title="selected_song?.titel"
-        :upload_page="false"
       />
     </v-expand-transition>
   </div>
@@ -65,7 +65,7 @@
         </div>
       </div>
 
-      <div class="text-subtitle-1 mb-3" v-if="!strophe?.new_strophe">
+      <div v-if="!strophe?.new_strophe" class="text-subtitle-1 mb-3">
         {{ strophe.strophe }}
       </div>
       <v-textarea
@@ -126,17 +126,6 @@ export default {
     text: Object,
     selected_song: Object,
   },
-  mounted() {
-    // add bool value with key new_strophe to each strophe
-    if (this.text) {
-      this.text.strophenEinzeln?.forEach((strophe) => {
-        // check if new_strophe exists
-        if (strophe.new_strophe === undefined) {
-          strophe.new_strophe = false;
-        }
-      });
-    }
-  },
   emits: ["remove_strophe", "add_strophe"],
   data: () => ({
     show_new_text: false,
@@ -165,6 +154,17 @@ export default {
     existing_text: null,
     selected_text: null,
   }),
+  mounted() {
+    // add bool value with key new_strophe to each strophe
+    if (this.text) {
+      this.text.strophenEinzeln?.forEach((strophe) => {
+        // check if new_strophe exists
+        if (strophe.new_strophe === undefined) {
+          strophe.new_strophe = false;
+        }
+      });
+    }
+  },
   methods: {
     validate() {
       this.$refs.new_text_data.validate();

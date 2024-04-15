@@ -12,15 +12,15 @@
     >
       <div>
         <v-icon
+          v-if="!is_next_thirty_days(event.start)"
           icon="mdi-calendar-blank"
           class="ms-3 me-5"
-          v-if="!is_next_thirty_days(event.start)"
         />
         <v-icon
+          v-else
           icon="mdi-lightning-bolt"
           color="red"
           class="ms-3 me-5"
-          v-else
         />
       </div>
 
@@ -46,7 +46,10 @@ import moment from "moment";
 export default {
   name: "MeilenSteineComponent",
   props: {
-    events: Array,
+    events: {
+      type: Array,
+      required: true,
+    },
   },
   methods: {
     is_next_thirty_days(start_date) {

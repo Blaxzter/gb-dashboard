@@ -30,27 +30,27 @@
           class="d-flex flex-column align-center"
         >
           <v-text-field
-            style="max-width: 300px"
             v-model="email"
-            @keydown.enter.prevent="submit"
+            style="max-width: 300px"
             :rules="[rules.required]"
             label="Benutzernamen"
             required
             class="mb-3 w-100"
             variant="outlined"
+            @keydown.enter.prevent="submit"
           ></v-text-field>
 
           <v-text-field
+            v-model="password"
             style="max-width: 300px"
             class="w-100"
-            v-model="password"
-            @keydown.enter.prevent="submit"
             :rules="[rules.required]"
             :append-icon="show_password ? 'mdi-eye' : 'mdi-eye-off'"
             :type="show_password ? 'text' : 'password'"
-            @click:append="show_password = !show_password"
             label="Passwort"
             variant="outlined"
+            @keydown.enter.prevent="submit"
+            @click:append="show_password = !show_password"
           ></v-text-field>
 
           <div class="w-100" style="max-width: 300px">
@@ -94,11 +94,6 @@ import router from "@/router";
 
 export default {
   name: "LoginPage",
-  mounted() {
-    if (this.user_store.is_logged_in) {
-      router.push("dashboard");
-    }
-  },
   data: () => ({
     user_store: useUserStore(),
     email: "",
@@ -137,6 +132,11 @@ export default {
     validate_login() {
       return this.password !== "" && this.email !== "";
     },
+  },
+  mounted() {
+    if (this.user_store.is_logged_in) {
+      router.push("dashboard");
+    }
   },
   methods: {
     async submit() {

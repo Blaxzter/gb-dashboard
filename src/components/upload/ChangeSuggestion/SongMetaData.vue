@@ -1,13 +1,13 @@
 <script>
 export default {
   name: "SongMetaData",
+  props: {
+    selected_song: {
+  },
   data: () => ({
     melodie_anmerkung: "",
     text_anmerkung: "",
   }),
-  props: {
-    selected_song: Object,
-  },
   mounted() {
     console.log(this.selected_song);
     this.melodie_anmerkung = this.selected_song?.melodie?.anmerkung;
