@@ -8,7 +8,7 @@
               text="Den Gesangbuchlied-Titel kopieren"
               location="bottom"
             >
-              <template v-slot:activator="{ props }">
+              <template #activator="{ props }">
                 <v-btn
                   icon="mdi-content-copy"
                   size="tiny"
@@ -23,14 +23,14 @@
           </div>
           <v-text-field
             v-model="title"
-            @change="$emit('update:title', $event.target.value)"
             label="Melodie Titel"
             hide-details="auto"
             class="mb-3"
+            @change="$emit('update:title', $event.target.value)"
           ></v-text-field>
           <div v-if="title_already_exists">
             <v-tooltip text="Titel existiert bereits" location="bottom">
-              <template v-slot:activator="{ props }">
+              <template #activator="{ props }">
                 <v-icon
                   icon="mdi-alert"
                   v-bind="props"
@@ -63,19 +63,19 @@
       <v-col cols="12" md="6" class="py-0">
         <v-text-field
           v-model="quelle"
-          @change="$emit('update:quelle', $event.target.value)"
           label="Quelle"
           hide-details="auto"
           class="mb-3"
+          @change="$emit('update:quelle', $event.target.value)"
         ></v-text-field>
       </v-col>
       <v-col cols="12" md="6" class="py-0">
         <v-text-field
           v-model="quellelink"
-          @change="$emit('update:quellelink', $event.target.value)"
           label="Melodie Quelle Link"
           hide-details="auto"
           class="mb-3"
+          @change="$emit('update:quellelink', $event.target.value)"
         ></v-text-field>
       </v-col>
     </v-row>
@@ -83,10 +83,10 @@
       <v-col cols="12" class="pt-0">
         <v-textarea
           v-model="anmerkung"
-          @change="$emit('update:anmerkung', $event.target.value)"
           label="Melodie Anmerkung"
           hide-details="auto"
           class="mb-3"
+          @change="$emit('update:anmerkung', $event.target.value)"
         ></v-textarea>
       </v-col>
     </v-row>
@@ -115,13 +115,6 @@ export default {
     quellelink: "",
     anmerkung: "",
   }),
-  mounted() {
-    this.noten = this.in_noten;
-    this.quellelink = this.in_quellelink;
-    this.title = this.in_title;
-    this.quelle = this.in_quelle;
-    this.anmerkung = this.in_anmerkung;
-  },
   computed: {
     store_melodies() {
       return this.store.melodies;
@@ -132,6 +125,13 @@ export default {
     title_already_exists() {
       return this.existing_melodies_title.includes(this.title);
     },
+  },
+  mounted() {
+    this.noten = this.in_noten;
+    this.quellelink = this.in_quellelink;
+    this.title = this.in_title;
+    this.quelle = this.in_quelle;
+    this.anmerkung = this.in_anmerkung;
   },
   methods: {
     copy_song_title() {

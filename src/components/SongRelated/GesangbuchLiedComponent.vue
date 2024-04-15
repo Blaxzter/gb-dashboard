@@ -11,67 +11,67 @@
         "
         location="bottom"
       >
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <div
-            @click="copyPathInClipboard"
             class="card-header"
             v-bind="props"
             :style="copied ? 'color: #1867c0' : 'color: black'"
+            @click="copyPathInClipboard"
           >
             <!--  Clipboard icon        -->
             <v-icon class="me-2"> mdi-content-copy </v-icon>
 
-            {{ selected_song?.titel }}
+            {{ selectedSong?.titel }}
           </div>
         </template>
       </v-tooltip>
 
       <div>
         <v-tooltip
-          :text="`Mehr Text Informationen.${selected_song?.text.auftrag ? ' Es existiert ein Arbeitsauftrag' : ''}`"
+          v-if="selectedSong?.text"
+          :text="`Mehr Text Informationen.${selectedSong?.text.auftrag ? ' Es existiert ein Arbeitsauftrag' : ''}`"
           location="bottom"
-          v-if="selected_song?.text"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props }">
             <v-btn
               icon="mdi-text-box"
               v-bind="props"
               variant="text"
-              @click="text_dialog = true"
               :color="
-                selected_song.text.auftrag
+                selectedSong.text.auftrag
                   ? text_has_done_auftraege
                     ? 'success'
                     : 'warning'
                   : 'primary'
               "
+              @click="text_dialog = true"
             />
           </template>
         </v-tooltip>
         <v-tooltip
-          :text="`Mehr Melodie Informationen.${selected_song?.melodie.auftrag ? ' Es existiert ein Arbeitsauftrag' : ''}`"
+          v-if="selectedSong?.melodie"
+          :text="`Mehr Melodie Informationen.${selectedSong?.melodie.auftrag ? ' Es existiert ein Arbeitsauftrag' : ''}`"
           location="bottom"
-          v-if="selected_song?.melodie"
         >
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props }">
             <v-btn
               icon="mdi-music"
               v-bind="props"
               variant="text"
-              @click="melodie_dialog = true"
               :color="
-                selected_song.melodie.auftrag
+                selectedSong.melodie.auftrag
                   ? melodie_has_done_auftraege
                     ? 'success'
                     : 'warning'
                   : 'primary'
               "
+              @click="melodie_dialog = true"
             />
           </template>
         </v-tooltip>
         <SingModeDialog
-          :selected_song="selected_song"
-          :selected_media_file="visible_file"
+          :selected-song="selectedSong"
+          :selected-media-file="visible_file"
         />
       </div>
     </v-card-title>
@@ -79,27 +79,27 @@
 
     <v-card-text class="pt-0 px-8">
       <NotenCarousel
-        :melodie="selected_song?.melodie"
-        :gesangbuchlied_satz_mit_melodie_und_text="
-          selected_song?.gesangbuchlied_satz_mit_melodie_und_text
+        :melodie="selectedSong?.melodie"
+        :gesangbuchlied-satz-mit-melodie-und-text="
+          selectedSong?.gesangbuchlied_satz_mit_melodie_und_text
         "
         @visible_file="visible_file = $event"
       />
 
       <div class="mb-4">
         <StrophenList
-          :text="selected_song?.text"
-          :show_extra_strophen_data="false"
+          :text="selectedSong?.text"
+          :show-extra-strophen-data="false"
         />
       </div>
 
       <v-chip-group>
         <v-chip
+          v-for="(category, index) in selectedSong?.kategories"
+          :key="index"
           :prepend-icon="
             gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)
           "
-          v-for="(category, index) in selected_song?.kategories"
-          :key="index"
           :style="{ 'background-color': get_color(category) }"
         >
           {{ category?.kategorie_name?.name }}
@@ -108,8 +108,8 @@
 
       <div
         v-for="(author_source, index_1) in [
-          { name: 'Text', src: selected_song?.text?.authors },
-          { name: 'Melodie', src: selected_song?.melodie?.authors },
+          { name: 'Text', src: selectedSong?.text?.authors },
+          { name: 'Melodie', src: selectedSong?.melodie?.authors },
         ]"
         :key="index_1"
       >
@@ -118,9 +118,9 @@
             {{ author_source.name }} Autor
           </div>
           <div
-            class="d-flex flex-row mb-4"
             v-for="(author, index) in author_source.src"
             :key="index"
+            class="d-flex flex-row mb-4"
           >
             <div class="me-2">{{ index + 1 }}.</div>
             <div>
@@ -135,34 +135,34 @@
         </div>
       </div>
 
-      <div v-if="selected_song?.einreicherName" class="mb-4">
+      <div v-if="selectedSong?.einreicherName" class="mb-4">
         <span class="text-subtitle-1 font-weight-medium">
           Eingereicht von:
         </span>
-        <span> {{ selected_song?.einreicherName }} </span>
+        <span> {{ selectedSong?.einreicherName }} </span>
       </div>
 
       <div
         v-if="
-          selected_song?.anmerkung ||
-          selected_song?.text?.anmerkung ||
-          selected_song?.melodie?.anmerkung
+          selectedSong?.anmerkung ||
+          selectedSong?.text?.anmerkung ||
+          selectedSong?.melodie?.anmerkung
         "
         class="mb-4"
       >
         <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
-        <div class="white-space-pre">{{ selected_song?.anmerkung }}</div>
-        <div class="d-flex mt-2" v-if="selected_song?.text?.anmerkung">
+        <div class="white-space-pre">{{ selectedSong?.anmerkung }}</div>
+        <div v-if="selectedSong?.text?.anmerkung" class="d-flex mt-2">
           <v-icon class="me-2"> mdi-text-box </v-icon>
           <div class="white-space-pre">
-            {{ selected_song?.text.anmerkung }}
+            {{ selectedSong?.text.anmerkung }}
           </div>
         </div>
-        <div class="d-flex mt-2" v-if="selected_song?.melodie?.anmerkung">
+        <div v-if="selectedSong?.melodie?.anmerkung" class="d-flex mt-2">
           <!--  note icon         -->
           <v-icon class="me-2"> mdi-music </v-icon>
           <div>
-            {{ selected_song?.melodie.anmerkung }}
+            {{ selectedSong?.melodie.anmerkung }}
           </div>
         </div>
       </div>
@@ -173,74 +173,72 @@
         </div>
         <div>
           <div
-            v-if="selected_song?.bewertung_kleiner_kreis?.bezeichner"
+            v-if="selectedSong?.bewertung_kleiner_kreis?.bezeichner"
             class="d-flex"
             :style="{
               color:
-                rang_to_color[
-                  selected_song?.bewertung_kleiner_kreis?.rangfolge
-                ],
+                rang_to_color[selectedSong?.bewertung_kleiner_kreis?.rangfolge],
             }"
           >
             <v-icon icon="mdi-music" class="me-2" />
             <span class="me-2">Lied</span>
             <v-icon icon="mdi-arrow-right" class="me-2" />
-            {{ selected_song?.bewertung_kleiner_kreis?.bezeichner }}
+            {{ selectedSong?.bewertung_kleiner_kreis?.bezeichner }}
           </div>
-          <div class="ms-10 d-flex" v-if="selected_song?.bewertungAnmerkung">
+          <div v-if="selectedSong?.bewertungAnmerkung" class="ms-10 d-flex">
             <v-icon icon="mdi-arrow-right-bottom" class="me-2" />
             <div class="pt-1">
-              {{ selected_song?.bewertungAnmerkung }}
+              {{ selectedSong?.bewertungAnmerkung }}
             </div>
           </div>
         </div>
         <div>
           <div
-            v-if="selected_song?.text?.bewertung_kleiner_kreis?.bezeichner"
+            v-if="selectedSong?.text?.bewertung_kleiner_kreis?.bezeichner"
             :style="{
               color:
                 rang_to_color[
-                  selected_song?.text?.bewertung_kleiner_kreis?.rangfolge
+                  selectedSong?.text?.bewertung_kleiner_kreis?.rangfolge
                 ],
             }"
           >
             <v-icon icon="mdi-text-box" class="me-2" />
             <span class="me-2">Text</span>
             <v-icon icon="mdi-arrow-right" class="me-2" />
-            {{ selected_song?.text?.bewertung_kleiner_kreis?.bezeichner }}
+            {{ selectedSong?.text?.bewertung_kleiner_kreis?.bezeichner }}
           </div>
           <div
+            v-if="selectedSong?.text?.bewertungAnmerkung"
             class="ms-10 d-flex"
-            v-if="selected_song?.text?.bewertungAnmerkung"
           >
             <v-icon icon="mdi-arrow-right-bottom" class="me-2" />
             <div class="pt-1">
-              {{ selected_song?.text?.bewertungAnmerkung }}
+              {{ selectedSong?.text?.bewertungAnmerkung }}
             </div>
           </div>
         </div>
         <div>
           <div
-            v-if="selected_song?.melodie?.bewertung_kleiner_kreis?.bezeichner"
+            v-if="selectedSong?.melodie?.bewertung_kleiner_kreis?.bezeichner"
             :style="{
               color:
                 rang_to_color[
-                  selected_song?.melodie?.bewertung_kleiner_kreis?.rangfolge
+                  selectedSong?.melodie?.bewertung_kleiner_kreis?.rangfolge
                 ],
             }"
           >
             <v-icon icon="mdi-music-note" class="me-2" />
             <span class="me-2">Melodie</span>
             <v-icon icon="mdi-arrow-right" class="me-2" />
-            {{ selected_song?.melodie?.bewertung_kleiner_kreis?.bezeichner }}
+            {{ selectedSong?.melodie?.bewertung_kleiner_kreis?.bezeichner }}
           </div>
           <div
+            v-if="selectedSong?.melodie?.bewertungAnmerkung"
             class="ms-10 d-flex"
-            v-if="selected_song?.melodie?.bewertungAnmerkung"
           >
             <v-icon icon="mdi-arrow-right-bottom" class="me-2" />
             <div class="pt-1">
-              {{ selected_song?.melodie?.bewertungAnmerkung }}
+              {{ selectedSong?.melodie?.bewertungAnmerkung }}
             </div>
           </div>
         </div>
@@ -248,34 +246,34 @@
 
       <div>
         <span
+          v-if="selectedSong?.liednummer2000"
           class="text-subtitle-1 font-weight-medium"
-          v-if="selected_song?.liednummer2000"
         >
           Gesangbuchlied 2000:
         </span>
-        <span> {{ selected_song?.liednummer2000 }} </span>
+        <span> {{ selectedSong?.liednummer2000 }} </span>
         <span
-          v-if="selected_song?.melodieGeaendert || selected_song?.textGeaendert"
+          v-if="selectedSong?.melodieGeaendert || selectedSong?.textGeaendert"
         >
           mit
         </span>
         <v-icon
+          v-if="selectedSong?.melodieGeaendert"
           icon="mdi-music-box"
-          v-if="selected_song?.melodieGeaendert"
           color="primary"
         />
         <span
-          v-if="selected_song?.melodieGeaendert && selected_song?.textGeaendert"
+          v-if="selectedSong?.melodieGeaendert && selectedSong?.textGeaendert"
         >
           und
         </span>
         <v-icon
+          v-if="selectedSong?.textGeaendert"
           icon="mdi-text-box-edit"
-          v-if="selected_song?.textGeaendert"
           color="primary"
         />
         <span
-          v-if="selected_song?.melodieGeaendert || selected_song?.textGeaendert"
+          v-if="selectedSong?.melodieGeaendert || selectedSong?.textGeaendert"
         >
           geändert.
         </span>
@@ -287,15 +285,15 @@
   </v-card>
 
   <v-dialog v-model="text_dialog" width="700">
-    <TextDialog :text="selected_song.text" @close="text_dialog = false" />
+    <TextDialog :text="selectedSong.text" @close="text_dialog = false" />
   </v-dialog>
   <v-dialog
     v-model="melodie_dialog"
-    @close="melodie_dialog = false"
     width="700"
+    @close="melodie_dialog = false"
   >
     <MelodieDialog
-      :melodie="selected_song.melodie"
+      :melodie="selectedSong.melodie"
       @close="melodie_dialog = false"
     />
   </v-dialog>
@@ -326,7 +324,10 @@ export default {
     TextDialog,
   },
   props: {
-    selected_song: Object,
+    selectedSong: {
+      type: Object,
+      required: true,
+    },
   },
   emits: ["close"],
   data: () => ({
@@ -347,10 +348,10 @@ export default {
       return this.user.is_kleiner_kreis_ansicht;
     },
     text_has_done_auftraege() {
-      return this.has_only_done_auftraege(this.selected_song.text.auftrag);
+      return this.has_only_done_auftraege(this.selectedSong.text.auftrag);
     },
     melodie_has_done_auftraege() {
-      return this.has_only_done_auftraege(this.selected_song.melodie.auftrag);
+      return this.has_only_done_auftraege(this.selectedSong.melodie.auftrag);
     },
   },
 

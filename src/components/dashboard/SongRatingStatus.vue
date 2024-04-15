@@ -3,9 +3,9 @@
   <div class="mt-3">
     <div style="height: 400px">
       <Doughnut
-        :data="song_rating_data"
-        :options="chart_options"
         ref="song_rating_chart"
+        :data="song_rating_data"
+        :options="chartOptions"
       />
     </div>
   </div>
@@ -26,15 +26,15 @@ export default {
   components: {
     Doughnut,
   },
-  data: () => ({
-    store: useAppStore(),
-  }),
   props: {
-    chart_options: {
+    chartOptions: {
       type: Object,
       required: true,
     },
   },
+  data: () => ({
+    store: useAppStore(),
+  }),
   computed: {
     songs() {
       return this.store.gesangbuchlied;
