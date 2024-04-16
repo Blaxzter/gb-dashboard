@@ -71,11 +71,11 @@
         >
           <v-expansion-panel-text>
             <TextData
-              :song_title="song_title"
-              :in_anmerkung="text.anmerkung"
-              :in_quelle="text.quelle"
-              :in_quellelink="text.quelllink"
-              :in_title="text.title"
+              :song-title="songTitle"
+              :in-anmerkung="text.anmerkung"
+              :in-quelle="text.quelle"
+              :in-quellelink="text.quelllink"
+              :in-title="text.title"
               @update:anmerkung="text.anmerkung = $event"
               @update:quelle="text.quelle = $event"
               @update:quellelink="text.quelllink = $event"
@@ -88,7 +88,7 @@
               :label="'Text Autoren'"
               :selected-author="text.selected_authors"
               class="mb-3"
-              :upload_page="upload_page"
+              :upload-page="uploadPage"
               @update:selected_author="text.selected_authors = $event"
             />
             <!--                <LizensComponent-->
@@ -116,10 +116,21 @@ export default {
   name: "NewTextData",
   components: { TextData, TextStrophen, AuthorenFom },
   props: {
-    song_title: String,
-    in_text: Object,
-    upload_page: Boolean,
+    songTitle: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    inText: {
+      type: Object,
+      required: true,
+    },
+    uploadPage: {
+      type: Boolean,
+      required: true,
+    },
   },
+  emits: ["update:text", "update:existing_text", "update:selected_text"],
   data: () => ({
     store: useAppStore(),
     text: {},
@@ -154,7 +165,7 @@ export default {
     },
   },
   mounted() {
-    this.text = this.in_text;
+    this.text = this.inText;
     this.$emit("update:text", this.text);
   },
   methods: {
@@ -170,8 +181,8 @@ export default {
             return;
           }
           let to_be_created_text_author = {
-            vorname: author.firstName == "" ? null : author.firstName,
-            nachname: author.lastName == "" ? null : author.lastName,
+            vorname: author.firstName === "" ? null : author.firstName,
+            nachname: author.lastName === "" ? null : author.lastName,
             geburtsjahr: author.birthdate
               ? Number(moment(author.birthdate).format("YYYY"))
               : null,

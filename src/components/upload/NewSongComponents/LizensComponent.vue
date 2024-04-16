@@ -5,7 +5,7 @@
         <v-row>
           <v-col cols="12" class="py-0">
             <v-checkbox
-              :checked="use_lizenz"
+              :checked="useLizenz"
               hide-details="auto"
               label="Besitzt eine Lizens"
               @change="$emit('update:use_lizenz', $event.target.checked)"
@@ -48,10 +48,25 @@
 export default {
   name: "LizensComponent",
   props: {
-    lizenz: Object,
-    use_lizenz: Boolean,
-    label: String,
+    lizenz: {
+      type: Object,
+      required: true,
+      default: () => ({
+        name: "",
+        digital: false,
+        print: false,
+      }),
+    },
+    useLizenz: {
+      type: Boolean,
+      required: true,
+    },
+    label: {
+      type: String,
+      required: true,
+    },
   },
+  emits: ["update:use_lizenz", "update:lizenz"],
   computed: {
     lizenz_model: {
       get() {
