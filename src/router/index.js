@@ -5,7 +5,7 @@ import { useUserStore } from "@/store/user";
 const routes = [
   {
     path: "/",
-    component: () => import("@/layouts/new/Default.vue"),
+    component: () => import("@/layouts/new/DefaultLayout.vue"),
     children: [
       {
         path: "/",

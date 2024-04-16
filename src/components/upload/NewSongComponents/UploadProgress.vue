@@ -12,7 +12,7 @@
 
           <div class="d-flex flex-row">
             <v-card
-              v-for="(elem, index) of category_gesangbuchlied_mapping"
+              v-for="(elem, index) of categoryGesangbuchliedMapping"
               :key="index"
               width="200"
               class="me-5"
@@ -67,7 +67,7 @@
 
             <div class="d-flex flex-row flex-wrap">
               <v-card
-                v-for="(elem, index) of text_author_mapping"
+                v-for="(elem, index) of textAuthorMapping"
                 :key="index"
                 width="200"
                 class="me-5 mb-5"
@@ -96,7 +96,7 @@
           <div class="text-h6">Melodie Autoren</div>
           <div class="d-flex flex-row flex-wrap">
             <v-card
-              v-for="(elem, index) of melodie_author_mapping"
+              v-for="(elem, index) of melodieAuthorMapping"
               :key="index"
               width="200"
               :title="'Melodie Autor ' + (index + 1)"
@@ -115,7 +115,7 @@
           <div class="text-h6">Melodie Datein</div>
           <div class="d-flex flex-row">
             <v-card
-              v-for="(elem, index) of melodie_files"
+              v-for="(elem, index) of melodieFiles"
               :key="index"
               width="200"
               :title="'Melodie File ' + (index + 1)"
@@ -155,16 +155,44 @@ export default {
       type: Boolean,
       default: false,
     },
-    gesangbuchlied: Object,
-    text: Object,
-    melodie: Object,
-    category_gesangbuchlied_mapping: Array,
-    authors: Array,
-    text_author_mapping: Array,
-    melodie_author_mapping: Array,
-    melodie_files: Array,
-    created_files: Array,
+    gesangbuchlied: {
+      type: Object,
+      default: null,
+    },
+    text: {
+      type: Object,
+      default: null,
+    },
+    melodie: {
+      type: Object,
+      default: null,
+    },
+    categoryGesangbuchliedMapping: {
+      type: Array,
+      default: () => [],
+    },
+    authors: {
+      type: Array,
+      default: () => [],
+    },
+    textAuthorMapping: {
+      type: Array,
+      default: () => [],
+    },
+    melodieAuthorMapping: {
+      type: Array,
+      default: () => [],
+    },
+    melodieFiles: {
+      type: Array,
+      default: () => [],
+    },
+    createdFiles: {
+      type: Array,
+      default: () => [],
+    },
   },
+  emits: ["reset"],
 };
 </script>
 

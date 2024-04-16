@@ -10,7 +10,7 @@
 
 <script setup>
 import DefaultBar from "./AppBar.vue";
-import DefaultView from "./View.vue";
+import DefaultView from "./MainView.vue";
 import FooterBar from "./FooterBar.vue";
 </script>
 
