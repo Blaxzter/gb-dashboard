@@ -37,7 +37,10 @@ import moment from "moment";
 
 export default {
   props: {
-    label: String,
+    label: {
+      type: String,
+      default: "Datum",
+    },
     date: Date,
   },
   emits: ["update:date"],
