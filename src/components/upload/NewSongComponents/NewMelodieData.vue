@@ -62,12 +62,12 @@
         >
           <v-expansion-panel-text>
             <MelodieData
-              :song_title="song_title"
-              :in_noten="melodie.noten"
-              :in_quellelink="melodie.quelllink"
-              :in_title="melodie.title"
-              :in_quelle="melodie.quelle"
-              :in_anmerkung="melodie.anmerkung"
+              :song-title="songTitle"
+              :in-noten="melodie.noten"
+              :in-quellelink="melodie.quelllink"
+              :in-title="melodie.title"
+              :in-quelle="melodie.quelle"
+              :in-anmerkung="melodie.anmerkung"
               @update:noten="update_file"
               @update:quellelink="melodie.quelllink = $event"
               @update:title="melodie.title = $event"
@@ -80,7 +80,7 @@
               :label="'Melodie Autoren'"
               :selected-author="melodie.selected_authors"
               class="mb-3"
-              :upload_page="upload_page"
+              :upload-page="uploadPage"
               @update:selected_author="melodie.selected_authors = $event"
               @update:use_same_author_for_text="
                 melodie.use_same_author_for_text = $event
@@ -110,10 +110,22 @@ export default {
   name: "NewMelodieData",
   components: { AuthorenFom, MelodieData },
   props: {
-    song_title: String,
-    in_melodie: Object,
-    upload_page: Boolean,
+    songTitle: {
+      type: String,
+      required: false,
+      default: "",
+    },
+    inMelodie: {
+      type: Object,
+      required: true,
+    },
+    uploadPage: Boolean,
   },
+  emits: [
+    "update:melodie",
+    "update:existing_melodie",
+    "update:selected_melodie",
+  ],
   data: () => ({
     store: useAppStore(),
     existing_melodie: false,
@@ -151,7 +163,7 @@ export default {
     },
   },
   mounted() {
-    this.melodie = this.in_melodie;
+    this.melodie = this.inMelodie;
     this.$emit("update:melodie", this.melodie);
   },
   methods: {

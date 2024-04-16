@@ -25,7 +25,7 @@
           </v-col>
         </v-row>
 
-        <v-row v-if="melodie_authors && upload_page">
+        <v-row v-if="melodie_authors && uploadPage">
           <v-col
             cols="12"
             class="text-grey text-subtitle-1 pt-3 pb-1 d-flex align-center"
@@ -170,11 +170,17 @@ export default {
       type: String,
       required: true,
     },
-    upload_page: {
+    uploadPage: {
       type: Boolean,
       required: false,
       default: false,
     },
+  },
+  emits: [
+    "update:authors",
+    "update:selected_author",
+    "update:use_same_author_for_text",
+  ],
   data: () => ({
     store: useAppStore(),
     selected_author_model: [],

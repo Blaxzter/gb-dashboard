@@ -89,12 +89,12 @@
             <TextSuggestion
               ref="text_suggestion"
               :text="selected_song?.text"
-              :selected_song="selected_song"
+              :selected-song="selected_song"
               @add_strophe="add_strophe"
               @remove_strophe="remove_strophe($event)"
             />
 
-            <SongMetaData ref="song_data" :selected_song="selected_song" />
+            <SongMetaData ref="song_data" :selected-song="selected_song" />
 
             <v-btn
               prepend-icon="mdi-send"

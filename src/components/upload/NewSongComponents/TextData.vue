@@ -68,12 +68,18 @@ import { useAppStore } from "@/store/app";
 export default {
   name: "TextData",
   props: {
-    song_title: String,
-    in_title: String,
-    in_quelle: String,
-    in_quellelink: String,
-    in_anmerkung: String,
+    songTitle: { type: String, required: true },
+    inTitle: { type: String, required: true },
+    inQuelle: { type: String, required: true },
+    inQuellelink: { type: String, required: true },
+    inAnmerkung: { type: String, required: true },
   },
+  emits: [
+    "update:title",
+    "update:quelle",
+    "update:quellelink",
+    "update:anmerkung",
+  ],
   data: () => ({
     store: useAppStore(),
     title: "",
@@ -94,15 +100,15 @@ export default {
     },
   },
   mounted() {
-    this.title = this.in_title;
-    this.quelle = this.in_quelle;
-    this.quellelink = this.in_quellelink;
-    this.anmerkung = this.in_anmerkung;
+    this.title = this.inTitle;
+    this.quelle = this.inQuelle;
+    this.quellelink = this.inQuellelink;
+    this.anmerkung = this.inAnmerkung;
   },
   methods: {
     copy_song_title() {
-      this.$emit("update:title", this.song_title);
-      this.title = this.song_title;
+      this.$emit("update:title", this.songTitle);
+      this.title = this.songTitle;
     },
   },
 };
