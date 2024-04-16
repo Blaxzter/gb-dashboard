@@ -12,14 +12,14 @@
     :gesangbuchlied="successfully_created.gesangbuchlied"
     :text="successfully_created.text"
     :melodie="successfully_created.melodie"
-    :category_gesangbuchlied_mapping="
+    :category-gesangbuchlied-mapping="
       successfully_created.category_gesangbuchlied_mapping
     "
     :authors="successfully_created.authors"
-    :text_author_mapping="successfully_created.text_author_mapping"
-    :melodie_author_mapping="successfully_created.melodie_author_mapping"
-    :melodie_files="successfully_created.melodie_files"
-    :created_files="successfully_created.created_files"
+    :text-author-mapping="successfully_created.text_author_mapping"
+    :melodie-author-mapping="successfully_created.melodie_author_mapping"
+    :melodie-files="successfully_created.melodie_files"
+    :created-files="successfully_created.created_files"
     @reset="reset_data"
   />
 
@@ -77,18 +77,18 @@
       </v-autocomplete>
 
       <NewTextData
-        :in_text="text"
-        :song_title="title"
-        :upload_page="true"
+        :in-text="text"
+        :song-title="title"
+        :upload-page="true"
         @update:text="text = $event"
         @update:existing_text="existing_text = $event"
         @update:selected_text="selected_text = $event"
       />
 
       <NewMelodieData
-        :in_melodie="melodie"
-        :song_title="title"
-        :upload_page="true"
+        :in-melodie="melodie"
+        :song-title="title"
+        :upload-page="true"
         @update:melodie="melodie = $event"
         @update:existing_melodie="existing_melodie = $event"
         @update:selected_melodie="selected_melodie = $event"

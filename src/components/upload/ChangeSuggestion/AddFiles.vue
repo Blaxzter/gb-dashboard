@@ -29,9 +29,9 @@
     <v-expand-transition v-show="show_new_melodie">
       <NewMelodieData
         ref="new_melodie_data"
-        :in_melodie="new_melodie"
-        :song_title="selectedSong?.titel"
-        :upload_page="false"
+        :in-melodie="new_melodie"
+        :song-title="selectedSong?.titel"
+        :upload-page="false"
         @update:melodie="new_melodie = $event"
         @update:existing_melodie="existing_melodie = $event"
         @update:selected_melodie="selected_melodie = $event"

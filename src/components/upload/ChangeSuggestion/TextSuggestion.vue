@@ -32,9 +32,9 @@
     <v-expand-transition v-show="show_new_text">
       <NewTextData
         ref="new_text_data"
-        :in_text="new_text"
-        :song_title="selected_song?.titel"
-        :upload_page="false"
+        :in-text="new_text"
+        :song-title="selectedSong?.titel"
+        :upload-page="false"
         @update:text="new_text = $event"
         @update:existing_text="existing_text = $event"
         @update:selected_text="selected_text = $event"
@@ -123,8 +123,16 @@ export default {
   name: "TextSuggestion",
   components: { NewTextData },
   props: {
-    text: Object,
-    selected_song: Object,
+    text: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+    selectedSong: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   emits: ["remove_strophe", "add_strophe"],
   data: () => ({

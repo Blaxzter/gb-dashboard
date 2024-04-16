@@ -41,8 +41,12 @@
 export default {
   name: "TextStrophen",
   props: {
-    strophen: Array,
+    strophen: {
+      type: Array,
+      required: true,
+    },
   },
+  emits: { "update:strophen": null },
   computed: {
     strophen_model: {
       get() {
