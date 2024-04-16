@@ -179,7 +179,10 @@
       </v-list-group>
     </v-list>
     <v-list v-else>
-      <v-list-item v-for="(duplicates, idx) in filtered_entries" :key="idx">
+      <v-list-item
+        v-for="(duplicates, duplicates_idx) in filtered_entries"
+        :key="duplicates_idx"
+      >
         <template #title>
           <template v-if="toggle === 3">
             <div class="d-flex flex-wrap">
