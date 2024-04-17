@@ -6,67 +6,59 @@ const routes = [
   {
     path: "/",
     component: () => import("@/layouts/new/DefaultLayout.vue"),
+    meta: { requiresAuth: true },
     children: [
       {
         path: "/",
         redirect: "/dashboard",
-        meta: { requiresAuth: true },
       },
       {
         path: "dashboard",
         name: "Dashboard",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/DashboardView.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "gesangbuchliedhochladen",
         name: "GesangbuchliedHochladen",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/UploadFormView.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "aenderunghochladen",
         name: "AenderungHochladen",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/ChangeForm.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "kalender",
         name: "Kalender",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/KalenderView.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "arbeitsauftraege",
         name: "Arbeitsaufträge",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/WorkorderView.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "gesangbuchlieder/:id?",
         name: "Gesangbuchlieder",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/SongOverviewView.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "doppelteeintraege",
         name: "DoubleEntries",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/DoubleEntries.vue"),
-        meta: { requiresAuth: true },
       },
       {
         path: "missing-match",
         name: "MissingMatches",
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/MissingMatching.vue"),
-        meta: { requiresAuth: true },
       },
     ],
   },

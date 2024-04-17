@@ -87,7 +87,7 @@ const useUserStore = defineStore("user", {
         username: username,
       };
       console.log("Auto login successful");
-      await appstore.loadData();
+      appstore.loadData();
     },
     set_user_data(authData, response_data, remember_me) {
       this.user = {
