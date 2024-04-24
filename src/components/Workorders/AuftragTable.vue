@@ -60,10 +60,10 @@ export default {
   }),
   methods: {
     rowClick(event, item) {
-      this.auftrag = item.item.raw;
-      if (!_.isNil(item.item.raw.text)) {
+      this.auftrag = item.item;
+      if (!_.isNil(item.item.text)) {
         this.text_dialog = true;
-      } else if (!_.isNil(item.item.raw.melodie)) {
+      } else if (!_.isNil(item.item.melodie)) {
         this.melodie_dialog = true;
       }
     },
