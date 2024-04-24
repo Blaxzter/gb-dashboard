@@ -7,6 +7,12 @@ export default [
   {
     rules: {
       "vue/no-v-html": "off",
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
     },
   },
 ];
