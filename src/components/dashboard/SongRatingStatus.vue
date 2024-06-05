@@ -40,9 +40,6 @@ export default {
       return this.store.gesangbuchlied;
     },
     rated_song_bezeichner() {
-      console.log(
-        _.map(this.songs, (elem) => elem.bewertung_kleiner_kreis.bezeichner),
-      );
       return _.map(
         this.songs,
         (elem) => elem.bewertung_kleiner_kreis.bezeichner === "",
@@ -52,7 +49,6 @@ export default {
       return _.countBy(this.rated_song_bezeichner);
     },
     song_rating_data() {
-      console.log(this.rated_song_data_list);
       const labels = _.map(this.rated_song_data_list, (value, key) =>
         key === "false" ? "bewertet" : "unbewertet",
       );
