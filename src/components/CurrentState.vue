@@ -80,6 +80,7 @@ import WorkOrder from "@/components/dashboard/WorkOrder.vue";
 import SongCategories from "@/components/dashboard/SongCategories.vue";
 import SongRatingStatus from "@/components/dashboard/SongRatingStatus.vue";
 import SongRatingOverview from "@/components/dashboard/SongRatingOverview.vue";
+import _ from "lodash";
 
 export default {
   name: "CurrentState",
@@ -173,7 +174,7 @@ export default {
       return this.store.melodies;
     },
     auftraege() {
-      return this.store.auftraege;
+      return _.filter(this.store.auftraege, (a) => a.status !== "done");
     },
   },
 };
