@@ -60,7 +60,6 @@ export default {
       return this.store.gesangbuchlied;
     },
     filtered_songs() {
-      console.log(this.songs);
       return _.filter(
         this.songs,
         (elem) => elem?.bewertung_kleiner_kreis?.bezeichner === "Rein",
