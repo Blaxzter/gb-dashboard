@@ -1,5 +1,7 @@
 <template>
-  <div class="text-h5">Arbeitsaufträge der Arbeitskreise</div>
+  <div class="text-h5">
+    {{ filtered_auftraege.length }} Arbeitsaufträge der Arbeitskreise
+  </div>
   <div class="mt-3">
     <div style="height: 400px">
       <Doughnut :data="work_chart_data" :options="chartOptions" />
@@ -37,11 +39,17 @@ export default {
     auftraege() {
       return this.store.auftraege;
     },
+    filtered_auftraege() {
+      return _.filter(this.auftraege, (a) => a.status !== "done");
+    },
     work_order_label() {
-      return _.uniq(_.map(this.auftraege, "arbeitskreis_name"));
+      return _.uniq(_.map(this.filtered_auftraege, "arbeitskreis_name"));
     },
     work_orders_data_list() {
-      let work_order_data = _.countBy(this.auftraege, "arbeitskreis_name");
+      let work_order_data = _.countBy(
+        this.filtered_auftraege,
+        "arbeitskreis_name",
+      );
       return _.filter(
         _.map(this.work_order_label, (elem) => work_order_data[elem]),
         (elem) => elem !== 0,
