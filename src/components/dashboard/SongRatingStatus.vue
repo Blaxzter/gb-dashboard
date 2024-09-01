@@ -5,7 +5,7 @@
       <Doughnut
         ref="song_rating_chart"
         :data="song_rating_data"
-        :options="chartOptions"
+        :options="enhancedChartOptions"
       />
     </div>
   </div>
@@ -40,24 +40,29 @@ export default {
       return this.store.gesangbuchlied;
     },
     rated_song_bezeichner() {
-      return _.map(
-        this.songs,
-        (elem) => elem.bewertung_kleiner_kreis.bezeichner === "",
-      );
+      return _.map(this.songs, (elem) => {
+        if (elem.bewertung_kleiner_kreis.bezeichner === "") {
+          return "Unbewertet";
+        } else {
+          if (elem?.text?.auftrag || elem?.melodie?.auftrag) {
+            return "Bewertet mit Auftrag";
+          } else {
+            return "Bewertet";
+          }
+        }
+      });
     },
     rated_song_data_list() {
       return _.countBy(this.rated_song_bezeichner);
     },
     song_rating_data() {
-      const labels = _.map(this.rated_song_data_list, (value, key) =>
-        key === "false" ? "bewertet" : "unbewertet",
-      );
+      const labels = _.keys(this.rated_song_data_list);
       const rated_songs = _.map(
         this.rated_song_data_list,
         (value, key) => this.rated_song_data_list[key],
       );
 
-      const vibrantPastelPalette = ["#1eb995", "#ff3341"];
+      const vibrantPastelPalette = ["#1eb995", "#ffcd56", "#ff3341"];
 
       return {
         labels: labels,
@@ -67,6 +72,31 @@ export default {
             data: rated_songs,
           },
         ],
+      };
+    },
+    enhancedChartOptions() {
+      return {
+        ...this.chartOptions,
+        plugins: {
+          ...this.chartOptions.plugins,
+          legend: {
+            ...this.chartOptions.plugins.legend,
+            position: "right",
+            labels: {
+              ...this.chartOptions.legend?.labels,
+              padding: 20, // Adjust this value to add more space
+            },
+          },
+          layout: {
+            ...this.chartOptions.plugins.layout,
+            padding: {
+              top: 20,
+              bottom: 20,
+              left: 10,
+              right: 20,
+            },
+          },
+        },
       };
     },
   },
