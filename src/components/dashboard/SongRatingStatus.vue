@@ -44,8 +44,8 @@ export default {
         if (elem.bewertung_kleiner_kreis.bezeichner === "") {
           return "Unbewertet";
         } else {
-          if (elem?.text?.auftrag || elem?.melodie?.auftrag) {
-            return "Bewertet mit Auftrag";
+          if (elem?.liedHatAenderung) {
+            return "Bewertet mit Änderungsvorschlag";
           } else {
             return "Bewertet";
           }
@@ -56,7 +56,6 @@ export default {
       return _.countBy(this.rated_song_bezeichner);
     },
     song_rating_data() {
-      const labels = _.keys(this.rated_song_data_list);
       const rated_songs = _.map(
         this.rated_song_data_list,
         (value, key) => this.rated_song_data_list[key],
@@ -65,7 +64,11 @@ export default {
       const vibrantPastelPalette = ["#1eb995", "#ffcd56", "#ff3341"];
 
       return {
-        labels: labels,
+        labels: [
+          "Bewertet",
+          ["Bewertet mit", "Änderungsvorschlag"],
+          "Unbewertet",
+        ],
         datasets: [
           {
             backgroundColor: vibrantPastelPalette,
