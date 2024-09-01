@@ -58,7 +58,7 @@
               </v-tooltip>
               <v-tooltip
                 v-else
-                :text="`Auftrag ist in Bearbeitung.`"
+                :text="`Auftrag ist noch nicht erledigt.`"
                 location="bottom"
               >
                 <template #activator="{ props }">
