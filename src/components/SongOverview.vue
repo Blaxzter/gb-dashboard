@@ -533,6 +533,7 @@ export default {
     song_dialog: function (newValue) {
       if (!newValue) {
         this.$router.replace(`/gesangbuchlieder`);
+        document.title = "Gesangbuch 2026";
       }
     },
   },
@@ -567,10 +568,15 @@ export default {
       this.song_dialog = true;
       this.selected_song = value.item;
       this.$router.replace(`/gesangbuchlieder/${this.selected_song.id}`);
+      // set tab title to song title
+      document.title = this.selected_song.gesangbuch_titel;
     },
     modalClose() {
       this.song_dialog = false;
       this.selected_song = null;
+      console.log("modal closed");
+      // revert tab title
+      document.title = "Gesangbuch 2026";
     },
     get_icon(item) {
       return gesangbuch_kategorie_name_to_icon(item.titel);
