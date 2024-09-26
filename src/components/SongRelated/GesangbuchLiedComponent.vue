@@ -21,7 +21,7 @@
             <!--  Clipboard icon        -->
             <v-icon class="me-2"> mdi-content-copy </v-icon>
 
-            {{ selectedSong?.titel }}
+            {{ selectedSong?.gesangbuch_titel }}
           </div>
         </template>
       </v-tooltip>
