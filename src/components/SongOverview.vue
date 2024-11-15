@@ -232,67 +232,7 @@
       </v-tooltip>
     </template>
     <template #[`item.bewertung_kleiner_kreis`]="{ item }">
-      <v-tooltip
-        :text="item.bewertungAnmerkung || 'Keine Anmerkung'"
-        location="bottom"
-      >
-        <template #activator="{ props }">
-          <div
-            :style="{
-              color: rang_to_color[item.bewertung_kleiner_kreis?.rangfolge],
-            }"
-            v-bind="props"
-          >
-            <span v-if="item.bewertung_kleiner_kreis?.bezeichner">
-              <v-icon icon="mdi-music" size="tiny" />
-              {{ item.title?.bewertung_kleiner_kreis?.bezeichner }}
-              {{ item.title?.bewertungAnmerkung ? "*" : "" }}
-            </span>
-          </div>
-        </template>
-      </v-tooltip>
-
-      <v-tooltip
-        :text="item.text?.bewertungAnmerkung || 'Keine Anmerkung'"
-        location="bottom"
-      >
-        <template #activator="{ props }">
-          <div
-            :style="{
-              color:
-                rang_to_color[item.text?.bewertung_kleiner_kreis?.rangfolge],
-            }"
-            v-bind="props"
-          >
-            <span v-if="item.text?.bewertung_kleiner_kreis?.bezeichner">
-              <v-icon icon="mdi-text-box" size="tiny" />
-              {{ item.text?.bewertung_kleiner_kreis?.bezeichner }}
-              {{ item.text?.bewertungAnmerkung ? "*" : "" }}
-            </span>
-          </div>
-        </template>
-      </v-tooltip>
-
-      <v-tooltip
-        :text="item.melodie?.bewertungAnmerkung || 'Keine Anmerkung'"
-        location="bottom"
-      >
-        <template #activator="{ props }">
-          <div
-            :style="{
-              color:
-                rang_to_color[item.melodie?.bewertung_kleiner_kreis?.rangfolge],
-            }"
-            v-bind="props"
-          >
-            <span v-if="item.melodie?.bewertung_kleiner_kreis?.bezeichner">
-              <v-icon icon="mdi-music-note" size="tiny" />
-              {{ item.melodie?.bewertung_kleiner_kreis?.bezeichner }}
-              {{ item.melodie?.bewertungAnmerkung ? "*" : "" }}
-            </span>
-          </div>
-        </template>
-      </v-tooltip>
+      <BewerungKleinerKreisDatatableEntry :item="item" />
     </template>
   </v-data-table>
 
@@ -311,13 +251,13 @@ import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComp
 import _ from "lodash";
 import {
   gesangbuch_kategorie_name_to_icon,
-  rang_to_color,
   status_mapping,
 } from "@/assets/js/utils";
+import BewerungKleinerKreisDatatableEntry from "@/components/BewerungKleinerKreisDatatableEntry.vue";
 
 export default {
   name: "SongOverview",
-  components: { GesangbuchLiedComponent },
+  components: { BewerungKleinerKreisDatatableEntry, GesangbuchLiedComponent },
   data: () => ({
     selected_columns: [
       "Titel",
@@ -433,9 +373,6 @@ export default {
         });
       }
       return headers;
-    },
-    rang_to_color() {
-      return rang_to_color;
     },
     gesangbuchlieder() {
       return this.store.gesangbuchlieder;
