@@ -32,7 +32,7 @@
     "vue-pdf-embed": "^1.1.5",
     "vue-router": "^4.3.0",
     "vue3-pdf-app": "^1.0.3",
-    "vuetify": "3.5.15",
+    "vuetify": "^3.7.4",
     "webfontloader": "^1.6.28"
   },
   "devDependencies": {

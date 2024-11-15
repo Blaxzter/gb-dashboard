@@ -112,6 +112,13 @@ export default {
         marginButton: true,
         public: false,
       },
+      {
+        name: "Text Melodie Verteilung",
+        route: "/text-melodie-verteilung",
+        icon: "mdi-chart-bar",
+        marginButton: true,
+        public: false,
+      },
     ],
   }),
   computed: {
