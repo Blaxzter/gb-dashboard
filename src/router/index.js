@@ -60,6 +60,14 @@ const routes = [
         component: () =>
           import(/* webpackChunkName: "home" */ "@/views/MissingMatching.vue"),
       },
+      {
+        path: "text-melodie-verteilung",
+        name: "TextMelodieVerteilung",
+        component: () =>
+          import(
+            /* webpackChunkName: "home" */ "@/views/TextMelodieVerteilung.vue"
+          ),
+      },
     ],
   },
   {
