@@ -6,15 +6,15 @@ networks:
       name: nginx-net
 
 services:
-  frontend:
-    build: .
-    restart:
-      always
-    ports:
-      - "8082:80"
-    networks:
-      - nginx-net
-    environment:
-      VIRTUAL_HOST: gb-dashboard.fabraham.dev, gb26.johannische-kirche.org
-      LETSENCRYPT_HOST: gb-dashboard.fabraham.dev, gb26.johannische-kirche.org
-      LETSENCRYPT_EMAIL: mail@fabraham.dev
+ frontend:
+   build: .
+   restart:
+     always
+   ports:
+     - "8082:80"
+   networks:
+     - nginx-net
+   environment:
+     VIRTUAL_HOST: ${FRONTEND_VIRTUAL_HOST}
+     LETSENCRYPT_HOST: ${FRONTEND_LETSENCRYPT_HOST}
+     LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
