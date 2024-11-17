@@ -1,0 +1,17 @@
+# Stage 2: Directus setup
+FROM directus/directus:11.1.2
+
+
+# Continue with the normal Directus setup
+USER root
+RUN corepack enable
+USER node
+
+RUN pnpm install directus-extension-sync
+
+# Copy any additional resources like email templates
+# COPY ./email-templates/ /directus/email-templates/
+
+# Optionally set the working directory and expose ports
+# WORKDIR /directus
+# EXPOSE 8055
