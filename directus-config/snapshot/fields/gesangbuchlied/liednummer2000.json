@@ -1,0 +1,51 @@
+{
+  "collection": "gesangbuchlied",
+  "field": "liednummer2000",
+  "type": "integer",
+  "meta": {
+    "collection": "gesangbuchlied",
+    "conditions": null,
+    "display": null,
+    "display_options": null,
+    "field": "liednummer2000",
+    "group": null,
+    "hidden": false,
+    "interface": "input",
+    "note": null,
+    "options": {
+      "max": 500,
+      "min": 1
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 16,
+    "special": null,
+    "translations": [
+      {
+        "language": "de-DE",
+        "translation": "Liednummer im 2000er Gesangbuch"
+      }
+    ],
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  },
+  "schema": {
+    "name": "liednummer2000",
+    "table": "gesangbuchlied",
+    "data_type": "integer",
+    "default_value": null,
+    "max_length": null,
+    "numeric_precision": 32,
+    "numeric_scale": 0,
+    "is_nullable": true,
+    "is_unique": false,
+    "is_indexed": false,
+    "is_primary_key": false,
+    "is_generated": false,
+    "generation_expression": null,
+    "has_auto_increment": false,
+    "foreign_key_table": null,
+    "foreign_key_column": null
+  }
+}

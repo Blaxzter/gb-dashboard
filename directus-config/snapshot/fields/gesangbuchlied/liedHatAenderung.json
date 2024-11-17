@@ -1,0 +1,52 @@
+{
+  "collection": "gesangbuchlied",
+  "field": "liedHatAenderung",
+  "type": "boolean",
+  "meta": {
+    "collection": "gesangbuchlied",
+    "conditions": null,
+    "display": null,
+    "display_options": null,
+    "field": "liedHatAenderung",
+    "group": null,
+    "hidden": false,
+    "interface": "boolean",
+    "note": "Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.",
+    "options": {
+      "label": "Änderung durch Webseite vorhanden"
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 10,
+    "special": [
+      "cast-boolean"
+    ],
+    "translations": [
+      {
+        "language": "de-DE",
+        "translation": "Änderungen"
+      }
+    ],
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  },
+  "schema": {
+    "name": "liedHatAenderung",
+    "table": "gesangbuchlied",
+    "data_type": "boolean",
+    "default_value": null,
+    "max_length": null,
+    "numeric_precision": null,
+    "numeric_scale": null,
+    "is_nullable": true,
+    "is_unique": false,
+    "is_indexed": false,
+    "is_primary_key": false,
+    "is_generated": false,
+    "generation_expression": null,
+    "has_auto_increment": false,
+    "foreign_key_table": null,
+    "foreign_key_column": null
+  }
+}

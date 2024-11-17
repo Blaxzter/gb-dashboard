@@ -1,0 +1,25 @@
+{
+  "collection": "melodie",
+  "field": "lizenzId",
+  "related_collection": "lizenz",
+  "meta": {
+    "junction_field": null,
+    "many_collection": "melodie",
+    "many_field": "lizenzId",
+    "one_allowed_collections": null,
+    "one_collection": "lizenz",
+    "one_collection_field": null,
+    "one_deselect_action": "nullify",
+    "one_field": null,
+    "sort_field": null
+  },
+  "schema": {
+    "table": "melodie",
+    "column": "lizenzId",
+    "foreign_key_table": "lizenz",
+    "foreign_key_column": "id",
+    "constraint_name": "melodie_lizenzid_foreign",
+    "on_update": "NO ACTION",
+    "on_delete": "SET NULL"
+  }
+}
