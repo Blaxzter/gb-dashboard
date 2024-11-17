@@ -1,0 +1,29 @@
+{
+  "collection": "melodie",
+  "field": "noten",
+  "type": "alias",
+  "meta": {
+    "collection": "melodie",
+    "conditions": null,
+    "display": null,
+    "display_options": null,
+    "field": "noten",
+    "group": null,
+    "hidden": false,
+    "interface": "files",
+    "note": null,
+    "options": {
+      "folder": "eff910cd-cdb2-4ab9-8efd-9371afebb715"
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 12,
+    "special": [
+      "files"
+    ],
+    "translations": null,
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  }
+}

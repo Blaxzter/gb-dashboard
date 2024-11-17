@@ -1,0 +1,25 @@
+{
+  "collection": "gesangbuchlied",
+  "field": "melodieId",
+  "related_collection": "melodie",
+  "meta": {
+    "junction_field": null,
+    "many_collection": "gesangbuchlied",
+    "many_field": "melodieId",
+    "one_allowed_collections": null,
+    "one_collection": "melodie",
+    "one_collection_field": null,
+    "one_deselect_action": "nullify",
+    "one_field": null,
+    "sort_field": null
+  },
+  "schema": {
+    "table": "gesangbuchlied",
+    "column": "melodieId",
+    "foreign_key_table": "melodie",
+    "foreign_key_column": "id",
+    "constraint_name": "gesangbuchlied_melodieid_foreign",
+    "on_update": "NO ACTION",
+    "on_delete": "SET NULL"
+  }
+}

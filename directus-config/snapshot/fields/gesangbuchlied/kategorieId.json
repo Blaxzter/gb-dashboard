@@ -1,0 +1,36 @@
+{
+  "collection": "gesangbuchlied",
+  "field": "kategorieId",
+  "type": "alias",
+  "meta": {
+    "collection": "gesangbuchlied",
+    "conditions": null,
+    "display": "related-values",
+    "display_options": {
+      "template": "{{kategorie_id.name}}"
+    },
+    "field": "kategorieId",
+    "group": null,
+    "hidden": false,
+    "interface": "list-m2m",
+    "note": null,
+    "options": {
+      "template": "{{kategorie_id.name}}"
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 15,
+    "special": [
+      "m2m"
+    ],
+    "translations": [
+      {
+        "language": "de-DE",
+        "translation": "Kategorie"
+      }
+    ],
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  }
+}

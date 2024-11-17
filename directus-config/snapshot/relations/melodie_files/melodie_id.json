@@ -1,0 +1,25 @@
+{
+  "collection": "melodie_files",
+  "field": "melodie_id",
+  "related_collection": "melodie",
+  "meta": {
+    "junction_field": "directus_files_id",
+    "many_collection": "melodie_files",
+    "many_field": "melodie_id",
+    "one_allowed_collections": null,
+    "one_collection": "melodie",
+    "one_collection_field": null,
+    "one_deselect_action": "delete",
+    "one_field": "noten",
+    "sort_field": null
+  },
+  "schema": {
+    "table": "melodie_files",
+    "column": "melodie_id",
+    "foreign_key_table": "melodie",
+    "foreign_key_column": "id",
+    "constraint_name": "melodie_files_melodie_id_foreign",
+    "on_update": "NO ACTION",
+    "on_delete": "CASCADE"
+  }
+}
