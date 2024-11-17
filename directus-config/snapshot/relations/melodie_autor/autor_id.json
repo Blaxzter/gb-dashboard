@@ -1,0 +1,25 @@
+{
+  "collection": "melodie_autor",
+  "field": "autor_id",
+  "related_collection": "autor",
+  "meta": {
+    "junction_field": "melodie_id",
+    "many_collection": "melodie_autor",
+    "many_field": "autor_id",
+    "one_allowed_collections": null,
+    "one_collection": "autor",
+    "one_collection_field": null,
+    "one_deselect_action": "nullify",
+    "one_field": null,
+    "sort_field": null
+  },
+  "schema": {
+    "table": "melodie_autor",
+    "column": "autor_id",
+    "foreign_key_table": "autor",
+    "foreign_key_column": "id",
+    "constraint_name": "melodie_autor_autor_id_foreign",
+    "on_update": "NO ACTION",
+    "on_delete": "NO ACTION"
+  }
+}
