@@ -1,0 +1,54 @@
+{
+  "collection": "kategorie",
+  "field": "typ",
+  "type": "string",
+  "meta": {
+    "collection": "kategorie",
+    "conditions": null,
+    "display": "labels",
+    "display_options": null,
+    "field": "typ",
+    "group": null,
+    "hidden": false,
+    "interface": "select-dropdown",
+    "note": null,
+    "options": {
+      "choices": [
+        {
+          "text": "Jahreskreislauf",
+          "value": "jahreskreislauf"
+        },
+        {
+          "text": "Amtshandlung",
+          "value": "amtshandlung"
+        }
+      ]
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 3,
+    "special": null,
+    "translations": null,
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  },
+  "schema": {
+    "name": "typ",
+    "table": "kategorie",
+    "data_type": "character varying",
+    "default_value": null,
+    "max_length": 255,
+    "numeric_precision": null,
+    "numeric_scale": null,
+    "is_nullable": true,
+    "is_unique": false,
+    "is_indexed": false,
+    "is_primary_key": false,
+    "is_generated": false,
+    "generation_expression": null,
+    "has_auto_increment": false,
+    "foreign_key_table": null,
+    "foreign_key_column": null
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "collection": "gesangbuchlied",
+  "field": "gesangbuchlied_satz_mit_melodie_und_text",
+  "type": "alias",
+  "meta": {
+    "collection": "gesangbuchlied",
+    "conditions": null,
+    "display": "related-values",
+    "display_options": null,
+    "field": "gesangbuchlied_satz_mit_melodie_und_text",
+    "group": null,
+    "hidden": false,
+    "interface": "files",
+    "note": null,
+    "options": {
+      "folder": "095fb863-890f-4f33-beac-f57c118b8a21",
+      "template": "{{directus_files_id.$thumbnail}} {{directus_files_id.filename_download}}"
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 14,
+    "special": [
+      "files"
+    ],
+    "translations": [
+      {
+        "language": "de-DE",
+        "translation": "Liedblatt (gesetzt mit Text und Melodie)"
+      }
+    ],
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  }
+}

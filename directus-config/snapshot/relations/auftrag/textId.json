@@ -1,0 +1,25 @@
+{
+  "collection": "auftrag",
+  "field": "textId",
+  "related_collection": "text",
+  "meta": {
+    "junction_field": null,
+    "many_collection": "auftrag",
+    "many_field": "textId",
+    "one_allowed_collections": null,
+    "one_collection": "text",
+    "one_collection_field": null,
+    "one_deselect_action": "nullify",
+    "one_field": null,
+    "sort_field": null
+  },
+  "schema": {
+    "table": "auftrag",
+    "column": "textId",
+    "foreign_key_table": "text",
+    "foreign_key_column": "id",
+    "constraint_name": "auftrag_textid_foreign",
+    "on_update": "NO ACTION",
+    "on_delete": "SET NULL"
+  }
+}
