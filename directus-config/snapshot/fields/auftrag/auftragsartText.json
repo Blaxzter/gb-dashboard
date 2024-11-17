@@ -1,0 +1,100 @@
+{
+  "collection": "auftrag",
+  "field": "auftragsartText",
+  "type": "string",
+  "meta": {
+    "collection": "auftrag",
+    "conditions": [
+      {
+        "hidden": true,
+        "name": "Nur anzeigen, wenn Text ausgewählt",
+        "options": {
+          "allowNone": false,
+          "allowOther": false
+        },
+        "rule": {
+          "_and": [
+            {
+              "textId": {
+                "_null": true
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "display": "labels",
+    "display_options": {
+      "choices": [
+        {
+          "text": "überarbeiten",
+          "value": "textUeberarbeitung"
+        },
+        {
+          "text": "Melodie benötigt",
+          "value": "textBrauchtMelodie"
+        },
+        {
+          "text": "Rückfrage",
+          "value": "rueckfrageAutor"
+        }
+      ]
+    },
+    "field": "auftragsartText",
+    "group": null,
+    "hidden": false,
+    "interface": "select-dropdown",
+    "note": null,
+    "options": {
+      "choices": [
+        {
+          "text": "Textüberarbeitung nötig",
+          "value": "textUeberarbeitung"
+        },
+        {
+          "text": "Text benötigt noch eine Melodie",
+          "value": "textBrauchtMelodie"
+        },
+        {
+          "text": "Rückfrage an Autor",
+          "value": "rueckfrageAutor"
+        },
+        {
+          "text": "Sonstiges",
+          "value": "sonstiges"
+        }
+      ]
+    },
+    "readonly": false,
+    "required": false,
+    "sort": 10,
+    "special": null,
+    "translations": [
+      {
+        "language": "de-DE",
+        "translation": "Auftragsart zum Text"
+      }
+    ],
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  },
+  "schema": {
+    "name": "auftragsartText",
+    "table": "auftrag",
+    "data_type": "character varying",
+    "default_value": null,
+    "max_length": 255,
+    "numeric_precision": null,
+    "numeric_scale": null,
+    "is_nullable": true,
+    "is_unique": false,
+    "is_indexed": false,
+    "is_primary_key": false,
+    "is_generated": false,
+    "generation_expression": null,
+    "has_auto_increment": false,
+    "foreign_key_table": null,
+    "foreign_key_column": null
+  }
+}

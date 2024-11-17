@@ -1,0 +1,34 @@
+{
+  "collection": "melodie",
+  "field": "autorId",
+  "type": "alias",
+  "meta": {
+    "collection": "melodie",
+    "conditions": null,
+    "display": "related-values",
+    "display_options": {
+      "template": "{{autor_id.vorname}} {{autor_id.nachname}} ({{autor_id.geburtsjahr}}-{{autor_id.sterbejahr}})"
+    },
+    "field": "autorId",
+    "group": null,
+    "hidden": false,
+    "interface": "list-m2m",
+    "note": null,
+    "options": null,
+    "readonly": false,
+    "required": false,
+    "sort": 11,
+    "special": [
+      "m2m"
+    ],
+    "translations": [
+      {
+        "language": "de-DE",
+        "translation": "Autoren"
+      }
+    ],
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "collection": "bewertungKleinerKreis",
+  "field": "rangfolge",
+  "type": "integer",
+  "meta": {
+    "collection": "bewertungKleinerKreis",
+    "conditions": null,
+    "display": null,
+    "display_options": null,
+    "field": "rangfolge",
+    "group": null,
+    "hidden": false,
+    "interface": "input",
+    "note": null,
+    "options": {
+      "min": 1
+    },
+    "readonly": true,
+    "required": true,
+    "sort": 3,
+    "special": null,
+    "translations": null,
+    "validation": null,
+    "validation_message": null,
+    "width": "full"
+  },
+  "schema": {
+    "name": "rangfolge",
+    "table": "bewertungKleinerKreis",
+    "data_type": "integer",
+    "default_value": null,
+    "max_length": null,
+    "numeric_precision": 32,
+    "numeric_scale": 0,
+    "is_nullable": true,
+    "is_unique": false,
+    "is_indexed": false,
+    "is_primary_key": false,
+    "is_generated": false,
+    "generation_expression": null,
+    "has_auto_increment": false,
+    "foreign_key_table": null,
+    "foreign_key_column": null
+  }
+}

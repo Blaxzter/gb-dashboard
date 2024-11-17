@@ -1,0 +1,25 @@
+{
+  "collection": "auftrag",
+  "field": "auftraggeberId",
+  "related_collection": "arbeitskreis",
+  "meta": {
+    "junction_field": null,
+    "many_collection": "auftrag",
+    "many_field": "auftraggeberId",
+    "one_allowed_collections": null,
+    "one_collection": "arbeitskreis",
+    "one_collection_field": null,
+    "one_deselect_action": "nullify",
+    "one_field": null,
+    "sort_field": null
+  },
+  "schema": {
+    "table": "auftrag",
+    "column": "auftraggeberId",
+    "foreign_key_table": "arbeitskreis",
+    "foreign_key_column": "id",
+    "constraint_name": "auftrag_auftraggeberid_foreign",
+    "on_update": "NO ACTION",
+    "on_delete": "SET NULL"
+  }
+}
