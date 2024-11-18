@@ -30,12 +30,18 @@ const useUserStore = defineStore("user", {
     login(authData, remember_me) {
       const appstore = useAppStore();
 
-      // check if authData.username is AK-Gesangbuch or Kleiner-AK and set username accordingly
       let username = authData.username;
-      if (authData.username === "AK-Gesangbuch") {
-        username = "info@johannische-kirche.org";
-      } else if (authData.username === "Kleiner-AK") {
-        username = "gesangbuch2026@ml.johannische-kirche.org";
+
+      // Replace hard-coded aliases with environment variables
+      const defaultUserAlias = import.meta.env.VITE_DEFAULT_USER_ALIAS;
+      const defaultUserName = import.meta.env.VITE_DEFAULT_USER_NAME;
+      const specialUserAlias = import.meta.env.VITE_SPECIAL_USER_ALIAS;
+      const specialUserName = import.meta.env.VITE_SPECIAL_USER_NAME;
+
+      if (authData.username === defaultUserAlias) {
+        username = defaultUserName;
+      } else if (authData.username === specialUserAlias) {
+        username = specialUserName;
       }
 
       return axios({
@@ -47,10 +53,10 @@ const useUserStore = defineStore("user", {
         },
       })
         .then((response) => {
-          if (
-            username === "gesangbuch2026@ml.johannische-kirche.org" ||
-            username === "mail@fabraham.dev"
-          ) {
+          // Use environment variable for kleiner_kreis users
+          const kleinerKreisUsers = import.meta.env.VITE_KLEINER_KREIS_USERS.split(",");
+
+          if (kleinerKreisUsers.includes(username)) {
             this.kleiner_kreis = true;
             localStorage.setItem("kleiner_kreis", "true");
             this.kleiner_kreis_ansicht =

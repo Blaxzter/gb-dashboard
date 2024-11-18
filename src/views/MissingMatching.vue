@@ -18,11 +18,12 @@ export default {
       }[this.toggle];
     },
     href_base() {
+      const baseURL = import.meta.env.VITE_BACKEND_URL;
       return {
-        0: "https://gb26-admin.johannische-kirche.org/admin/content/text/",
-        1: "https://gb26-admin.johannische-kirche.org/admin/content/melodie/",
-        2: "https://gb26-admin.johannische-kirche.org/admin/files/",
-        3: "https://gb26-admin.johannische-kirche.org/admin/content/autor/",
+        0: `${baseURL}/admin/content/text/`,
+        1: `${baseURL}/admin/content/melodie/`,
+        2: `${baseURL}/admin/files/`,
+        3: `${baseURL}/admin/content/autor/`,
       }[this.toggle];
     },
     missingTexts() {
