@@ -19,7 +19,20 @@ COPY . .
 RUN pnpm run build
 
 FROM nginx:stable-alpine as production-stage
+
+# Install envsubst
+RUN apk add --no-cache gettext
+
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy nginx.conf template
+COPY nginx.conf /etc/nginx/templates/nginx.conf.template
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 80
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

@@ -12,7 +12,7 @@
           <v-btn
             icon
             class="ml-3 mail-icon"
-            href="mailto:gb-it@ml.johannische-kirche.org"
+            :href="'mailto:' + mailtoEmail"
             target="_blank"
             variant="text"
             size="tiny"
@@ -25,7 +25,9 @@
   </v-container>
 </template>
 
-<script setup></script>
+<script setup>
+const mailtoEmail = import.meta.env.VITE_MAILTO_EMAIL;
+</script>
 
 <style scoped>
 .mail-icon {
