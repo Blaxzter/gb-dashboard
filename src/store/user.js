@@ -30,12 +30,18 @@ const useUserStore = defineStore("user", {
     login(authData, remember_me) {
       const appstore = useAppStore();
 
-      // check if authData.username is ***REMOVED*** or ***REMOVED*** and set username accordingly
       let username = authData.username;
-      if (authData.username === "***REMOVED***") {
-        username = "***REMOVED***";
-      } else if (authData.username === "***REMOVED***") {
-        username = "***REMOVED***";
+
+      // Replace hard-coded aliases with environment variables
+      const defaultUserAlias = import.meta.env.VITE_DEFAULT_USER_ALIAS;
+      const defaultUserName = import.meta.env.VITE_DEFAULT_USER_NAME;
+      const specialUserAlias = import.meta.env.VITE_SPECIAL_USER_ALIAS;
+      const specialUserName = import.meta.env.VITE_SPECIAL_USER_NAME;
+
+      if (authData.username === defaultUserAlias) {
+        username = defaultUserName;
+      } else if (authData.username === specialUserAlias) {
+        username = specialUserName;
       }
 
       return axios({
@@ -47,10 +53,10 @@ const useUserStore = defineStore("user", {
         },
       })
         .then((response) => {
-          if (
-            username === "***REMOVED***" ||
-            username === "***REMOVED***"
-          ) {
+          // Use environment variable for kleiner_kreis users
+          const kleinerKreisUsers = import.meta.env.VITE_KLEINER_KREIS_USERS.split(",");
+
+          if (kleinerKreisUsers.includes(username)) {
             this.kleiner_kreis = true;
             localStorage.setItem("kleiner_kreis", "true");
             this.kleiner_kreis_ansicht =
