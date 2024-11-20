@@ -134,6 +134,7 @@ export default {
     },
   },
   mounted() {
+    console.log(import.meta.env.VITE_BACKEND_URL);
     if (this.user_store.is_logged_in) {
       router.push("dashboard");
     }
