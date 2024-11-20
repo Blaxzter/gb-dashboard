@@ -54,7 +54,8 @@ const useUserStore = defineStore("user", {
       })
         .then((response) => {
           // Use environment variable for kleiner_kreis users
-          const kleinerKreisUsers = import.meta.env.VITE_KLEINER_KREIS_USERS.split(",");
+          const kleinerKreisUsers =
+            import.meta.env.VITE_KLEINER_KREIS_USERS.split(",");
 
           if (kleinerKreisUsers.includes(username)) {
             this.kleiner_kreis = true;
