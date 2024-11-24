@@ -24,7 +24,7 @@ if [ "$COLLECTION_EXISTS" = "null" ]; then
     echo "Initialization needed, running directus-sync push..."
 
     # Run directus-sync push to sync your schema and data
-    npx directus-sync@2.2.0 push -u "$HOST_URL" -e "$ADMIN_EMAIL" -p "$ADMIN_PASSWORD"
+    npx directus-sync@3.1.5 push -u "$HOST_URL" -e "$ADMIN_EMAIL" -p "$ADMIN_PASSWORD"
 
     # Obtain an admin access token
     TOKEN=$(curl -s -X POST -d "email=$ADMIN_EMAIL&password=$ADMIN_PASSWORD" \
