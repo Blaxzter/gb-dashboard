@@ -1,57 +1,31 @@
-# essentials
+# GB-Dashboard for the Johannische Kirche
+
+This project is a dashboard for the Johannische Kirche to help in the task of creating a new singbook.
+It's written in Vue 3 with vuetify as the UI framework and a directus backend.
+
+![dashboard.png](example-views%2Fdashboard.png)
 
 ## Project setup
 
-```
-# yarn
-yarn
+### Frontend
 
-# npm
-npm install
-
-# pnpm
+```bash
+# Install dependencies
 pnpm install
-```
 
-### Compiles and hot-reloads for development
-
-```
-# yarn
-yarn dev
-
-# npm
-npm run dev
-
-# pnpm
+# Hot Reload for development
 pnpm dev
-```
 
-### Compiles and minifies for production
-
-```
-# yarn
-yarn build
-
-# npm
-npm run build
-
-# pnpm
+# Build for production
 pnpm build
 ```
 
-### Lints and fixes files
+### Backend
 
-```
-# yarn
-yarn lint
+The backend is a directus instance.
+The schemas are defined in the `directus-config` folder and synced using the [directus-extension-sync](https://github.com/tractr/directus-sync) .
+You can build the directus instance either by using the provided `Dockerfile.directus` or by installing the extension yourself in your directus instance.
 
-# npm
-npm run lint
+If you are using the `docker-compose.full.yml` file the first time the schemas will be created automatically.
+Otherwise, you can use `npx directus-sync push -u directus-address -e "username" -p "password"` in the top directory to push the schemas to the directus instance.
 
-# pnpm
-pnpm lint
-```
-
-### Customize configuration
-
-See [Configuration Reference](https://vitejs.dev/config/).

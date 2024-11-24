@@ -17,24 +17,27 @@ type Query {
   permissions_me: permissions_me_type
   roles_me: [directus_roles]
   policies_me_globals: policy_me_globals_type
-  activity(filter: directus_activity_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_activity!]!
-  activity_by_id(id: ID!, version: String): directus_activity
-  activity_aggregated(groupBy: [String], filter: directus_activity_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_activity_aggregated!]!
+  roles(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_roles!]!
+  roles_by_id(id: ID!, version: String): directus_roles
+  roles_aggregated(groupBy: [String], filter: directus_roles_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_roles_aggregated!]!
   presets(filter: directus_presets_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_presets!]!
   presets_by_id(id: ID!, version: String): directus_presets
   presets_aggregated(groupBy: [String], filter: directus_presets_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_presets_aggregated!]!
+  revisions(filter: directus_revisions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_revisions!]!
+  revisions_by_id(id: ID!, version: String): directus_revisions
+  revisions_aggregated(groupBy: [String], filter: directus_revisions_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_revisions_aggregated!]!
   folders(filter: directus_folders_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_folders!]!
   folders_by_id(id: ID!, version: String): directus_folders
   folders_aggregated(groupBy: [String], filter: directus_folders_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_folders_aggregated!]!
   files(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_files!]!
   files_by_id(id: ID!, version: String): directus_files
   files_aggregated(groupBy: [String], filter: directus_files_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_files_aggregated!]!
-  roles(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_roles!]!
-  roles_by_id(id: ID!, version: String): directus_roles
-  roles_aggregated(groupBy: [String], filter: directus_roles_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_roles_aggregated!]!
   permissions(filter: directus_permissions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_permissions!]!
   permissions_by_id(id: ID!, version: String): directus_permissions
   permissions_aggregated(groupBy: [String], filter: directus_permissions_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_permissions_aggregated!]!
+  activity(filter: directus_activity_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_activity!]!
+  activity_by_id(id: ID!, version: String): directus_activity
+  activity_aggregated(groupBy: [String], filter: directus_activity_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_activity_aggregated!]!
   users(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_users!]!
   users_by_id(id: ID!, version: String): directus_users
   users_aggregated(groupBy: [String], filter: directus_users_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_users_aggregated!]!
@@ -44,25 +47,18 @@ type Query {
   panels(filter: directus_panels_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_panels!]!
   panels_by_id(id: ID!, version: String): directus_panels
   panels_aggregated(groupBy: [String], filter: directus_panels_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_panels_aggregated!]!
-  dashboards(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_dashboards!]!
-  dashboards_by_id(id: ID!, version: String): directus_dashboards
-  dashboards_aggregated(groupBy: [String], filter: directus_dashboards_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_dashboards_aggregated!]!
-  revisions(filter: directus_revisions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_revisions!]!
-  revisions_by_id(id: ID!, version: String): directus_revisions
-  revisions_aggregated(groupBy: [String], filter: directus_revisions_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_revisions_aggregated!]!
   notifications(filter: directus_notifications_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_notifications!]!
   notifications_by_id(id: ID!, version: String): directus_notifications
   notifications_aggregated(groupBy: [String], filter: directus_notifications_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_notifications_aggregated!]!
-  settings(version: String): directus_settings
   shares(filter: directus_shares_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_shares!]!
   shares_by_id(id: ID!, version: String): directus_shares
   shares_aggregated(groupBy: [String], filter: directus_shares_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_shares_aggregated!]!
-  access(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_access!]!
-  access_by_id(id: ID!, version: String): directus_access
-  access_aggregated(groupBy: [String], filter: directus_access_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_access_aggregated!]!
   flows(filter: directus_flows_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_flows!]!
   flows_by_id(id: ID!, version: String): directus_flows
   flows_aggregated(groupBy: [String], filter: directus_flows_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_flows_aggregated!]!
+  dashboards(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_dashboards!]!
+  dashboards_by_id(id: ID!, version: String): directus_dashboards
+  dashboards_aggregated(groupBy: [String], filter: directus_dashboards_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_dashboards_aggregated!]!
   operations(filter: directus_operations_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_operations!]!
   operations_by_id(id: ID!, version: String): directus_operations
   operations_aggregated(groupBy: [String], filter: directus_operations_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_operations_aggregated!]!
@@ -72,12 +68,16 @@ type Query {
   policies(filter: directus_policies_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_policies!]!
   policies_by_id(id: ID!, version: String): directus_policies
   policies_aggregated(groupBy: [String], filter: directus_policies_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_policies_aggregated!]!
+  access(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_access!]!
+  access_by_id(id: ID!, version: String): directus_access
+  access_aggregated(groupBy: [String], filter: directus_access_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_access_aggregated!]!
   comments(filter: directus_comments_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_comments!]!
   comments_by_id(id: ID!, version: String): directus_comments
   comments_aggregated(groupBy: [String], filter: directus_comments_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_comments_aggregated!]!
   versions(filter: directus_versions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_versions!]!
   versions_by_id(id: ID!, version: String): directus_versions
   versions_aggregated(groupBy: [String], filter: directus_versions_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_versions_aggregated!]!
+  settings(version: String): directus_settings
 }
 
 type Mutation {
@@ -114,14 +114,14 @@ type Mutation {
   delete_comment(id: ID!): delete_one
   import_file(url: String!, data: create_directus_files_input): directus_files
   users_invite(email: String!, role: String!, invite_url: String): Boolean
+  create_roles_items(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_roles_input!]): [directus_roles!]!
+  create_roles_item(data: create_directus_roles_input!): directus_roles
   create_presets_items(filter: directus_presets_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_presets_input!]): [directus_presets!]!
   create_presets_item(data: create_directus_presets_input!): directus_presets
   create_folders_items(filter: directus_folders_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_folders_input!]): [directus_folders!]!
   create_folders_item(data: create_directus_folders_input!): directus_folders
   create_files_items(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_files_input!]): [directus_files!]!
   create_files_item(data: create_directus_files_input!): directus_files
-  create_roles_items(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_roles_input!]): [directus_roles!]!
-  create_roles_item(data: create_directus_roles_input!): directus_roles
   create_permissions_items(filter: directus_permissions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_permissions_input!]): [directus_permissions!]!
   create_permissions_item(data: create_directus_permissions_input!): directus_permissions
   create_users_items(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_users_input!]): [directus_users!]!
@@ -130,26 +130,29 @@ type Mutation {
   create_webhooks_item(data: create_directus_webhooks_input!): directus_webhooks
   create_panels_items(filter: directus_panels_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_panels_input!]): [directus_panels!]!
   create_panels_item(data: create_directus_panels_input!): directus_panels
-  create_dashboards_items(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_dashboards_input!]): [directus_dashboards!]!
-  create_dashboards_item(data: create_directus_dashboards_input!): directus_dashboards
   create_notifications_items(filter: directus_notifications_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_notifications_input!]): [directus_notifications!]!
   create_notifications_item(data: create_directus_notifications_input!): directus_notifications
   create_shares_items(filter: directus_shares_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_shares_input!]): [directus_shares!]!
   create_shares_item(data: create_directus_shares_input!): directus_shares
-  create_access_items(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_access_input!]): [directus_access!]!
-  create_access_item(data: create_directus_access_input!): directus_access
   create_flows_items(filter: directus_flows_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_flows_input!]): [directus_flows!]!
   create_flows_item(data: create_directus_flows_input!): directus_flows
+  create_dashboards_items(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_dashboards_input!]): [directus_dashboards!]!
+  create_dashboards_item(data: create_directus_dashboards_input!): directus_dashboards
   create_operations_items(filter: directus_operations_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_operations_input!]): [directus_operations!]!
   create_operations_item(data: create_directus_operations_input!): directus_operations
   create_translations_items(filter: directus_translations_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_translations_input!]): [directus_translations!]!
   create_translations_item(data: create_directus_translations_input!): directus_translations
   create_policies_items(filter: directus_policies_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_policies_input!]): [directus_policies!]!
   create_policies_item(data: create_directus_policies_input!): directus_policies
+  create_access_items(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_access_input!]): [directus_access!]!
+  create_access_item(data: create_directus_access_input!): directus_access
   create_comments_items(filter: directus_comments_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_comments_input!]): [directus_comments!]!
   create_comments_item(data: create_directus_comments_input!): directus_comments
   create_versions_items(filter: directus_versions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_versions_input!]): [directus_versions!]!
   create_versions_item(data: create_directus_versions_input!): directus_versions
+  update_roles_items(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_roles_input!): [directus_roles!]!
+  update_roles_batch(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_roles_input!]): [directus_roles!]!
+  update_roles_item(id: ID!, data: update_directus_roles_input!): directus_roles
   update_presets_items(filter: directus_presets_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_presets_input!): [directus_presets!]!
   update_presets_batch(filter: directus_presets_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_presets_input!]): [directus_presets!]!
   update_presets_item(id: ID!, data: update_directus_presets_input!): directus_presets
@@ -159,9 +162,6 @@ type Mutation {
   update_files_items(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_files_input!): [directus_files!]!
   update_files_batch(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_files_input!]): [directus_files!]!
   update_files_item(id: ID!, data: update_directus_files_input!): directus_files
-  update_roles_items(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_roles_input!): [directus_roles!]!
-  update_roles_batch(filter: directus_roles_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_roles_input!]): [directus_roles!]!
-  update_roles_item(id: ID!, data: update_directus_roles_input!): directus_roles
   update_permissions_items(filter: directus_permissions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_permissions_input!): [directus_permissions!]!
   update_permissions_batch(filter: directus_permissions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_permissions_input!]): [directus_permissions!]!
   update_permissions_item(id: ID!, data: update_directus_permissions_input!): directus_permissions
@@ -174,22 +174,18 @@ type Mutation {
   update_panels_items(filter: directus_panels_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_panels_input!): [directus_panels!]!
   update_panels_batch(filter: directus_panels_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_panels_input!]): [directus_panels!]!
   update_panels_item(id: ID!, data: update_directus_panels_input!): directus_panels
-  update_dashboards_items(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_dashboards_input!): [directus_dashboards!]!
-  update_dashboards_batch(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_dashboards_input!]): [directus_dashboards!]!
-  update_dashboards_item(id: ID!, data: update_directus_dashboards_input!): directus_dashboards
   update_notifications_items(filter: directus_notifications_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_notifications_input!): [directus_notifications!]!
   update_notifications_batch(filter: directus_notifications_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_notifications_input!]): [directus_notifications!]!
   update_notifications_item(id: ID!, data: update_directus_notifications_input!): directus_notifications
-  update_settings(data: update_directus_settings_input!): directus_settings
   update_shares_items(filter: directus_shares_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_shares_input!): [directus_shares!]!
   update_shares_batch(filter: directus_shares_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_shares_input!]): [directus_shares!]!
   update_shares_item(id: ID!, data: update_directus_shares_input!): directus_shares
-  update_access_items(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_access_input!): [directus_access!]!
-  update_access_batch(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_access_input!]): [directus_access!]!
-  update_access_item(id: ID!, data: update_directus_access_input!): directus_access
   update_flows_items(filter: directus_flows_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_flows_input!): [directus_flows!]!
   update_flows_batch(filter: directus_flows_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_flows_input!]): [directus_flows!]!
   update_flows_item(id: ID!, data: update_directus_flows_input!): directus_flows
+  update_dashboards_items(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_dashboards_input!): [directus_dashboards!]!
+  update_dashboards_batch(filter: directus_dashboards_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_dashboards_input!]): [directus_dashboards!]!
+  update_dashboards_item(id: ID!, data: update_directus_dashboards_input!): directus_dashboards
   update_operations_items(filter: directus_operations_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_operations_input!): [directus_operations!]!
   update_operations_batch(filter: directus_operations_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_operations_input!]): [directus_operations!]!
   update_operations_item(id: ID!, data: update_directus_operations_input!): directus_operations
@@ -199,20 +195,24 @@ type Mutation {
   update_policies_items(filter: directus_policies_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_policies_input!): [directus_policies!]!
   update_policies_batch(filter: directus_policies_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_policies_input!]): [directus_policies!]!
   update_policies_item(id: ID!, data: update_directus_policies_input!): directus_policies
+  update_access_items(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_access_input!): [directus_access!]!
+  update_access_batch(filter: directus_access_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_access_input!]): [directus_access!]!
+  update_access_item(id: ID!, data: update_directus_access_input!): directus_access
   update_comments_items(filter: directus_comments_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_comments_input!): [directus_comments!]!
   update_comments_batch(filter: directus_comments_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_comments_input!]): [directus_comments!]!
   update_comments_item(id: ID!, data: update_directus_comments_input!): directus_comments
   update_versions_items(filter: directus_versions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_versions_input!): [directus_versions!]!
   update_versions_batch(filter: directus_versions_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_versions_input!]): [directus_versions!]!
   update_versions_item(id: ID!, data: update_directus_versions_input!): directus_versions
+  update_settings(data: update_directus_settings_input!): directus_settings
+  delete_roles_items(ids: [ID]!): delete_many
+  delete_roles_item(id: ID!): delete_one
   delete_presets_items(ids: [ID]!): delete_many
   delete_presets_item(id: ID!): delete_one
   delete_folders_items(ids: [ID]!): delete_many
   delete_folders_item(id: ID!): delete_one
   delete_files_items(ids: [ID]!): delete_many
   delete_files_item(id: ID!): delete_one
-  delete_roles_items(ids: [ID]!): delete_many
-  delete_roles_item(id: ID!): delete_one
   delete_permissions_items(ids: [ID]!): delete_many
   delete_permissions_item(id: ID!): delete_one
   delete_users_items(ids: [ID]!): delete_many
@@ -221,22 +221,22 @@ type Mutation {
   delete_webhooks_item(id: ID!): delete_one
   delete_panels_items(ids: [ID]!): delete_many
   delete_panels_item(id: ID!): delete_one
-  delete_dashboards_items(ids: [ID]!): delete_many
-  delete_dashboards_item(id: ID!): delete_one
   delete_notifications_items(ids: [ID]!): delete_many
   delete_notifications_item(id: ID!): delete_one
   delete_shares_items(ids: [ID]!): delete_many
   delete_shares_item(id: ID!): delete_one
-  delete_access_items(ids: [ID]!): delete_many
-  delete_access_item(id: ID!): delete_one
   delete_flows_items(ids: [ID]!): delete_many
   delete_flows_item(id: ID!): delete_one
+  delete_dashboards_items(ids: [ID]!): delete_many
+  delete_dashboards_item(id: ID!): delete_one
   delete_operations_items(ids: [ID]!): delete_many
   delete_operations_item(id: ID!): delete_one
   delete_translations_items(ids: [ID]!): delete_many
   delete_translations_item(id: ID!): delete_one
   delete_policies_items(ids: [ID]!): delete_many
   delete_policies_item(id: ID!): delete_one
+  delete_access_items(ids: [ID]!): delete_many
+  delete_access_item(id: ID!): delete_one
   delete_comments_items(ids: [ID]!): delete_many
   delete_comments_item(id: ID!): delete_one
   delete_versions_items(ids: [ID]!): delete_many
@@ -244,43 +244,43 @@ type Mutation {
 }
 
 type Subscription {
-  bewertungKleinerKreis_mutated(event: EventEnum): bewertungKleinerKreis_mutated
-  arbeitskreis_mutated(event: EventEnum): arbeitskreis_mutated
-  melodie_files_mutated(event: EventEnum): melodie_files_mutated
-  gesangbuchlied_kategorie_mutated(event: EventEnum): gesangbuchlied_kategorie_mutated
-  lizenz_mutated(event: EventEnum): lizenz_mutated
-  text_autor_mutated(event: EventEnum): text_autor_mutated
-  text_mutated(event: EventEnum): text_mutated
-  gesangbuchlied_mutated(event: EventEnum): gesangbuchlied_mutated
-  termin_mutated(event: EventEnum): termin_mutated
-  auftrag_mutated(event: EventEnum): auftrag_mutated
-  gesangbuchlied_files_mutated(event: EventEnum): gesangbuchlied_files_mutated
-  directus_activity_mutated(event: EventEnum): directus_activity_mutated
+  directus_roles_mutated(event: EventEnum): directus_roles_mutated
   directus_presets_mutated(event: EventEnum): directus_presets_mutated
+  directus_revisions_mutated(event: EventEnum): directus_revisions_mutated
   directus_folders_mutated(event: EventEnum): directus_folders_mutated
   directus_files_mutated(event: EventEnum): directus_files_mutated
-  directus_roles_mutated(event: EventEnum): directus_roles_mutated
   directus_permissions_mutated(event: EventEnum): directus_permissions_mutated
+  directus_activity_mutated(event: EventEnum): directus_activity_mutated
   directus_users_mutated(event: EventEnum): directus_users_mutated
   directus_webhooks_mutated(event: EventEnum): directus_webhooks_mutated
   directus_panels_mutated(event: EventEnum): directus_panels_mutated
-  directus_dashboards_mutated(event: EventEnum): directus_dashboards_mutated
-  directus_revisions_mutated(event: EventEnum): directus_revisions_mutated
   directus_notifications_mutated(event: EventEnum): directus_notifications_mutated
-  directus_settings_mutated(event: EventEnum): directus_settings_mutated
   directus_shares_mutated(event: EventEnum): directus_shares_mutated
-  directus_access_mutated(event: EventEnum): directus_access_mutated
   directus_flows_mutated(event: EventEnum): directus_flows_mutated
+  directus_dashboards_mutated(event: EventEnum): directus_dashboards_mutated
   directus_operations_mutated(event: EventEnum): directus_operations_mutated
   directus_translations_mutated(event: EventEnum): directus_translations_mutated
   directus_policies_mutated(event: EventEnum): directus_policies_mutated
+  directus_access_mutated(event: EventEnum): directus_access_mutated
   directus_comments_mutated(event: EventEnum): directus_comments_mutated
   directus_versions_mutated(event: EventEnum): directus_versions_mutated
+  directus_settings_mutated(event: EventEnum): directus_settings_mutated
   directus_sync_id_map_mutated(event: EventEnum): directus_sync_id_map_mutated
+  arbeitskreis_mutated(event: EventEnum): arbeitskreis_mutated
+  auftrag_mutated(event: EventEnum): auftrag_mutated
+  text_mutated(event: EventEnum): text_mutated
+  bewertungKleinerKreis_mutated(event: EventEnum): bewertungKleinerKreis_mutated
+  gesangbuchlied_mutated(event: EventEnum): gesangbuchlied_mutated
+  melodie_mutated(event: EventEnum): melodie_mutated
+  gesangbuchlied_files_mutated(event: EventEnum): gesangbuchlied_files_mutated
+  gesangbuchlied_kategorie_mutated(event: EventEnum): gesangbuchlied_kategorie_mutated
+  kategorie_mutated(event: EventEnum): kategorie_mutated
+  lizenz_mutated(event: EventEnum): lizenz_mutated
   autor_mutated(event: EventEnum): autor_mutated
   melodie_autor_mutated(event: EventEnum): melodie_autor_mutated
-  melodie_mutated(event: EventEnum): melodie_mutated
-  kategorie_mutated(event: EventEnum): kategorie_mutated
+  melodie_files_mutated(event: EventEnum): melodie_files_mutated
+  termin_mutated(event: EventEnum): termin_mutated
+  text_autor_mutated(event: EventEnum): text_autor_mutated
 }
 
 """The `Boolean` scalar type represents `true` or `false`."""
@@ -358,11 +358,11 @@ enum server_info_websocket_rest_authentication {
 }
 
 type arbeitskreis {
+  ansprechpartner: String
+  email: String
+  icon: String
   id: ID!
   name: String
-  email: String
-  ansprechpartner: String
-  icon: String
 }
 
 type arbeitskreis_mutated {
@@ -372,18 +372,18 @@ type arbeitskreis_mutated {
 }
 
 type auftrag {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  auftraggeberId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  auftragsartText: String
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  id: ID!
+  status: String
   textId(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
-  auftragsartText: String
-  auftraggeberId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
 }
 
 type auftrag_mutated {
@@ -399,12 +399,12 @@ type auth_tokens {
 }
 
 type autor {
-  id: ID!
-  status: String
-  vorname: String
-  nachname: String
   geburtsjahr: Int
+  id: ID!
+  nachname: String
+  status: String
   sterbejahr: Int
+  vorname: String
 }
 
 type autor_mutated {
@@ -414,8 +414,8 @@ type autor_mutated {
 }
 
 type bewertungKleinerKreis {
-  id: ID!
   bezeichner: String
+  id: ID!
   rangfolge: Int
 }
 
@@ -1688,32 +1688,32 @@ type directus_webhooks_mutated {
 }
 
 type gesangbuchlied {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  anmerkung: String
+  bewertungAnmerkung: String
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  rueckfrageAutor: String
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
-  bewertungAnmerkung: String
+  einreicherName: String
+  externerLink: String
+  id: ID!
 
   """
   Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.
   """
   liedHatAenderung: Boolean
-  titel: String
-  textId(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
-  melodieId(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
   liednummer2000: Int
-  melodieGeaendert: Boolean
-  textGeaendert: Boolean
-  anmerkung: String
   linkCloud: String
-  externerLink: String
-  einreicherName: String
+  melodieGeaendert: Boolean
+  melodieId(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
+  rueckfrageAutor: String
+  status: String
+  textGeaendert: Boolean
+  textId(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
+  titel: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   gesangbuchlied_satz_mit_melodie_und_text(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_files]
   gesangbuchlied_satz_mit_melodie_und_text_func: count_functions
   kategorieId(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_kategorie]
@@ -1721,9 +1721,9 @@ type gesangbuchlied {
 }
 
 type gesangbuchlied_files {
-  id: ID!
-  gesangbuchlied_id(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): gesangbuchlied
   directus_files_id(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_files
+  gesangbuchlied_id(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): gesangbuchlied
+  id: ID!
 }
 
 type gesangbuchlied_files_mutated {
@@ -1733,8 +1733,8 @@ type gesangbuchlied_files_mutated {
 }
 
 type gesangbuchlied_kategorie {
-  id: ID!
   gesangbuchlied_id(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): gesangbuchlied
+  id: ID!
   kategorie_id(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): kategorie
 }
 
@@ -1763,16 +1763,16 @@ type kategorie_mutated {
 }
 
 type lizenz {
-  id: ID!
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  name: String
   digital: Boolean
+  id: ID!
+  name: String
   print: Boolean
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
 }
 
 type lizenz_mutated {
@@ -1782,24 +1782,24 @@ type lizenz_mutated {
 }
 
 type melodie {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
-  date_created: Date
-  date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
-  date_updated: Date
-  date_updated_func: datetime_functions
-  rueckfrageAutor: String
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
-  bewertungAnmerkung: String
-  titel: String
-  quelle: String
-  quelllink: String
-  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
-  anmerkung: String
   abc_melodie: JSON
   abc_melodie_func: count_functions
+  anmerkung: String
+  bewertungAnmerkung: String
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
+  date_created: Date
+  date_created_func: datetime_functions
+  date_updated: Date
+  date_updated_func: datetime_functions
+  id: ID!
+  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
+  quelle: String
+  quelllink: String
+  rueckfrageAutor: String
+  status: String
+  titel: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   autorId(filter: melodie_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_autor]
   autorId_func: count_functions
   noten(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_files]
@@ -1807,9 +1807,9 @@ type melodie {
 }
 
 type melodie_autor {
+  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
   id: ID!
   melodie_id(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
-  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
 }
 
 type melodie_autor_mutated {
@@ -1819,9 +1819,9 @@ type melodie_autor_mutated {
 }
 
 type melodie_files {
+  directus_files_id(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_files
   id: ID!
   melodie_id(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
-  directus_files_id(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_files
 }
 
 type melodie_files_mutated {
@@ -1886,23 +1886,23 @@ type server_info_websocket_rest {
 }
 
 type termin {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  bemerkung: String
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  title: String
-  start: Date
-  start_func: datetime_functions
   ende: Date
   ende_func: datetime_functions
-  bemerkung: String
-  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  id: ID!
   istMeilenstein: Boolean
   sort: Int
+  start: Date
+  start_func: datetime_functions
+  status: String
+  title: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
 }
 
 type termin_mutated {
@@ -1912,32 +1912,32 @@ type termin_mutated {
 }
 
 type text {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  anmerkung: String
+  bewertungAnmerkung: String
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  rueckfrageAutor: String
-  titel: String
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
-  bewertungAnmerkung: String
-  strophenEinzeln: JSON
-  strophenEinzeln_func: count_functions
+  id: ID!
+  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
   quelle: String
   quelllink: String
-  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
-  anmerkung: String
+  rueckfrageAutor: String
+  status: String
+  strophenEinzeln: JSON
+  strophenEinzeln_func: count_functions
+  titel: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   autorId(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [text_autor]
   autorId_func: count_functions
 }
 
 type text_autor {
+  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
   id: ID!
   text_id(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
-  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
 }
 
 type text_autor_mutated {
@@ -1958,29 +1958,29 @@ type users_me_tfa_generate_data {
 }
 
 input arbeitskreis_filter {
+  ansprechpartner: string_filter_operators
+  email: string_filter_operators
+  icon: string_filter_operators
   id: number_filter_operators
   name: string_filter_operators
-  email: string_filter_operators
-  ansprechpartner: string_filter_operators
-  icon: string_filter_operators
   _and: [arbeitskreis_filter]
   _or: [arbeitskreis_filter]
 }
 
 input autor_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  vorname: string_filter_operators
-  nachname: string_filter_operators
   geburtsjahr: number_filter_operators
+  id: number_filter_operators
+  nachname: string_filter_operators
+  status: string_filter_operators
   sterbejahr: number_filter_operators
+  vorname: string_filter_operators
   _and: [autor_filter]
   _or: [autor_filter]
 }
 
 input bewertungKleinerKreis_filter {
-  id: number_filter_operators
   bezeichner: string_filter_operators
+  id: number_filter_operators
   rangfolge: number_filter_operators
   _and: [bewertungKleinerKreis_filter]
   _or: [bewertungKleinerKreis_filter]
@@ -2801,36 +2801,36 @@ input directus_webhooks_filter {
 }
 
 input gesangbuchlied_files_filter {
-  id: number_filter_operators
-  gesangbuchlied_id: gesangbuchlied_filter
   directus_files_id: directus_files_filter
+  gesangbuchlied_id: gesangbuchlied_filter
+  id: number_filter_operators
   _and: [gesangbuchlied_files_filter]
   _or: [gesangbuchlied_files_filter]
 }
 
 input gesangbuchlied_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
+  anmerkung: string_filter_operators
+  bewertungAnmerkung: string_filter_operators
+  bewertungKleinerKreis: bewertungKleinerKreis_filter
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  rueckfrageAutor: string_filter_operators
-  bewertungKleinerKreis: bewertungKleinerKreis_filter
-  bewertungAnmerkung: string_filter_operators
-  liedHatAenderung: boolean_filter_operators
-  titel: string_filter_operators
-  textId: text_filter
-  melodieId: melodie_filter
-  liednummer2000: number_filter_operators
-  melodieGeaendert: boolean_filter_operators
-  textGeaendert: boolean_filter_operators
-  anmerkung: string_filter_operators
-  linkCloud: string_filter_operators
-  externerLink: string_filter_operators
   einreicherName: string_filter_operators
+  externerLink: string_filter_operators
+  id: number_filter_operators
+  liedHatAenderung: boolean_filter_operators
+  liednummer2000: number_filter_operators
+  linkCloud: string_filter_operators
+  melodieGeaendert: boolean_filter_operators
+  melodieId: melodie_filter
+  rueckfrageAutor: string_filter_operators
+  status: string_filter_operators
+  textGeaendert: boolean_filter_operators
+  textId: text_filter
+  titel: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   gesangbuchlied_satz_mit_melodie_und_text: gesangbuchlied_files_filter
   gesangbuchlied_satz_mit_melodie_und_text_func: count_function_filter_operators
   kategorieId: gesangbuchlied_kategorie_filter
@@ -2840,8 +2840,8 @@ input gesangbuchlied_filter {
 }
 
 input gesangbuchlied_kategorie_filter {
-  id: number_filter_operators
   gesangbuchlied_id: gesangbuchlied_filter
+  id: number_filter_operators
   kategorie_id: kategorie_filter
   _and: [gesangbuchlied_kategorie_filter]
   _or: [gesangbuchlied_kategorie_filter]
@@ -2863,55 +2863,55 @@ input kategorie_filter {
 }
 
 input lizenz_filter {
-  id: number_filter_operators
-  user_created: directus_users_filter
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  name: string_filter_operators
   digital: boolean_filter_operators
+  id: number_filter_operators
+  name: string_filter_operators
   print: boolean_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   _and: [lizenz_filter]
   _or: [lizenz_filter]
 }
 
 input melodie_autor_filter {
+  autor_id: autor_filter
   id: number_filter_operators
   melodie_id: melodie_filter
-  autor_id: autor_filter
   _and: [melodie_autor_filter]
   _or: [melodie_autor_filter]
 }
 
 input melodie_files_filter {
+  directus_files_id: directus_files_filter
   id: number_filter_operators
   melodie_id: melodie_filter
-  directus_files_id: directus_files_filter
   _and: [melodie_files_filter]
   _or: [melodie_files_filter]
 }
 
 input melodie_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
-  date_created: date_filter_operators
-  date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
-  date_updated: date_filter_operators
-  date_updated_func: datetime_function_filter_operators
-  rueckfrageAutor: string_filter_operators
-  bewertungKleinerKreis: bewertungKleinerKreis_filter
-  bewertungAnmerkung: string_filter_operators
-  titel: string_filter_operators
-  quelle: string_filter_operators
-  quelllink: string_filter_operators
-  lizenzId: lizenz_filter
-  anmerkung: string_filter_operators
   abc_melodie: string_filter_operators
   abc_melodie_func: count_function_filter_operators
+  anmerkung: string_filter_operators
+  bewertungAnmerkung: string_filter_operators
+  bewertungKleinerKreis: bewertungKleinerKreis_filter
+  date_created: date_filter_operators
+  date_created_func: datetime_function_filter_operators
+  date_updated: date_filter_operators
+  date_updated_func: datetime_function_filter_operators
+  id: number_filter_operators
+  lizenzId: lizenz_filter
+  quelle: string_filter_operators
+  quelllink: string_filter_operators
+  rueckfrageAutor: string_filter_operators
+  status: string_filter_operators
+  titel: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   autorId: melodie_autor_filter
   autorId_func: count_function_filter_operators
   noten: melodie_files_filter
@@ -2958,32 +2958,32 @@ input string_filter_operators {
 }
 
 input text_autor_filter {
+  autor_id: autor_filter
   id: number_filter_operators
   text_id: text_filter
-  autor_id: autor_filter
   _and: [text_autor_filter]
   _or: [text_autor_filter]
 }
 
 input text_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
+  anmerkung: string_filter_operators
+  bewertungAnmerkung: string_filter_operators
+  bewertungKleinerKreis: bewertungKleinerKreis_filter
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  rueckfrageAutor: string_filter_operators
-  titel: string_filter_operators
-  bewertungKleinerKreis: bewertungKleinerKreis_filter
-  bewertungAnmerkung: string_filter_operators
-  strophenEinzeln: string_filter_operators
-  strophenEinzeln_func: count_function_filter_operators
+  id: number_filter_operators
+  lizenzId: lizenz_filter
   quelle: string_filter_operators
   quelllink: string_filter_operators
-  lizenzId: lizenz_filter
-  anmerkung: string_filter_operators
+  rueckfrageAutor: string_filter_operators
+  status: string_filter_operators
+  strophenEinzeln: string_filter_operators
+  strophenEinzeln_func: count_function_filter_operators
+  titel: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   autorId: text_autor_filter
   autorId_func: count_function_filter_operators
   _and: [text_filter]
