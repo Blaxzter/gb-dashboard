@@ -80,7 +80,6 @@ services:
       timeout: 15s
       retries: 3
     environment:
-      KEY: "${KEY}"
       SECRET: "${SECRET}"
       WEBSOCKETS_ENABLED: "true"
       SCHEMA_SYNC: "BOTH"

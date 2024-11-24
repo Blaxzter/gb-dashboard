@@ -1,52 +1,48 @@
 type Query {
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [bewertungKleinerKreis!]!
-  bewertungKleinerKreis_by_id(id: ID!, version: String): bewertungKleinerKreis
-  bewertungKleinerKreis_aggregated(groupBy: [String], filter: bewertungKleinerKreis_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [bewertungKleinerKreis_aggregated!]!
-  bewertungKleinerKreis_by_version(version: String!, id: ID!): version_bewertungKleinerKreis
-  arbeitskreis(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [arbeitskreis!]!
-  arbeitskreis_by_id(id: ID!, version: String): arbeitskreis
-  arbeitskreis_aggregated(groupBy: [String], filter: arbeitskreis_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [arbeitskreis_aggregated!]!
-  arbeitskreis_by_version(version: String!, id: ID!): version_arbeitskreis
-  melodie_files(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_files!]!
-  melodie_files_by_id(id: ID!, version: String): melodie_files
-  melodie_files_aggregated(groupBy: [String], filter: melodie_files_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [melodie_files_aggregated!]!
-  melodie_files_by_version(version: String!, id: ID!): version_melodie_files
-  gesangbuchlied_kategorie(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_kategorie!]!
-  gesangbuchlied_kategorie_by_id(id: ID!, version: String): gesangbuchlied_kategorie
-  gesangbuchlied_kategorie_aggregated(groupBy: [String], filter: gesangbuchlied_kategorie_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [gesangbuchlied_kategorie_aggregated!]!
-  gesangbuchlied_kategorie_by_version(version: String!, id: ID!): version_gesangbuchlied_kategorie
-  lizenz(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [lizenz!]!
-  lizenz_by_id(id: ID!, version: String): lizenz
-  lizenz_aggregated(groupBy: [String], filter: lizenz_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [lizenz_aggregated!]!
-  lizenz_by_version(version: String!, id: ID!): version_lizenz
-  text_autor(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [text_autor!]!
-  text_autor_by_id(id: ID!, version: String): text_autor
-  text_autor_aggregated(groupBy: [String], filter: text_autor_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [text_autor_aggregated!]!
-  text_autor_by_version(version: String!, id: ID!): version_text_autor
-  text(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [text!]!
-  text_by_id(id: ID!, version: String): text
-  text_aggregated(groupBy: [String], filter: text_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [text_aggregated!]!
-  text_by_version(version: String!, id: ID!): version_text
-  gesangbuchlied(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied!]!
-  gesangbuchlied_by_id(id: ID!, version: String): gesangbuchlied
-  gesangbuchlied_aggregated(groupBy: [String], filter: gesangbuchlied_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [gesangbuchlied_aggregated!]!
-  gesangbuchlied_by_version(version: String!, id: ID!): version_gesangbuchlied
-  termin(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [termin!]!
-  termin_by_id(id: ID!, version: String): termin
-  termin_aggregated(groupBy: [String], filter: termin_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [termin_aggregated!]!
-  termin_by_version(version: String!, id: ID!): version_termin
-  auftrag(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [auftrag!]!
-  auftrag_by_id(id: ID!, version: String): auftrag
-  auftrag_aggregated(groupBy: [String], filter: auftrag_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [auftrag_aggregated!]!
-  auftrag_by_version(version: String!, id: ID!): version_auftrag
-  gesangbuchlied_files(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_files!]!
-  gesangbuchlied_files_by_id(id: ID!, version: String): gesangbuchlied_files
-  gesangbuchlied_files_aggregated(groupBy: [String], filter: gesangbuchlied_files_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [gesangbuchlied_files_aggregated!]!
-  gesangbuchlied_files_by_version(version: String!, id: ID!): version_gesangbuchlied_files
   directus_sync_id_map(filter: directus_sync_id_map_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [directus_sync_id_map!]!
   directus_sync_id_map_by_id(id: ID!, version: String): directus_sync_id_map
   directus_sync_id_map_aggregated(groupBy: [String], filter: directus_sync_id_map_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [directus_sync_id_map_aggregated!]!
   directus_sync_id_map_by_version(version: String!, id: ID!): version_directus_sync_id_map
+  arbeitskreis(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [arbeitskreis!]!
+  arbeitskreis_by_id(id: ID!, version: String): arbeitskreis
+  arbeitskreis_aggregated(groupBy: [String], filter: arbeitskreis_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [arbeitskreis_aggregated!]!
+  arbeitskreis_by_version(version: String!, id: ID!): version_arbeitskreis
+  auftrag(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [auftrag!]!
+  auftrag_by_id(id: ID!, version: String): auftrag
+  auftrag_aggregated(groupBy: [String], filter: auftrag_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [auftrag_aggregated!]!
+  auftrag_by_version(version: String!, id: ID!): version_auftrag
+  text(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [text!]!
+  text_by_id(id: ID!, version: String): text
+  text_aggregated(groupBy: [String], filter: text_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [text_aggregated!]!
+  text_by_version(version: String!, id: ID!): version_text
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [bewertungKleinerKreis!]!
+  bewertungKleinerKreis_by_id(id: ID!, version: String): bewertungKleinerKreis
+  bewertungKleinerKreis_aggregated(groupBy: [String], filter: bewertungKleinerKreis_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [bewertungKleinerKreis_aggregated!]!
+  bewertungKleinerKreis_by_version(version: String!, id: ID!): version_bewertungKleinerKreis
+  gesangbuchlied(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied!]!
+  gesangbuchlied_by_id(id: ID!, version: String): gesangbuchlied
+  gesangbuchlied_aggregated(groupBy: [String], filter: gesangbuchlied_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [gesangbuchlied_aggregated!]!
+  gesangbuchlied_by_version(version: String!, id: ID!): version_gesangbuchlied
+  melodie(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie!]!
+  melodie_by_id(id: ID!, version: String): melodie
+  melodie_aggregated(groupBy: [String], filter: melodie_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [melodie_aggregated!]!
+  melodie_by_version(version: String!, id: ID!): version_melodie
+  gesangbuchlied_files(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_files!]!
+  gesangbuchlied_files_by_id(id: ID!, version: String): gesangbuchlied_files
+  gesangbuchlied_files_aggregated(groupBy: [String], filter: gesangbuchlied_files_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [gesangbuchlied_files_aggregated!]!
+  gesangbuchlied_files_by_version(version: String!, id: ID!): version_gesangbuchlied_files
+  gesangbuchlied_kategorie(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_kategorie!]!
+  gesangbuchlied_kategorie_by_id(id: ID!, version: String): gesangbuchlied_kategorie
+  gesangbuchlied_kategorie_aggregated(groupBy: [String], filter: gesangbuchlied_kategorie_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [gesangbuchlied_kategorie_aggregated!]!
+  gesangbuchlied_kategorie_by_version(version: String!, id: ID!): version_gesangbuchlied_kategorie
+  kategorie(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [kategorie!]!
+  kategorie_by_id(id: ID!, version: String): kategorie
+  kategorie_aggregated(groupBy: [String], filter: kategorie_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [kategorie_aggregated!]!
+  kategorie_by_version(version: String!, id: ID!): version_kategorie
+  lizenz(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [lizenz!]!
+  lizenz_by_id(id: ID!, version: String): lizenz
+  lizenz_aggregated(groupBy: [String], filter: lizenz_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [lizenz_aggregated!]!
+  lizenz_by_version(version: String!, id: ID!): version_lizenz
   autor(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [autor!]!
   autor_by_id(id: ID!, version: String): autor
   autor_aggregated(groupBy: [String], filter: autor_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [autor_aggregated!]!
@@ -55,169 +51,173 @@ type Query {
   melodie_autor_by_id(id: ID!, version: String): melodie_autor
   melodie_autor_aggregated(groupBy: [String], filter: melodie_autor_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [melodie_autor_aggregated!]!
   melodie_autor_by_version(version: String!, id: ID!): version_melodie_autor
-  melodie(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie!]!
-  melodie_by_id(id: ID!, version: String): melodie
-  melodie_aggregated(groupBy: [String], filter: melodie_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [melodie_aggregated!]!
-  melodie_by_version(version: String!, id: ID!): version_melodie
-  kategorie(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [kategorie!]!
-  kategorie_by_id(id: ID!, version: String): kategorie
-  kategorie_aggregated(groupBy: [String], filter: kategorie_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [kategorie_aggregated!]!
-  kategorie_by_version(version: String!, id: ID!): version_kategorie
+  melodie_files(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_files!]!
+  melodie_files_by_id(id: ID!, version: String): melodie_files
+  melodie_files_aggregated(groupBy: [String], filter: melodie_files_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [melodie_files_aggregated!]!
+  melodie_files_by_version(version: String!, id: ID!): version_melodie_files
+  termin(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [termin!]!
+  termin_by_id(id: ID!, version: String): termin
+  termin_aggregated(groupBy: [String], filter: termin_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [termin_aggregated!]!
+  termin_by_version(version: String!, id: ID!): version_termin
+  text_autor(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [text_autor!]!
+  text_autor_by_id(id: ID!, version: String): text_autor
+  text_autor_aggregated(groupBy: [String], filter: text_autor_filter, limit: Int, offset: Int, page: Int, search: String, sort: [String]): [text_autor_aggregated!]!
+  text_autor_by_version(version: String!, id: ID!): version_text_autor
 }
 
 type Mutation {
-  create_bewertungKleinerKreis_items(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_bewertungKleinerKreis_input!]): [bewertungKleinerKreis!]!
-  create_bewertungKleinerKreis_item(data: create_bewertungKleinerKreis_input!): bewertungKleinerKreis
-  create_arbeitskreis_items(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_arbeitskreis_input!]): [arbeitskreis!]!
-  create_arbeitskreis_item(data: create_arbeitskreis_input!): arbeitskreis
-  create_melodie_files_items(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_melodie_files_input!]): [melodie_files!]!
-  create_melodie_files_item(data: create_melodie_files_input!): melodie_files
-  create_gesangbuchlied_kategorie_items(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_gesangbuchlied_kategorie_input!]): [gesangbuchlied_kategorie!]!
-  create_gesangbuchlied_kategorie_item(data: create_gesangbuchlied_kategorie_input!): gesangbuchlied_kategorie
-  create_lizenz_items(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_lizenz_input!]): [lizenz!]!
-  create_lizenz_item(data: create_lizenz_input!): lizenz
-  create_text_autor_items(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_text_autor_input!]): [text_autor!]!
-  create_text_autor_item(data: create_text_autor_input!): text_autor
-  create_text_items(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_text_input!]): [text!]!
-  create_text_item(data: create_text_input!): text
-  create_gesangbuchlied_items(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_gesangbuchlied_input!]): [gesangbuchlied!]!
-  create_gesangbuchlied_item(data: create_gesangbuchlied_input!): gesangbuchlied
-  create_termin_items(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_termin_input!]): [termin!]!
-  create_termin_item(data: create_termin_input!): termin
-  create_auftrag_items(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_auftrag_input!]): [auftrag!]!
-  create_auftrag_item(data: create_auftrag_input!): auftrag
-  create_gesangbuchlied_files_items(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_gesangbuchlied_files_input!]): [gesangbuchlied_files!]!
-  create_gesangbuchlied_files_item(data: create_gesangbuchlied_files_input!): gesangbuchlied_files
   create_directus_sync_id_map_items(filter: directus_sync_id_map_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_directus_sync_id_map_input!]): [directus_sync_id_map!]!
   create_directus_sync_id_map_item(data: create_directus_sync_id_map_input!): directus_sync_id_map
+  create_arbeitskreis_items(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_arbeitskreis_input!]): [arbeitskreis!]!
+  create_arbeitskreis_item(data: create_arbeitskreis_input!): arbeitskreis
+  create_auftrag_items(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_auftrag_input!]): [auftrag!]!
+  create_auftrag_item(data: create_auftrag_input!): auftrag
+  create_text_items(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_text_input!]): [text!]!
+  create_text_item(data: create_text_input!): text
+  create_bewertungKleinerKreis_items(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_bewertungKleinerKreis_input!]): [bewertungKleinerKreis!]!
+  create_bewertungKleinerKreis_item(data: create_bewertungKleinerKreis_input!): bewertungKleinerKreis
+  create_gesangbuchlied_items(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_gesangbuchlied_input!]): [gesangbuchlied!]!
+  create_gesangbuchlied_item(data: create_gesangbuchlied_input!): gesangbuchlied
+  create_melodie_items(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_melodie_input!]): [melodie!]!
+  create_melodie_item(data: create_melodie_input!): melodie
+  create_gesangbuchlied_files_items(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_gesangbuchlied_files_input!]): [gesangbuchlied_files!]!
+  create_gesangbuchlied_files_item(data: create_gesangbuchlied_files_input!): gesangbuchlied_files
+  create_gesangbuchlied_kategorie_items(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_gesangbuchlied_kategorie_input!]): [gesangbuchlied_kategorie!]!
+  create_gesangbuchlied_kategorie_item(data: create_gesangbuchlied_kategorie_input!): gesangbuchlied_kategorie
+  create_kategorie_items(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_kategorie_input!]): [kategorie!]!
+  create_kategorie_item(data: create_kategorie_input!): kategorie
+  create_lizenz_items(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_lizenz_input!]): [lizenz!]!
+  create_lizenz_item(data: create_lizenz_input!): lizenz
   create_autor_items(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_autor_input!]): [autor!]!
   create_autor_item(data: create_autor_input!): autor
   create_melodie_autor_items(filter: melodie_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_melodie_autor_input!]): [melodie_autor!]!
   create_melodie_autor_item(data: create_melodie_autor_input!): melodie_autor
-  create_melodie_items(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_melodie_input!]): [melodie!]!
-  create_melodie_item(data: create_melodie_input!): melodie
-  create_kategorie_items(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_kategorie_input!]): [kategorie!]!
-  create_kategorie_item(data: create_kategorie_input!): kategorie
-  update_bewertungKleinerKreis_items(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_bewertungKleinerKreis_input!): [bewertungKleinerKreis!]!
-  update_bewertungKleinerKreis_batch(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_bewertungKleinerKreis_input!]): [bewertungKleinerKreis!]!
-  update_bewertungKleinerKreis_item(id: ID!, data: update_bewertungKleinerKreis_input!): bewertungKleinerKreis
-  update_arbeitskreis_items(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_arbeitskreis_input!): [arbeitskreis!]!
-  update_arbeitskreis_batch(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_arbeitskreis_input!]): [arbeitskreis!]!
-  update_arbeitskreis_item(id: ID!, data: update_arbeitskreis_input!): arbeitskreis
-  update_melodie_files_items(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_melodie_files_input!): [melodie_files!]!
-  update_melodie_files_batch(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_melodie_files_input!]): [melodie_files!]!
-  update_melodie_files_item(id: ID!, data: update_melodie_files_input!): melodie_files
-  update_gesangbuchlied_kategorie_items(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_gesangbuchlied_kategorie_input!): [gesangbuchlied_kategorie!]!
-  update_gesangbuchlied_kategorie_batch(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_gesangbuchlied_kategorie_input!]): [gesangbuchlied_kategorie!]!
-  update_gesangbuchlied_kategorie_item(id: ID!, data: update_gesangbuchlied_kategorie_input!): gesangbuchlied_kategorie
-  update_lizenz_items(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_lizenz_input!): [lizenz!]!
-  update_lizenz_batch(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_lizenz_input!]): [lizenz!]!
-  update_lizenz_item(id: ID!, data: update_lizenz_input!): lizenz
-  update_text_autor_items(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_text_autor_input!): [text_autor!]!
-  update_text_autor_batch(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_text_autor_input!]): [text_autor!]!
-  update_text_autor_item(id: ID!, data: update_text_autor_input!): text_autor
-  update_text_items(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_text_input!): [text!]!
-  update_text_batch(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_text_input!]): [text!]!
-  update_text_item(id: ID!, data: update_text_input!): text
-  update_gesangbuchlied_items(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_gesangbuchlied_input!): [gesangbuchlied!]!
-  update_gesangbuchlied_batch(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_gesangbuchlied_input!]): [gesangbuchlied!]!
-  update_gesangbuchlied_item(id: ID!, data: update_gesangbuchlied_input!): gesangbuchlied
-  update_termin_items(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_termin_input!): [termin!]!
-  update_termin_batch(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_termin_input!]): [termin!]!
-  update_termin_item(id: ID!, data: update_termin_input!): termin
-  update_auftrag_items(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_auftrag_input!): [auftrag!]!
-  update_auftrag_batch(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_auftrag_input!]): [auftrag!]!
-  update_auftrag_item(id: ID!, data: update_auftrag_input!): auftrag
-  update_gesangbuchlied_files_items(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_gesangbuchlied_files_input!): [gesangbuchlied_files!]!
-  update_gesangbuchlied_files_batch(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_gesangbuchlied_files_input!]): [gesangbuchlied_files!]!
-  update_gesangbuchlied_files_item(id: ID!, data: update_gesangbuchlied_files_input!): gesangbuchlied_files
+  create_melodie_files_items(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_melodie_files_input!]): [melodie_files!]!
+  create_melodie_files_item(data: create_melodie_files_input!): melodie_files
+  create_termin_items(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_termin_input!]): [termin!]!
+  create_termin_item(data: create_termin_input!): termin
+  create_text_autor_items(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [create_text_autor_input!]): [text_autor!]!
+  create_text_autor_item(data: create_text_autor_input!): text_autor
   update_directus_sync_id_map_items(filter: directus_sync_id_map_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_directus_sync_id_map_input!): [directus_sync_id_map!]!
   update_directus_sync_id_map_batch(filter: directus_sync_id_map_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_directus_sync_id_map_input!]): [directus_sync_id_map!]!
   update_directus_sync_id_map_item(id: ID!, data: update_directus_sync_id_map_input!): directus_sync_id_map
+  update_arbeitskreis_items(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_arbeitskreis_input!): [arbeitskreis!]!
+  update_arbeitskreis_batch(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_arbeitskreis_input!]): [arbeitskreis!]!
+  update_arbeitskreis_item(id: ID!, data: update_arbeitskreis_input!): arbeitskreis
+  update_auftrag_items(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_auftrag_input!): [auftrag!]!
+  update_auftrag_batch(filter: auftrag_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_auftrag_input!]): [auftrag!]!
+  update_auftrag_item(id: ID!, data: update_auftrag_input!): auftrag
+  update_text_items(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_text_input!): [text!]!
+  update_text_batch(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_text_input!]): [text!]!
+  update_text_item(id: ID!, data: update_text_input!): text
+  update_bewertungKleinerKreis_items(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_bewertungKleinerKreis_input!): [bewertungKleinerKreis!]!
+  update_bewertungKleinerKreis_batch(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_bewertungKleinerKreis_input!]): [bewertungKleinerKreis!]!
+  update_bewertungKleinerKreis_item(id: ID!, data: update_bewertungKleinerKreis_input!): bewertungKleinerKreis
+  update_gesangbuchlied_items(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_gesangbuchlied_input!): [gesangbuchlied!]!
+  update_gesangbuchlied_batch(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_gesangbuchlied_input!]): [gesangbuchlied!]!
+  update_gesangbuchlied_item(id: ID!, data: update_gesangbuchlied_input!): gesangbuchlied
+  update_melodie_items(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_melodie_input!): [melodie!]!
+  update_melodie_batch(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_melodie_input!]): [melodie!]!
+  update_melodie_item(id: ID!, data: update_melodie_input!): melodie
+  update_gesangbuchlied_files_items(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_gesangbuchlied_files_input!): [gesangbuchlied_files!]!
+  update_gesangbuchlied_files_batch(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_gesangbuchlied_files_input!]): [gesangbuchlied_files!]!
+  update_gesangbuchlied_files_item(id: ID!, data: update_gesangbuchlied_files_input!): gesangbuchlied_files
+  update_gesangbuchlied_kategorie_items(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_gesangbuchlied_kategorie_input!): [gesangbuchlied_kategorie!]!
+  update_gesangbuchlied_kategorie_batch(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_gesangbuchlied_kategorie_input!]): [gesangbuchlied_kategorie!]!
+  update_gesangbuchlied_kategorie_item(id: ID!, data: update_gesangbuchlied_kategorie_input!): gesangbuchlied_kategorie
+  update_kategorie_items(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_kategorie_input!): [kategorie!]!
+  update_kategorie_batch(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_kategorie_input!]): [kategorie!]!
+  update_kategorie_item(id: ID!, data: update_kategorie_input!): kategorie
+  update_lizenz_items(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_lizenz_input!): [lizenz!]!
+  update_lizenz_batch(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_lizenz_input!]): [lizenz!]!
+  update_lizenz_item(id: ID!, data: update_lizenz_input!): lizenz
   update_autor_items(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_autor_input!): [autor!]!
   update_autor_batch(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_autor_input!]): [autor!]!
   update_autor_item(id: ID!, data: update_autor_input!): autor
   update_melodie_autor_items(filter: melodie_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_melodie_autor_input!): [melodie_autor!]!
   update_melodie_autor_batch(filter: melodie_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_melodie_autor_input!]): [melodie_autor!]!
   update_melodie_autor_item(id: ID!, data: update_melodie_autor_input!): melodie_autor
-  update_melodie_items(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_melodie_input!): [melodie!]!
-  update_melodie_batch(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_melodie_input!]): [melodie!]!
-  update_melodie_item(id: ID!, data: update_melodie_input!): melodie
-  update_kategorie_items(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_kategorie_input!): [kategorie!]!
-  update_kategorie_batch(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_kategorie_input!]): [kategorie!]!
-  update_kategorie_item(id: ID!, data: update_kategorie_input!): kategorie
-  delete_bewertungKleinerKreis_items(ids: [ID]!): delete_many
-  delete_bewertungKleinerKreis_item(id: ID!): delete_one
-  delete_arbeitskreis_items(ids: [ID]!): delete_many
-  delete_arbeitskreis_item(id: ID!): delete_one
-  delete_melodie_files_items(ids: [ID]!): delete_many
-  delete_melodie_files_item(id: ID!): delete_one
-  delete_gesangbuchlied_kategorie_items(ids: [ID]!): delete_many
-  delete_gesangbuchlied_kategorie_item(id: ID!): delete_one
-  delete_lizenz_items(ids: [ID]!): delete_many
-  delete_lizenz_item(id: ID!): delete_one
-  delete_text_autor_items(ids: [ID]!): delete_many
-  delete_text_autor_item(id: ID!): delete_one
-  delete_text_items(ids: [ID]!): delete_many
-  delete_text_item(id: ID!): delete_one
-  delete_gesangbuchlied_items(ids: [ID]!): delete_many
-  delete_gesangbuchlied_item(id: ID!): delete_one
-  delete_termin_items(ids: [ID]!): delete_many
-  delete_termin_item(id: ID!): delete_one
-  delete_auftrag_items(ids: [ID]!): delete_many
-  delete_auftrag_item(id: ID!): delete_one
-  delete_gesangbuchlied_files_items(ids: [ID]!): delete_many
-  delete_gesangbuchlied_files_item(id: ID!): delete_one
+  update_melodie_files_items(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_melodie_files_input!): [melodie_files!]!
+  update_melodie_files_batch(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_melodie_files_input!]): [melodie_files!]!
+  update_melodie_files_item(id: ID!, data: update_melodie_files_input!): melodie_files
+  update_termin_items(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_termin_input!): [termin!]!
+  update_termin_batch(filter: termin_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_termin_input!]): [termin!]!
+  update_termin_item(id: ID!, data: update_termin_input!): termin
+  update_text_autor_items(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, ids: [ID]!, data: update_text_autor_input!): [text_autor!]!
+  update_text_autor_batch(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String, data: [update_text_autor_input!]): [text_autor!]!
+  update_text_autor_item(id: ID!, data: update_text_autor_input!): text_autor
   delete_directus_sync_id_map_items(ids: [ID]!): delete_many
   delete_directus_sync_id_map_item(id: ID!): delete_one
+  delete_arbeitskreis_items(ids: [ID]!): delete_many
+  delete_arbeitskreis_item(id: ID!): delete_one
+  delete_auftrag_items(ids: [ID]!): delete_many
+  delete_auftrag_item(id: ID!): delete_one
+  delete_text_items(ids: [ID]!): delete_many
+  delete_text_item(id: ID!): delete_one
+  delete_bewertungKleinerKreis_items(ids: [ID]!): delete_many
+  delete_bewertungKleinerKreis_item(id: ID!): delete_one
+  delete_gesangbuchlied_items(ids: [ID]!): delete_many
+  delete_gesangbuchlied_item(id: ID!): delete_one
+  delete_melodie_items(ids: [ID]!): delete_many
+  delete_melodie_item(id: ID!): delete_one
+  delete_gesangbuchlied_files_items(ids: [ID]!): delete_many
+  delete_gesangbuchlied_files_item(id: ID!): delete_one
+  delete_gesangbuchlied_kategorie_items(ids: [ID]!): delete_many
+  delete_gesangbuchlied_kategorie_item(id: ID!): delete_one
+  delete_kategorie_items(ids: [ID]!): delete_many
+  delete_kategorie_item(id: ID!): delete_one
+  delete_lizenz_items(ids: [ID]!): delete_many
+  delete_lizenz_item(id: ID!): delete_one
   delete_autor_items(ids: [ID]!): delete_many
   delete_autor_item(id: ID!): delete_one
   delete_melodie_autor_items(ids: [ID]!): delete_many
   delete_melodie_autor_item(id: ID!): delete_one
-  delete_melodie_items(ids: [ID]!): delete_many
-  delete_melodie_item(id: ID!): delete_one
-  delete_kategorie_items(ids: [ID]!): delete_many
-  delete_kategorie_item(id: ID!): delete_one
+  delete_melodie_files_items(ids: [ID]!): delete_many
+  delete_melodie_files_item(id: ID!): delete_one
+  delete_termin_items(ids: [ID]!): delete_many
+  delete_termin_item(id: ID!): delete_one
+  delete_text_autor_items(ids: [ID]!): delete_many
+  delete_text_autor_item(id: ID!): delete_one
 }
 
 type Subscription {
-  bewertungKleinerKreis_mutated(event: EventEnum): bewertungKleinerKreis_mutated
-  arbeitskreis_mutated(event: EventEnum): arbeitskreis_mutated
-  melodie_files_mutated(event: EventEnum): melodie_files_mutated
-  gesangbuchlied_kategorie_mutated(event: EventEnum): gesangbuchlied_kategorie_mutated
-  lizenz_mutated(event: EventEnum): lizenz_mutated
-  text_autor_mutated(event: EventEnum): text_autor_mutated
-  text_mutated(event: EventEnum): text_mutated
-  gesangbuchlied_mutated(event: EventEnum): gesangbuchlied_mutated
-  termin_mutated(event: EventEnum): termin_mutated
-  auftrag_mutated(event: EventEnum): auftrag_mutated
-  gesangbuchlied_files_mutated(event: EventEnum): gesangbuchlied_files_mutated
-  directus_activity_mutated(event: EventEnum): directus_activity_mutated
+  directus_roles_mutated(event: EventEnum): directus_roles_mutated
   directus_presets_mutated(event: EventEnum): directus_presets_mutated
+  directus_revisions_mutated(event: EventEnum): directus_revisions_mutated
   directus_folders_mutated(event: EventEnum): directus_folders_mutated
   directus_files_mutated(event: EventEnum): directus_files_mutated
-  directus_roles_mutated(event: EventEnum): directus_roles_mutated
   directus_permissions_mutated(event: EventEnum): directus_permissions_mutated
+  directus_activity_mutated(event: EventEnum): directus_activity_mutated
   directus_users_mutated(event: EventEnum): directus_users_mutated
   directus_webhooks_mutated(event: EventEnum): directus_webhooks_mutated
   directus_panels_mutated(event: EventEnum): directus_panels_mutated
-  directus_dashboards_mutated(event: EventEnum): directus_dashboards_mutated
-  directus_revisions_mutated(event: EventEnum): directus_revisions_mutated
   directus_notifications_mutated(event: EventEnum): directus_notifications_mutated
-  directus_settings_mutated(event: EventEnum): directus_settings_mutated
   directus_shares_mutated(event: EventEnum): directus_shares_mutated
-  directus_access_mutated(event: EventEnum): directus_access_mutated
   directus_flows_mutated(event: EventEnum): directus_flows_mutated
+  directus_dashboards_mutated(event: EventEnum): directus_dashboards_mutated
   directus_operations_mutated(event: EventEnum): directus_operations_mutated
   directus_translations_mutated(event: EventEnum): directus_translations_mutated
   directus_policies_mutated(event: EventEnum): directus_policies_mutated
+  directus_access_mutated(event: EventEnum): directus_access_mutated
   directus_comments_mutated(event: EventEnum): directus_comments_mutated
   directus_versions_mutated(event: EventEnum): directus_versions_mutated
+  directus_settings_mutated(event: EventEnum): directus_settings_mutated
   directus_sync_id_map_mutated(event: EventEnum): directus_sync_id_map_mutated
+  arbeitskreis_mutated(event: EventEnum): arbeitskreis_mutated
+  auftrag_mutated(event: EventEnum): auftrag_mutated
+  text_mutated(event: EventEnum): text_mutated
+  bewertungKleinerKreis_mutated(event: EventEnum): bewertungKleinerKreis_mutated
+  gesangbuchlied_mutated(event: EventEnum): gesangbuchlied_mutated
+  melodie_mutated(event: EventEnum): melodie_mutated
+  gesangbuchlied_files_mutated(event: EventEnum): gesangbuchlied_files_mutated
+  gesangbuchlied_kategorie_mutated(event: EventEnum): gesangbuchlied_kategorie_mutated
+  kategorie_mutated(event: EventEnum): kategorie_mutated
+  lizenz_mutated(event: EventEnum): lizenz_mutated
   autor_mutated(event: EventEnum): autor_mutated
   melodie_autor_mutated(event: EventEnum): melodie_autor_mutated
-  melodie_mutated(event: EventEnum): melodie_mutated
-  kategorie_mutated(event: EventEnum): kategorie_mutated
+  melodie_files_mutated(event: EventEnum): melodie_files_mutated
+  termin_mutated(event: EventEnum): termin_mutated
+  text_autor_mutated(event: EventEnum): text_autor_mutated
 }
 
 """The `Boolean` scalar type represents `true` or `false`."""
@@ -267,11 +267,11 @@ enum EventEnum {
 }
 
 type arbeitskreis {
+  ansprechpartner: String
+  email: String
+  icon: String
   id: ID!
   name: String
-  email: String
-  ansprechpartner: String
-  icon: String
 }
 
 type arbeitskreis_aggregated {
@@ -288,11 +288,11 @@ type arbeitskreis_aggregated {
 }
 
 type arbeitskreis_aggregated_count {
+  ansprechpartner: Int
+  email: Int
+  icon: Int
   id: Int
   name: Int
-  email: Int
-  ansprechpartner: Int
-  icon: Int
 }
 
 type arbeitskreis_aggregated_fields {
@@ -306,18 +306,18 @@ type arbeitskreis_mutated {
 }
 
 type auftrag {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  auftraggeberId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  auftragsartText: String
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  id: ID!
+  status: String
   textId(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
-  auftragsartText: String
-  auftraggeberId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
 }
 
 type auftrag_aggregated {
@@ -334,23 +334,23 @@ type auftrag_aggregated {
 }
 
 type auftrag_aggregated_count {
+  arbeitskreisId: Int
+  auftraggeberId: Int
+  auftragsartText: Int
+  date_created: Int
+  date_updated: Int
   id: Int
   status: Int
-  user_created: Int
-  date_created: Int
-  user_updated: Int
-  date_updated: Int
-  arbeitskreisId: Int
   textId: Int
-  auftragsartText: Int
-  auftraggeberId: Int
+  user_created: Int
+  user_updated: Int
 }
 
 type auftrag_aggregated_fields {
-  id: Float
   arbeitskreisId: Float
-  textId: Float
   auftraggeberId: Float
+  id: Float
+  textId: Float
 }
 
 type auftrag_mutated {
@@ -360,12 +360,12 @@ type auftrag_mutated {
 }
 
 type autor {
-  id: ID!
-  status: String
-  vorname: String
-  nachname: String
   geburtsjahr: Int
+  id: ID!
+  nachname: String
+  status: String
   sterbejahr: Int
+  vorname: String
 }
 
 type autor_aggregated {
@@ -382,17 +382,17 @@ type autor_aggregated {
 }
 
 type autor_aggregated_count {
-  id: Int
-  status: Int
-  vorname: Int
-  nachname: Int
   geburtsjahr: Int
+  id: Int
+  nachname: Int
+  status: Int
   sterbejahr: Int
+  vorname: Int
 }
 
 type autor_aggregated_fields {
-  id: Float
   geburtsjahr: Float
+  id: Float
   sterbejahr: Float
 }
 
@@ -403,8 +403,8 @@ type autor_mutated {
 }
 
 type bewertungKleinerKreis {
-  id: ID!
   bezeichner: String
+  id: ID!
   rangfolge: Int
 }
 
@@ -422,8 +422,8 @@ type bewertungKleinerKreis_aggregated {
 }
 
 type bewertungKleinerKreis_aggregated_count {
-  id: Int
   bezeichner: Int
+  id: Int
   rangfolge: Int
 }
 
@@ -1019,32 +1019,32 @@ type directus_webhooks_mutated {
 }
 
 type gesangbuchlied {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  anmerkung: String
+  bewertungAnmerkung: String
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  rueckfrageAutor: String
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
-  bewertungAnmerkung: String
+  einreicherName: String
+  externerLink: String
+  id: ID!
 
   """
   Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.
   """
   liedHatAenderung: Boolean
-  titel: String
-  textId(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
-  melodieId(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
   liednummer2000: Int
-  melodieGeaendert: Boolean
-  textGeaendert: Boolean
-  anmerkung: String
   linkCloud: String
-  externerLink: String
-  einreicherName: String
+  melodieGeaendert: Boolean
+  melodieId(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
+  rueckfrageAutor: String
+  status: String
+  textGeaendert: Boolean
+  textId(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
+  titel: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   gesangbuchlied_satz_mit_melodie_und_text(filter: gesangbuchlied_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_files]
   gesangbuchlied_satz_mit_melodie_und_text_func: count_functions
   kategorieId(filter: gesangbuchlied_kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [gesangbuchlied_kategorie]
@@ -1065,46 +1065,46 @@ type gesangbuchlied_aggregated {
 }
 
 type gesangbuchlied_aggregated_count {
-  id: Int
-  status: Int
-  user_created: Int
-  date_created: Int
-  user_updated: Int
-  date_updated: Int
-  rueckfrageAutor: Int
-  bewertungKleinerKreis: Int
+  anmerkung: Int
   bewertungAnmerkung: Int
+  bewertungKleinerKreis: Int
+  date_created: Int
+  date_updated: Int
+  einreicherName: Int
+  externerLink: Int
+  id: Int
 
   """
   Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.
   """
   liedHatAenderung: Int
-  titel: Int
-  textId: Int
-  melodieId: Int
   liednummer2000: Int
-  melodieGeaendert: Int
-  textGeaendert: Int
-  anmerkung: Int
   linkCloud: Int
-  externerLink: Int
-  einreicherName: Int
+  melodieGeaendert: Int
+  melodieId: Int
+  rueckfrageAutor: Int
+  status: Int
+  textGeaendert: Int
+  textId: Int
+  titel: Int
+  user_created: Int
+  user_updated: Int
   gesangbuchlied_satz_mit_melodie_und_text: Int
   kategorieId: Int
 }
 
 type gesangbuchlied_aggregated_fields {
-  id: Float
   bewertungKleinerKreis: Float
-  textId: Float
-  melodieId: Float
+  id: Float
   liednummer2000: Float
+  melodieId: Float
+  textId: Float
 }
 
 type gesangbuchlied_files {
-  id: ID!
-  gesangbuchlied_id(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): gesangbuchlied
   directus_files_id(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_files
+  gesangbuchlied_id(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): gesangbuchlied
+  id: ID!
 }
 
 type gesangbuchlied_files_aggregated {
@@ -1121,14 +1121,14 @@ type gesangbuchlied_files_aggregated {
 }
 
 type gesangbuchlied_files_aggregated_count {
-  id: Int
-  gesangbuchlied_id: Int
   directus_files_id: Int
+  gesangbuchlied_id: Int
+  id: Int
 }
 
 type gesangbuchlied_files_aggregated_fields {
-  id: Float
   gesangbuchlied_id: Float
+  id: Float
 }
 
 type gesangbuchlied_files_mutated {
@@ -1138,8 +1138,8 @@ type gesangbuchlied_files_mutated {
 }
 
 type gesangbuchlied_kategorie {
-  id: ID!
   gesangbuchlied_id(filter: gesangbuchlied_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): gesangbuchlied
+  id: ID!
   kategorie_id(filter: kategorie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): kategorie
 }
 
@@ -1157,14 +1157,14 @@ type gesangbuchlied_kategorie_aggregated {
 }
 
 type gesangbuchlied_kategorie_aggregated_count {
-  id: Int
   gesangbuchlied_id: Int
+  id: Int
   kategorie_id: Int
 }
 
 type gesangbuchlied_kategorie_aggregated_fields {
-  id: Float
   gesangbuchlied_id: Float
+  id: Float
   kategorie_id: Float
 }
 
@@ -1216,16 +1216,16 @@ type kategorie_mutated {
 }
 
 type lizenz {
-  id: ID!
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  name: String
   digital: Boolean
+  id: ID!
+  name: String
   print: Boolean
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
 }
 
 type lizenz_aggregated {
@@ -1242,14 +1242,14 @@ type lizenz_aggregated {
 }
 
 type lizenz_aggregated_count {
-  id: Int
-  user_created: Int
   date_created: Int
-  user_updated: Int
   date_updated: Int
-  name: Int
   digital: Int
+  id: Int
+  name: Int
   print: Int
+  user_created: Int
+  user_updated: Int
 }
 
 type lizenz_aggregated_fields {
@@ -1263,24 +1263,24 @@ type lizenz_mutated {
 }
 
 type melodie {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
-  date_created: Date
-  date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
-  date_updated: Date
-  date_updated_func: datetime_functions
-  rueckfrageAutor: String
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
-  bewertungAnmerkung: String
-  titel: String
-  quelle: String
-  quelllink: String
-  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
-  anmerkung: String
   abc_melodie: JSON
   abc_melodie_func: count_functions
+  anmerkung: String
+  bewertungAnmerkung: String
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
+  date_created: Date
+  date_created_func: datetime_functions
+  date_updated: Date
+  date_updated_func: datetime_functions
+  id: ID!
+  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
+  quelle: String
+  quelllink: String
+  rueckfrageAutor: String
+  status: String
+  titel: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   autorId(filter: melodie_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_autor]
   autorId_func: count_functions
   noten(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_files]
@@ -1301,35 +1301,35 @@ type melodie_aggregated {
 }
 
 type melodie_aggregated_count {
-  id: Int
-  status: Int
-  user_created: Int
-  date_created: Int
-  user_updated: Int
-  date_updated: Int
-  rueckfrageAutor: Int
-  bewertungKleinerKreis: Int
+  abc_melodie: Int
+  anmerkung: Int
   bewertungAnmerkung: Int
-  titel: Int
+  bewertungKleinerKreis: Int
+  date_created: Int
+  date_updated: Int
+  id: Int
+  lizenzId: Int
   quelle: Int
   quelllink: Int
-  lizenzId: Int
-  anmerkung: Int
-  abc_melodie: Int
+  rueckfrageAutor: Int
+  status: Int
+  titel: Int
+  user_created: Int
+  user_updated: Int
   autorId: Int
   noten: Int
 }
 
 type melodie_aggregated_fields {
-  id: Float
   bewertungKleinerKreis: Float
+  id: Float
   lizenzId: Float
 }
 
 type melodie_autor {
+  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
   id: ID!
   melodie_id(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
-  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
 }
 
 type melodie_autor_aggregated {
@@ -1346,15 +1346,15 @@ type melodie_autor_aggregated {
 }
 
 type melodie_autor_aggregated_count {
+  autor_id: Int
   id: Int
   melodie_id: Int
-  autor_id: Int
 }
 
 type melodie_autor_aggregated_fields {
+  autor_id: Float
   id: Float
   melodie_id: Float
-  autor_id: Float
 }
 
 type melodie_autor_mutated {
@@ -1364,9 +1364,9 @@ type melodie_autor_mutated {
 }
 
 type melodie_files {
+  directus_files_id(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_files
   id: ID!
   melodie_id(filter: melodie_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): melodie
-  directus_files_id(filter: directus_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_files
 }
 
 type melodie_files_aggregated {
@@ -1383,9 +1383,9 @@ type melodie_files_aggregated {
 }
 
 type melodie_files_aggregated_count {
+  directus_files_id: Int
   id: Int
   melodie_id: Int
-  directus_files_id: Int
 }
 
 type melodie_files_aggregated_fields {
@@ -1406,23 +1406,23 @@ type melodie_mutated {
 }
 
 type termin {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  bemerkung: String
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  title: String
-  start: Date
-  start_func: datetime_functions
   ende: Date
   ende_func: datetime_functions
-  bemerkung: String
-  arbeitskreisId(filter: arbeitskreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): arbeitskreis
+  id: ID!
   istMeilenstein: Boolean
   sort: Int
+  start: Date
+  start_func: datetime_functions
+  status: String
+  title: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
 }
 
 type termin_aggregated {
@@ -1439,24 +1439,24 @@ type termin_aggregated {
 }
 
 type termin_aggregated_count {
-  id: Int
-  status: Int
-  user_created: Int
-  date_created: Int
-  user_updated: Int
-  date_updated: Int
-  title: Int
-  start: Int
-  ende: Int
-  bemerkung: Int
   arbeitskreisId: Int
+  bemerkung: Int
+  date_created: Int
+  date_updated: Int
+  ende: Int
+  id: Int
   istMeilenstein: Int
   sort: Int
+  start: Int
+  status: Int
+  title: Int
+  user_created: Int
+  user_updated: Int
 }
 
 type termin_aggregated_fields {
-  id: Float
   arbeitskreisId: Float
+  id: Float
   sort: Float
 }
 
@@ -1467,24 +1467,24 @@ type termin_mutated {
 }
 
 type text {
-  id: ID!
-  status: String
-  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  anmerkung: String
+  bewertungAnmerkung: String
+  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
   date_created: Date
   date_created_func: datetime_functions
-  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   date_updated: Date
   date_updated_func: datetime_functions
-  rueckfrageAutor: String
-  titel: String
-  bewertungKleinerKreis(filter: bewertungKleinerKreis_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): bewertungKleinerKreis
-  bewertungAnmerkung: String
-  strophenEinzeln: JSON
-  strophenEinzeln_func: count_functions
+  id: ID!
+  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
   quelle: String
   quelllink: String
-  lizenzId(filter: lizenz_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): lizenz
-  anmerkung: String
+  rueckfrageAutor: String
+  status: String
+  strophenEinzeln: JSON
+  strophenEinzeln_func: count_functions
+  titel: String
+  user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   autorId(filter: text_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [text_autor]
   autorId_func: count_functions
 }
@@ -1503,34 +1503,34 @@ type text_aggregated {
 }
 
 type text_aggregated_count {
-  id: Int
-  status: Int
-  user_created: Int
-  date_created: Int
-  user_updated: Int
-  date_updated: Int
-  rueckfrageAutor: Int
-  titel: Int
-  bewertungKleinerKreis: Int
+  anmerkung: Int
   bewertungAnmerkung: Int
-  strophenEinzeln: Int
+  bewertungKleinerKreis: Int
+  date_created: Int
+  date_updated: Int
+  id: Int
+  lizenzId: Int
   quelle: Int
   quelllink: Int
-  lizenzId: Int
-  anmerkung: Int
+  rueckfrageAutor: Int
+  status: Int
+  strophenEinzeln: Int
+  titel: Int
+  user_created: Int
+  user_updated: Int
   autorId: Int
 }
 
 type text_aggregated_fields {
-  id: Float
   bewertungKleinerKreis: Float
+  id: Float
   lizenzId: Float
 }
 
 type text_autor {
+  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
   id: ID!
   text_id(filter: text_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): text
-  autor_id(filter: autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): autor
 }
 
 type text_autor_aggregated {
@@ -1547,15 +1547,15 @@ type text_autor_aggregated {
 }
 
 type text_autor_aggregated_count {
+  autor_id: Int
   id: Int
   text_id: Int
-  autor_id: Int
 }
 
 type text_autor_aggregated_fields {
+  autor_id: Float
   id: Float
   text_id: Float
-  autor_id: Float
 }
 
 type text_autor_mutated {
@@ -1572,41 +1572,41 @@ type text_mutated {
 
 """"""
 type version_arbeitskreis {
+  ansprechpartner: String
+  email: String
+  icon: String
   id: ID
   name: String
-  email: String
-  ansprechpartner: String
-  icon: String
 }
 
 """"""
 type version_auftrag {
+  arbeitskreisId: JSON
+  auftraggeberId: JSON
+  auftragsartText: String
+  date_created: Date
+  date_updated: Date
   id: ID
   status: String
-  user_created: JSON
-  date_created: Date
-  user_updated: JSON
-  date_updated: Date
-  arbeitskreisId: JSON
   textId: JSON
-  auftragsartText: String
-  auftraggeberId: JSON
+  user_created: JSON
+  user_updated: JSON
 }
 
 """"""
 type version_autor {
-  id: ID
-  status: String
-  vorname: String
-  nachname: String
   geburtsjahr: Int
+  id: ID
+  nachname: String
+  status: String
   sterbejahr: Int
+  vorname: String
 }
 
 """"""
 type version_bewertungKleinerKreis {
-  id: ID
   bezeichner: String
+  id: ID
   rangfolge: Int
 }
 
@@ -1621,45 +1621,45 @@ type version_directus_sync_id_map {
 
 """"""
 type version_gesangbuchlied {
-  id: ID
-  status: String
-  user_created: JSON
-  date_created: Date
-  user_updated: JSON
-  date_updated: Date
-  rueckfrageAutor: String
-  bewertungKleinerKreis: JSON
+  anmerkung: String
   bewertungAnmerkung: String
+  bewertungKleinerKreis: JSON
+  date_created: Date
+  date_updated: Date
+  einreicherName: String
+  externerLink: String
+  id: ID
 
   """
   Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.
   """
   liedHatAenderung: Boolean
-  titel: String
-  textId: JSON
-  melodieId: JSON
   liednummer2000: Int
-  melodieGeaendert: Boolean
-  textGeaendert: Boolean
-  anmerkung: String
   linkCloud: String
-  externerLink: String
-  einreicherName: String
+  melodieGeaendert: Boolean
+  melodieId: JSON
+  rueckfrageAutor: String
+  status: String
+  textGeaendert: Boolean
+  textId: JSON
+  titel: String
+  user_created: JSON
+  user_updated: JSON
   gesangbuchlied_satz_mit_melodie_und_text: JSON
   kategorieId: JSON
 }
 
 """"""
 type version_gesangbuchlied_files {
-  id: ID
-  gesangbuchlied_id: JSON
   directus_files_id: JSON
+  gesangbuchlied_id: JSON
+  id: ID
 }
 
 """"""
 type version_gesangbuchlied_kategorie {
-  id: ID
   gesangbuchlied_id: JSON
+  id: ID
   kategorie_id: JSON
 }
 
@@ -1672,136 +1672,136 @@ type version_kategorie {
 
 """"""
 type version_lizenz {
-  id: ID
-  user_created: JSON
   date_created: Date
-  user_updated: JSON
   date_updated: Date
-  name: String
   digital: Boolean
+  id: ID
+  name: String
   print: Boolean
+  user_created: JSON
+  user_updated: JSON
 }
 
 """"""
 type version_melodie {
-  id: ID
-  status: String
-  user_created: JSON
-  date_created: Date
-  user_updated: JSON
-  date_updated: Date
-  rueckfrageAutor: String
-  bewertungKleinerKreis: JSON
+  abc_melodie: JSON
+  anmerkung: String
   bewertungAnmerkung: String
-  titel: String
+  bewertungKleinerKreis: JSON
+  date_created: Date
+  date_updated: Date
+  id: ID
+  lizenzId: JSON
   quelle: String
   quelllink: String
-  lizenzId: JSON
-  anmerkung: String
-  abc_melodie: JSON
+  rueckfrageAutor: String
+  status: String
+  titel: String
+  user_created: JSON
+  user_updated: JSON
   autorId: JSON
   noten: JSON
 }
 
 """"""
 type version_melodie_autor {
+  autor_id: JSON
   id: ID
   melodie_id: JSON
-  autor_id: JSON
 }
 
 """"""
 type version_melodie_files {
+  directus_files_id: JSON
   id: ID
   melodie_id: JSON
-  directus_files_id: JSON
 }
 
 """"""
 type version_termin {
-  id: ID
-  status: String
-  user_created: JSON
-  date_created: Date
-  user_updated: JSON
-  date_updated: Date
-  title: String
-  start: Date
-  ende: Date
-  bemerkung: String
   arbeitskreisId: JSON
+  bemerkung: String
+  date_created: Date
+  date_updated: Date
+  ende: Date
+  id: ID
   istMeilenstein: Boolean
   sort: Int
+  start: Date
+  status: String
+  title: String
+  user_created: JSON
+  user_updated: JSON
 }
 
 """"""
 type version_text {
-  id: ID
-  status: String
-  user_created: JSON
-  date_created: Date
-  user_updated: JSON
-  date_updated: Date
-  rueckfrageAutor: String
-  titel: String
-  bewertungKleinerKreis: JSON
+  anmerkung: String
   bewertungAnmerkung: String
-  strophenEinzeln: JSON
+  bewertungKleinerKreis: JSON
+  date_created: Date
+  date_updated: Date
+  id: ID
+  lizenzId: JSON
   quelle: String
   quelllink: String
-  lizenzId: JSON
-  anmerkung: String
+  rueckfrageAutor: String
+  status: String
+  strophenEinzeln: JSON
+  titel: String
+  user_created: JSON
+  user_updated: JSON
   autorId: JSON
 }
 
 """"""
 type version_text_autor {
+  autor_id: JSON
   id: ID
   text_id: JSON
-  autor_id: JSON
 }
 
 input arbeitskreis_filter {
+  ansprechpartner: string_filter_operators
+  email: string_filter_operators
+  icon: string_filter_operators
   id: number_filter_operators
   name: string_filter_operators
-  email: string_filter_operators
-  ansprechpartner: string_filter_operators
-  icon: string_filter_operators
   _and: [arbeitskreis_filter]
   _or: [arbeitskreis_filter]
 }
 
 input auftrag_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
+  arbeitskreisId: arbeitskreis_filter
+  auftraggeberId: arbeitskreis_filter
+  auftragsartText: string_filter_operators
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  arbeitskreisId: arbeitskreis_filter
+  id: number_filter_operators
+  status: string_filter_operators
   textId: text_filter
-  auftragsartText: string_filter_operators
-  auftraggeberId: arbeitskreis_filter
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   _and: [auftrag_filter]
   _or: [auftrag_filter]
 }
 
 input autor_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  vorname: string_filter_operators
-  nachname: string_filter_operators
   geburtsjahr: number_filter_operators
+  id: number_filter_operators
+  nachname: string_filter_operators
+  status: string_filter_operators
   sterbejahr: number_filter_operators
+  vorname: string_filter_operators
   _and: [autor_filter]
   _or: [autor_filter]
 }
 
 input bewertungKleinerKreis_filter {
-  id: number_filter_operators
   bezeichner: string_filter_operators
+  id: number_filter_operators
   rangfolge: number_filter_operators
   _and: [bewertungKleinerKreis_filter]
   _or: [bewertungKleinerKreis_filter]
@@ -1834,38 +1834,38 @@ input count_function_filter_operators {
 }
 
 input create_arbeitskreis_input {
+  ansprechpartner: String
+  email: String
+  icon: String
   id: ID
   name: String
-  email: String
-  ansprechpartner: String
-  icon: String
 }
 
 input create_auftrag_input {
+  arbeitskreisId: create_arbeitskreis_input
+  auftraggeberId: create_arbeitskreis_input
+  auftragsartText: String
+  date_created: Date
+  date_updated: Date
   id: ID
   status: String
-  user_created: create_directus_users_input
-  date_created: Date
-  user_updated: create_directus_users_input
-  date_updated: Date
-  arbeitskreisId: create_arbeitskreis_input
   textId: create_text_input
-  auftragsartText: String
-  auftraggeberId: create_arbeitskreis_input
+  user_created: create_directus_users_input
+  user_updated: create_directus_users_input
 }
 
 input create_autor_input {
-  id: ID
-  status: String
-  vorname: String
-  nachname: String
   geburtsjahr: Int
+  id: ID
+  nachname: String
+  status: String
   sterbejahr: Int
+  vorname: String
 }
 
 input create_bewertungKleinerKreis_input {
-  id: ID
   bezeichner: String
+  id: ID
   rangfolge: Int
 }
 
@@ -1989,43 +1989,43 @@ input create_directus_users_input {
 }
 
 input create_gesangbuchlied_files_input {
-  id: ID
-  gesangbuchlied_id: create_gesangbuchlied_input
   directus_files_id: create_directus_files_input
+  gesangbuchlied_id: create_gesangbuchlied_input
+  id: ID
 }
 
 input create_gesangbuchlied_input {
-  id: ID
-  status: String
-  user_created: create_directus_users_input
-  date_created: Date
-  user_updated: create_directus_users_input
-  date_updated: Date
-  rueckfrageAutor: String
-  bewertungKleinerKreis: create_bewertungKleinerKreis_input
+  anmerkung: String
   bewertungAnmerkung: String
+  bewertungKleinerKreis: create_bewertungKleinerKreis_input
+  date_created: Date
+  date_updated: Date
+  einreicherName: String
+  externerLink: String
+  id: ID
 
   """
   Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.
   """
   liedHatAenderung: Boolean
-  titel: String
-  textId: create_text_input
-  melodieId: create_melodie_input
   liednummer2000: Int
-  melodieGeaendert: Boolean
-  textGeaendert: Boolean
-  anmerkung: String
   linkCloud: String
-  externerLink: String
-  einreicherName: String
+  melodieGeaendert: Boolean
+  melodieId: create_melodie_input
+  rueckfrageAutor: String
+  status: String
+  textGeaendert: Boolean
+  textId: create_text_input
+  titel: String
+  user_created: create_directus_users_input
+  user_updated: create_directus_users_input
   gesangbuchlied_satz_mit_melodie_und_text: [create_gesangbuchlied_files_input]
   kategorieId: [create_gesangbuchlied_kategorie_input]
 }
 
 input create_gesangbuchlied_kategorie_input {
-  id: ID
   gesangbuchlied_id: create_gesangbuchlied_input
+  id: ID
   kategorie_id: create_kategorie_input
 }
 
@@ -2036,86 +2036,86 @@ input create_kategorie_input {
 }
 
 input create_lizenz_input {
-  id: ID
-  user_created: create_directus_users_input
   date_created: Date
-  user_updated: create_directus_users_input
   date_updated: Date
-  name: String
   digital: Boolean
+  id: ID
+  name: String
   print: Boolean
+  user_created: create_directus_users_input
+  user_updated: create_directus_users_input
 }
 
 input create_melodie_autor_input {
+  autor_id: create_autor_input
   id: ID
   melodie_id: create_melodie_input
-  autor_id: create_autor_input
 }
 
 input create_melodie_files_input {
+  directus_files_id: create_directus_files_input
   id: ID
   melodie_id: create_melodie_input
-  directus_files_id: create_directus_files_input
 }
 
 input create_melodie_input {
-  id: ID
-  status: String
-  user_created: create_directus_users_input
-  date_created: Date
-  user_updated: create_directus_users_input
-  date_updated: Date
-  rueckfrageAutor: String
-  bewertungKleinerKreis: create_bewertungKleinerKreis_input
+  abc_melodie: JSON
+  anmerkung: String
   bewertungAnmerkung: String
-  titel: String
+  bewertungKleinerKreis: create_bewertungKleinerKreis_input
+  date_created: Date
+  date_updated: Date
+  id: ID
+  lizenzId: create_lizenz_input
   quelle: String
   quelllink: String
-  lizenzId: create_lizenz_input
-  anmerkung: String
-  abc_melodie: JSON
+  rueckfrageAutor: String
+  status: String
+  titel: String
+  user_created: create_directus_users_input
+  user_updated: create_directus_users_input
   autorId: [create_melodie_autor_input]
   noten: [create_melodie_files_input]
 }
 
 input create_termin_input {
-  id: ID
-  status: String
-  user_created: create_directus_users_input
-  date_created: Date
-  user_updated: create_directus_users_input
-  date_updated: Date
-  title: String
-  start: Date
-  ende: Date
-  bemerkung: String
   arbeitskreisId: create_arbeitskreis_input
+  bemerkung: String
+  date_created: Date
+  date_updated: Date
+  ende: Date
+  id: ID
   istMeilenstein: Boolean
   sort: Int
+  start: Date
+  status: String
+  title: String
+  user_created: create_directus_users_input
+  user_updated: create_directus_users_input
 }
 
 input create_text_autor_input {
+  autor_id: create_autor_input
   id: ID
   text_id: create_text_input
-  autor_id: create_autor_input
 }
 
 input create_text_input {
-  id: ID
-  status: String
-  user_created: create_directus_users_input
-  date_created: Date
-  user_updated: create_directus_users_input
-  date_updated: Date
-  rueckfrageAutor: String
-  titel: String
-  bewertungKleinerKreis: create_bewertungKleinerKreis_input
+  anmerkung: String
   bewertungAnmerkung: String
-  strophenEinzeln: JSON
+  bewertungKleinerKreis: create_bewertungKleinerKreis_input
+  date_created: Date
+  date_updated: Date
+  id: ID
+  lizenzId: create_lizenz_input
   quelle: String
   quelllink: String
-  lizenzId: create_lizenz_input
-  anmerkung: String
+  rueckfrageAutor: String
+  status: String
+  strophenEinzeln: JSON
+  titel: String
+  user_created: create_directus_users_input
+  user_updated: create_directus_users_input
   autorId: [create_text_autor_input]
 }
 
@@ -2430,36 +2430,36 @@ input directus_versions_filter {
 }
 
 input gesangbuchlied_files_filter {
-  id: number_filter_operators
-  gesangbuchlied_id: gesangbuchlied_filter
   directus_files_id: directus_files_filter
+  gesangbuchlied_id: gesangbuchlied_filter
+  id: number_filter_operators
   _and: [gesangbuchlied_files_filter]
   _or: [gesangbuchlied_files_filter]
 }
 
 input gesangbuchlied_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
+  anmerkung: string_filter_operators
+  bewertungAnmerkung: string_filter_operators
+  bewertungKleinerKreis: bewertungKleinerKreis_filter
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  rueckfrageAutor: string_filter_operators
-  bewertungKleinerKreis: bewertungKleinerKreis_filter
-  bewertungAnmerkung: string_filter_operators
-  liedHatAenderung: boolean_filter_operators
-  titel: string_filter_operators
-  textId: text_filter
-  melodieId: melodie_filter
-  liednummer2000: number_filter_operators
-  melodieGeaendert: boolean_filter_operators
-  textGeaendert: boolean_filter_operators
-  anmerkung: string_filter_operators
-  linkCloud: string_filter_operators
-  externerLink: string_filter_operators
   einreicherName: string_filter_operators
+  externerLink: string_filter_operators
+  id: number_filter_operators
+  liedHatAenderung: boolean_filter_operators
+  liednummer2000: number_filter_operators
+  linkCloud: string_filter_operators
+  melodieGeaendert: boolean_filter_operators
+  melodieId: melodie_filter
+  rueckfrageAutor: string_filter_operators
+  status: string_filter_operators
+  textGeaendert: boolean_filter_operators
+  textId: text_filter
+  titel: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   gesangbuchlied_satz_mit_melodie_und_text: gesangbuchlied_files_filter
   gesangbuchlied_satz_mit_melodie_und_text_func: count_function_filter_operators
   kategorieId: gesangbuchlied_kategorie_filter
@@ -2469,8 +2469,8 @@ input gesangbuchlied_filter {
 }
 
 input gesangbuchlied_kategorie_filter {
-  id: number_filter_operators
   gesangbuchlied_id: gesangbuchlied_filter
+  id: number_filter_operators
   kategorie_id: kategorie_filter
   _and: [gesangbuchlied_kategorie_filter]
   _or: [gesangbuchlied_kategorie_filter]
@@ -2492,55 +2492,55 @@ input kategorie_filter {
 }
 
 input lizenz_filter {
-  id: number_filter_operators
-  user_created: directus_users_filter
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  name: string_filter_operators
   digital: boolean_filter_operators
+  id: number_filter_operators
+  name: string_filter_operators
   print: boolean_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   _and: [lizenz_filter]
   _or: [lizenz_filter]
 }
 
 input melodie_autor_filter {
+  autor_id: autor_filter
   id: number_filter_operators
   melodie_id: melodie_filter
-  autor_id: autor_filter
   _and: [melodie_autor_filter]
   _or: [melodie_autor_filter]
 }
 
 input melodie_files_filter {
+  directus_files_id: directus_files_filter
   id: number_filter_operators
   melodie_id: melodie_filter
-  directus_files_id: directus_files_filter
   _and: [melodie_files_filter]
   _or: [melodie_files_filter]
 }
 
 input melodie_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
-  date_created: date_filter_operators
-  date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
-  date_updated: date_filter_operators
-  date_updated_func: datetime_function_filter_operators
-  rueckfrageAutor: string_filter_operators
-  bewertungKleinerKreis: bewertungKleinerKreis_filter
-  bewertungAnmerkung: string_filter_operators
-  titel: string_filter_operators
-  quelle: string_filter_operators
-  quelllink: string_filter_operators
-  lizenzId: lizenz_filter
-  anmerkung: string_filter_operators
   abc_melodie: string_filter_operators
   abc_melodie_func: count_function_filter_operators
+  anmerkung: string_filter_operators
+  bewertungAnmerkung: string_filter_operators
+  bewertungKleinerKreis: bewertungKleinerKreis_filter
+  date_created: date_filter_operators
+  date_created_func: datetime_function_filter_operators
+  date_updated: date_filter_operators
+  date_updated_func: datetime_function_filter_operators
+  id: number_filter_operators
+  lizenzId: lizenz_filter
+  quelle: string_filter_operators
+  quelllink: string_filter_operators
+  rueckfrageAutor: string_filter_operators
+  status: string_filter_operators
+  titel: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   autorId: melodie_autor_filter
   autorId_func: count_function_filter_operators
   noten: melodie_files_filter
@@ -2587,54 +2587,54 @@ input string_filter_operators {
 }
 
 input termin_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
+  arbeitskreisId: arbeitskreis_filter
+  bemerkung: string_filter_operators
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  title: string_filter_operators
-  start: date_filter_operators
-  start_func: datetime_function_filter_operators
   ende: date_filter_operators
   ende_func: datetime_function_filter_operators
-  bemerkung: string_filter_operators
-  arbeitskreisId: arbeitskreis_filter
+  id: number_filter_operators
   istMeilenstein: boolean_filter_operators
   sort: number_filter_operators
+  start: date_filter_operators
+  start_func: datetime_function_filter_operators
+  status: string_filter_operators
+  title: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   _and: [termin_filter]
   _or: [termin_filter]
 }
 
 input text_autor_filter {
+  autor_id: autor_filter
   id: number_filter_operators
   text_id: text_filter
-  autor_id: autor_filter
   _and: [text_autor_filter]
   _or: [text_autor_filter]
 }
 
 input text_filter {
-  id: number_filter_operators
-  status: string_filter_operators
-  user_created: directus_users_filter
+  anmerkung: string_filter_operators
+  bewertungAnmerkung: string_filter_operators
+  bewertungKleinerKreis: bewertungKleinerKreis_filter
   date_created: date_filter_operators
   date_created_func: datetime_function_filter_operators
-  user_updated: directus_users_filter
   date_updated: date_filter_operators
   date_updated_func: datetime_function_filter_operators
-  rueckfrageAutor: string_filter_operators
-  titel: string_filter_operators
-  bewertungKleinerKreis: bewertungKleinerKreis_filter
-  bewertungAnmerkung: string_filter_operators
-  strophenEinzeln: string_filter_operators
-  strophenEinzeln_func: count_function_filter_operators
+  id: number_filter_operators
+  lizenzId: lizenz_filter
   quelle: string_filter_operators
   quelllink: string_filter_operators
-  lizenzId: lizenz_filter
-  anmerkung: string_filter_operators
+  rueckfrageAutor: string_filter_operators
+  status: string_filter_operators
+  strophenEinzeln: string_filter_operators
+  strophenEinzeln_func: count_function_filter_operators
+  titel: string_filter_operators
+  user_created: directus_users_filter
+  user_updated: directus_users_filter
   autorId: text_autor_filter
   autorId_func: count_function_filter_operators
   _and: [text_filter]
@@ -2642,38 +2642,38 @@ input text_filter {
 }
 
 input update_arbeitskreis_input {
+  ansprechpartner: String
+  email: String
+  icon: String
   id: ID
   name: String
-  email: String
-  ansprechpartner: String
-  icon: String
 }
 
 input update_auftrag_input {
+  arbeitskreisId: update_arbeitskreis_input
+  auftraggeberId: update_arbeitskreis_input
+  auftragsartText: String
+  date_created: Date
+  date_updated: Date
   id: ID
   status: String
-  user_created: update_directus_users_input
-  date_created: Date
-  user_updated: update_directus_users_input
-  date_updated: Date
-  arbeitskreisId: update_arbeitskreis_input
   textId: update_text_input
-  auftragsartText: String
-  auftraggeberId: update_arbeitskreis_input
+  user_created: update_directus_users_input
+  user_updated: update_directus_users_input
 }
 
 input update_autor_input {
-  id: ID
-  status: String
-  vorname: String
-  nachname: String
   geburtsjahr: Int
+  id: ID
+  nachname: String
+  status: String
   sterbejahr: Int
+  vorname: String
 }
 
 input update_bewertungKleinerKreis_input {
-  id: ID
   bezeichner: String
+  id: ID
   rangfolge: Int
 }
 
@@ -2797,43 +2797,43 @@ input update_directus_users_input {
 }
 
 input update_gesangbuchlied_files_input {
-  id: ID
-  gesangbuchlied_id: update_gesangbuchlied_input
   directus_files_id: update_directus_files_input
+  gesangbuchlied_id: update_gesangbuchlied_input
+  id: ID
 }
 
 input update_gesangbuchlied_input {
-  id: ID
-  status: String
-  user_created: update_directus_users_input
-  date_created: Date
-  user_updated: update_directus_users_input
-  date_updated: Date
-  rueckfrageAutor: String
-  bewertungKleinerKreis: update_bewertungKleinerKreis_input
+  anmerkung: String
   bewertungAnmerkung: String
+  bewertungKleinerKreis: update_bewertungKleinerKreis_input
+  date_created: Date
+  date_updated: Date
+  einreicherName: String
+  externerLink: String
+  id: ID
 
   """
   Der Wert wird automatisch gesetzt, wenn eine Änderung über die Gesangbuch-Webseite im Lied (Text o. Melodie) vorgenommen wurde. Ist nach Bewertung/Sichtung wieder manuell zurück zu setzen.
   """
   liedHatAenderung: Boolean
-  titel: String
-  textId: update_text_input
-  melodieId: update_melodie_input
   liednummer2000: Int
-  melodieGeaendert: Boolean
-  textGeaendert: Boolean
-  anmerkung: String
   linkCloud: String
-  externerLink: String
-  einreicherName: String
+  melodieGeaendert: Boolean
+  melodieId: update_melodie_input
+  rueckfrageAutor: String
+  status: String
+  textGeaendert: Boolean
+  textId: update_text_input
+  titel: String
+  user_created: update_directus_users_input
+  user_updated: update_directus_users_input
   gesangbuchlied_satz_mit_melodie_und_text: [update_gesangbuchlied_files_input]
   kategorieId: [update_gesangbuchlied_kategorie_input]
 }
 
 input update_gesangbuchlied_kategorie_input {
-  id: ID
   gesangbuchlied_id: update_gesangbuchlied_input
+  id: ID
   kategorie_id: update_kategorie_input
 }
 
@@ -2844,85 +2844,85 @@ input update_kategorie_input {
 }
 
 input update_lizenz_input {
-  id: ID
-  user_created: update_directus_users_input
   date_created: Date
-  user_updated: update_directus_users_input
   date_updated: Date
-  name: String
   digital: Boolean
+  id: ID
+  name: String
   print: Boolean
+  user_created: update_directus_users_input
+  user_updated: update_directus_users_input
 }
 
 input update_melodie_autor_input {
+  autor_id: update_autor_input
   id: ID
   melodie_id: update_melodie_input
-  autor_id: update_autor_input
 }
 
 input update_melodie_files_input {
+  directus_files_id: update_directus_files_input
   id: ID
   melodie_id: update_melodie_input
-  directus_files_id: update_directus_files_input
 }
 
 input update_melodie_input {
-  id: ID
-  status: String
-  user_created: update_directus_users_input
-  date_created: Date
-  user_updated: update_directus_users_input
-  date_updated: Date
-  rueckfrageAutor: String
-  bewertungKleinerKreis: update_bewertungKleinerKreis_input
+  abc_melodie: JSON
+  anmerkung: String
   bewertungAnmerkung: String
-  titel: String
+  bewertungKleinerKreis: update_bewertungKleinerKreis_input
+  date_created: Date
+  date_updated: Date
+  id: ID
+  lizenzId: update_lizenz_input
   quelle: String
   quelllink: String
-  lizenzId: update_lizenz_input
-  anmerkung: String
-  abc_melodie: JSON
+  rueckfrageAutor: String
+  status: String
+  titel: String
+  user_created: update_directus_users_input
+  user_updated: update_directus_users_input
   autorId: [update_melodie_autor_input]
   noten: [update_melodie_files_input]
 }
 
 input update_termin_input {
-  id: ID
-  status: String
-  user_created: update_directus_users_input
-  date_created: Date
-  user_updated: update_directus_users_input
-  date_updated: Date
-  title: String
-  start: Date
-  ende: Date
-  bemerkung: String
   arbeitskreisId: update_arbeitskreis_input
+  bemerkung: String
+  date_created: Date
+  date_updated: Date
+  ende: Date
+  id: ID
   istMeilenstein: Boolean
   sort: Int
+  start: Date
+  status: String
+  title: String
+  user_created: update_directus_users_input
+  user_updated: update_directus_users_input
 }
 
 input update_text_autor_input {
+  autor_id: update_autor_input
   id: ID
   text_id: update_text_input
-  autor_id: update_autor_input
 }
 
 input update_text_input {
-  id: ID
-  status: String
-  user_created: update_directus_users_input
-  date_created: Date
-  user_updated: update_directus_users_input
-  date_updated: Date
-  rueckfrageAutor: String
-  titel: String
-  bewertungKleinerKreis: update_bewertungKleinerKreis_input
+  anmerkung: String
   bewertungAnmerkung: String
-  strophenEinzeln: JSON
+  bewertungKleinerKreis: update_bewertungKleinerKreis_input
+  date_created: Date
+  date_updated: Date
+  id: ID
+  lizenzId: update_lizenz_input
   quelle: String
   quelllink: String
-  lizenzId: update_lizenz_input
-  anmerkung: String
+  rueckfrageAutor: String
+  status: String
+  strophenEinzeln: JSON
+  titel: String
+  user_created: update_directus_users_input
+  user_updated: update_directus_users_input
   autorId: [update_text_autor_input]
 }

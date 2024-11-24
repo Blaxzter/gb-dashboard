@@ -1,4 +1,4 @@
-!/bin/sh
+#!/bin/sh
 
 # Define the HOST_URL variable; default to 'http://directus:8055' if not set
 # HOST_URL=${HOST_URL:-http://localhost:8055}
