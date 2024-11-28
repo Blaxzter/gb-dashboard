@@ -363,7 +363,7 @@ export default defineComponent({
     doubleEntriesGesangbuchlieder() {
       return _.filter(
         _.map(this.filteredGesangbuchlieder, (entry) => {
-          return _.filter(this.filteredGesangbuchlieder, (entry2) => {
+          return _.filter(this.store.gesangbuchlieder, (entry2) => {
             if (!this.similarity_type) {
               return entry.titel === entry2.titel;
             }
@@ -400,7 +400,7 @@ export default defineComponent({
     doubleEntriesText() {
       return _.filter(
         _.map(this.filteredTexts, (entry) => {
-          return _.filter(this.filteredTexts, (entry2) => {
+          return _.filter(this.store.texts, (entry2) => {
             if (!this.similarity_type) {
               return entry.titel === entry2.titel;
             }
@@ -437,7 +437,7 @@ export default defineComponent({
     doubleEntriesMelodie() {
       return _.filter(
         _.map(this.filteredMelodies, (entry) => {
-          return _.filter(this.filteredMelodies, (entry2) => {
+          return _.filter(this.store.melodies, (entry2) => {
             if (!this.similarity_type) {
               return entry.titel === entry2.titel;
             }
