@@ -1,6 +1,19 @@
 <template>
   <div>
-    <div class="text-h4 mb-6">Doppelte Elemente</div>
+    <div class="d-flex align-center">
+      <div class="text-h4 mb-6">Doppelte Elemente</div>
+      <v-spacer />
+      <v-btn-toggle
+        v-model="only_rein"
+        mandatory
+        variant="tonal"
+        density="compact"
+      >
+        <v-btn color="success" @click="only_rein = 0"> Nur Rein </v-btn>
+        <v-btn color="warning" @click="only_rein = 1"> Rein </v-btn>
+        <v-btn color="primary" @click="only_rein = 2"> Alle </v-btn>
+      </v-btn-toggle>
+    </div>
     <div class="mb-2 d-flex align-center">
       <v-btn-toggle v-model="toggle" mandatory variant="tonal">
         <v-btn color="primary" @click="toggle = 0">
@@ -118,6 +131,9 @@
                 ><v-icon icon="mdi-music-clef-treble" />
                 {{ song?.melodie?.auftrag?.length || "-" }}</span
               >
+              <span class="v-col-2">{{
+                song?.bewertung_kleiner_kreis?.bezeichner || "-"
+              }}</span>
             </v-list-item-title>
           </v-list-item>
         </template>
@@ -144,7 +160,10 @@
                 ><v-icon icon="mdi-text-box-edit" />
                 {{ text?.auftrag?.length || "-" }}</span
               >
-              <span class="v-col-6">{{ text?.anmerkung || "-" }}</span>
+              <span class="v-col-4">{{ text?.anmerkung || "-" }}</span>
+              <span class="v-col-2">{{
+                text?.bewertung_kleiner_kreis?.bezeichner || "-"
+              }}</span>
             </v-list-item-title>
           </v-list-item>
         </template>
@@ -172,7 +191,10 @@
                 ><v-icon icon="mdi-file" />
                 {{ melodie?.files?.length || "-" }}</span
               >
-              <span class="v-col-10">{{ melodie?.anmerkung || "-" }}</span>
+              <span class="v-col-8">{{ melodie?.anmerkung || "-" }}</span>
+              <span class="v-col-2">{{
+                melodie?.bewertung_kleiner_kreis?.bezeichner || "-"
+              }}</span>
             </v-list-item-title>
           </v-list-item>
         </template>
@@ -275,6 +297,7 @@ export default defineComponent({
   components: { TextDialog, MelodieDialog, GesangbuchLiedComponent },
   data: () => ({
     toggle: 0,
+    only_rein: 1,
     similarity_type: false,
     similarity_type_show: false,
     dice_threshold: 80,
@@ -326,10 +349,21 @@ export default defineComponent({
       }
       return [];
     },
+    filteredGesangbuchlieder() {
+      return _.filter(this.store.gesangbuchlieder, (entry) => {
+        if (this.only_rein === 0) {
+          return entry?.bewertung_kleiner_kreis?.bezeichner === "Rein";
+        }
+        if (this.only_rein === 1) {
+          return entry?.bewertung_kleiner_kreis?.bezeichner?.includes("Rein");
+        }
+        return true;
+      });
+    },
     doubleEntriesGesangbuchlieder() {
       return _.filter(
-        _.map(this.store.gesangbuchlieder, (entry) => {
-          return _.filter(this.store.gesangbuchlieder, (entry2) => {
+        _.map(this.filteredGesangbuchlieder, (entry) => {
+          return _.filter(this.filteredGesangbuchlieder, (entry2) => {
             if (!this.similarity_type) {
               return entry.titel === entry2.titel;
             }
@@ -351,11 +385,22 @@ export default defineComponent({
           return entry.length > 1;
         },
       );
+    },
+    filteredTexts() {
+      return _.filter(this.store.texts, (entry) => {
+        if (this.only_rein === 0) {
+          return entry?.bewertung_kleiner_kreis?.bezeichner === "Rein";
+        }
+        if (this.only_rein === 1) {
+          return entry?.bewertung_kleiner_kreis?.bezeichner?.includes("Rein");
+        }
+        return true;
+      });
     },
     doubleEntriesText() {
       return _.filter(
-        _.map(this.store.texts, (entry) => {
-          return _.filter(this.store.texts, (entry2) => {
+        _.map(this.filteredTexts, (entry) => {
+          return _.filter(this.filteredTexts, (entry2) => {
             if (!this.similarity_type) {
               return entry.titel === entry2.titel;
             }
@@ -378,10 +423,21 @@ export default defineComponent({
         },
       );
     },
+    filteredMelodies() {
+      return _.filter(this.store.melodies, (entry) => {
+        if (this.only_rein === 0) {
+          return entry?.bewertung_kleiner_kreis?.bezeichner === "Rein";
+        }
+        if (this.only_rein === 1) {
+          return entry?.bewertung_kleiner_kreis?.bezeichner?.includes("Rein");
+        }
+        return true;
+      });
+    },
     doubleEntriesMelodie() {
       return _.filter(
-        _.map(this.store.melodies, (entry) => {
-          return _.filter(this.store.melodies, (entry2) => {
+        _.map(this.filteredMelodies, (entry) => {
+          return _.filter(this.filteredMelodies, (entry2) => {
             if (!this.similarity_type) {
               return entry.titel === entry2.titel;
             }
@@ -495,12 +551,12 @@ export default defineComponent({
     },
     count_text_and_melodie_entries_per_author(author) {
       let count = 0;
-      for (let text of this.store.texts) {
+      for (let text of this.filteredTexts) {
         if (text.autorId.includes(author.id)) {
           count++;
         }
       }
-      for (let melodie of this.store.melodies) {
+      for (let melodie of this.filteredMelodies) {
         if (melodie.autorId.includes(author.id)) {
           count++;
         }
