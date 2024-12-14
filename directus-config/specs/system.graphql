@@ -271,7 +271,6 @@ type Subscription {
   text_mutated(event: EventEnum): text_mutated
   bewertungKleinerKreis_mutated(event: EventEnum): bewertungKleinerKreis_mutated
   gesangbuchlied_mutated(event: EventEnum): gesangbuchlied_mutated
-  melodie_mutated(event: EventEnum): melodie_mutated
   gesangbuchlied_files_mutated(event: EventEnum): gesangbuchlied_files_mutated
   gesangbuchlied_kategorie_mutated(event: EventEnum): gesangbuchlied_kategorie_mutated
   kategorie_mutated(event: EventEnum): kategorie_mutated
@@ -281,6 +280,7 @@ type Subscription {
   melodie_files_mutated(event: EventEnum): melodie_files_mutated
   termin_mutated(event: EventEnum): termin_mutated
   text_autor_mutated(event: EventEnum): text_autor_mutated
+  melodie_mutated(event: EventEnum): melodie_mutated
 }
 
 """The `Boolean` scalar type represents `true` or `false`."""
@@ -1800,6 +1800,8 @@ type melodie {
   titel: String
   user_created(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
   user_updated(filter: directus_users_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): directus_users
+  verse: Int
+  silben: String
   autorId(filter: melodie_autor_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_autor]
   autorId_func: count_functions
   noten(filter: melodie_files_filter, sort: [String], limit: Int, offset: Int, page: Int, search: String): [melodie_files]
@@ -2912,6 +2914,8 @@ input melodie_filter {
   titel: string_filter_operators
   user_created: directus_users_filter
   user_updated: directus_users_filter
+  verse: number_filter_operators
+  silben: string_filter_operators
   autorId: melodie_autor_filter
   autorId_func: count_function_filter_operators
   noten: melodie_files_filter
