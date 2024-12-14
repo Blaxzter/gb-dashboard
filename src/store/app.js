@@ -252,6 +252,13 @@ export const useAppStore = defineStore("app", {
           melodie_autor_grouped[obj.id],
           (elem) => authorById[elem.autor_id],
         ),
+        silben_pro_strophe: obj.silben
+          ? obj.silben.split("-").reduce((sum, num) => {
+              const parsedNum = parseInt(num);
+              return sum + (isNaN(parsedNum) ? 0 : parsedNum);
+            }, 0) *
+            (obj.verse / obj.silben.split("-").length)
+          : 0,
         files_urls: _.map(melodie_file_grouped[obj.id], "directus_files_id"),
         auftrag: auftragByMelodieID[obj.id],
         bewertung_kleiner_kreis:

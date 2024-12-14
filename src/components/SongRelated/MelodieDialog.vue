@@ -100,6 +100,17 @@
         </div>
       </div>
 
+      <div v-if="melodie?.verse && melodie?.silben" class="mb-2">
+        <div class="d-flex flex-row align-center" style="gap: 6px">
+          <div class="text-subtitle-1 font-weight-medium">Verse:</div>
+          <div class="me-5">{{ melodie?.verse }}</div>
+          <div class="text-subtitle-1 font-weight-medium">Silben:</div>
+          <div class="me-5">{{ melodie?.silben }}</div>
+          <div class="text-subtitle-1 font-weight-medium">Summe:</div>
+          <div>{{ melodie?.silben_pro_strophe }}</div>
+        </div>
+      </div>
+
       <div
         v-if="melodie?.authors?.length"
         class="text-subtitle-1 font-weight-medium"
