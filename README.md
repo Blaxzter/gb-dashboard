@@ -5,6 +5,43 @@ It's written in Vue 3 with vuetify as the UI framework and a directus backend.
 
 ![dashboard.png](example-views%2Fdashboard.png)
 
+## Features
+
+Based on the dashboard images shown, here's a comprehensive feature list that could be added to the readme:
+
+# Features
+
+![gb-dashboard-feature](https://github.com/user-attachments/assets/06eea6bb-c84b-470c-bf55-67a9b6d2e9a7)
+
+### Dashboard Overview
+- Show various information on a glance
+- Total counts for: songs, texts, melodies and tasks
+- Distribution of categories, task groups and song ratings
+  
+### Work Task Management
+- Task categorization system
+- Task status tracking
+- Assignment and tracking of:
+  - Texts needing melodies
+  - Melodies needing texts
+  - Author inquiries
+  - Melody revisions
+  - Other tasks
+
+### Content Administration
+- Upload system for songs, texts, and melodies
+- Missing assignments tracking
+- Duplicate entry detection
+- Content search functionality
+- Sorting and filtering capabilities
+- Pagination controls
+
+### Data Visualization
+- Interactive pie charts for category distribution
+- Bar charts for text-melody distribution
+- Task distribution visualization
+- Rating overview charts
+
 ## Project setup
 
 ### Frontend
