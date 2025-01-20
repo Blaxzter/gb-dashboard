@@ -115,6 +115,17 @@ const chart_colors = [
   "#4f7cba",
 ];
 
+const chipColors = [
+  "#FF6B6B", // Coral red
+  "#4ECDC4", // Turquoise
+  "#FFD93D", // Golden yellow
+  "#6C5CE7", // Royal purple
+  "#A8E6CF", // Mint green
+  "#FF8B94", // Salmon pink
+  "#45B7D1", // Ocean blue
+  "#95A5A6", // Cool gray
+];
+
 function similarity(s1, s2) {
   let longer = s1;
   let shorter = s2;
@@ -156,6 +167,7 @@ function editDistance(s1, s2) {
 }
 
 export {
+  chipColors,
   work_group_icon,
   auftrag_type_to_name,
   status_mapping,

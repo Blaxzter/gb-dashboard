@@ -115,6 +115,7 @@ export default {
                 :text="selectedSong?.text"
                 :show-extra-strophen-data="false"
                 :show-text-only="true"
+                :include-title="false"
               />
             </div>
           </div>
@@ -201,6 +202,7 @@ export default {
                 :text="selectedSong?.text"
                 :show-extra-strophen-data="false"
                 :show-text-only="true"
+                :include-title="false"
               />
             </div>
           </div>

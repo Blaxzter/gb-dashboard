@@ -29,7 +29,51 @@
         ></v-btn>
       </div>
       <v-expand-transition v-show="filter_expanded">
-        <v-card title="Filter" class="mb-5">
+        <v-card class="mb-5">
+          <v-card-title>
+            <div class="d-flex justify-space-between align-center">
+              <div>Filter</div>
+              <div class="d-flex ga-2">
+                <v-tooltip text="Filter Zurücksetzen" location="left">
+                  <template #activator="{ props }">
+                    <div v-bind="props">
+                      <v-btn
+                        icon
+                        variant="text"
+                        height="36"
+                        width="36"
+                        class="pa-0"
+                        @click="resetFilter"
+                      >
+                        <v-icon>mdi-filter-remove</v-icon>
+                      </v-btn>
+                    </div>
+                  </template>
+                </v-tooltip>
+
+                <v-tooltip
+                  v-if="admin && admin_ansicht"
+                  text="Share filter"
+                  location="left"
+                >
+                  <template #activator="{ props }">
+                    <div v-bind="props">
+                      <v-btn
+                        icon
+                        variant="text"
+                        height="36"
+                        width="36"
+                        class="pa-0"
+                        @click="copyFilterIntoLink"
+                      >
+                        <v-icon>mdi-link-variant</v-icon>
+                      </v-btn>
+                    </div>
+                  </template>
+                </v-tooltip>
+              </div>
+            </div>
+          </v-card-title>
           <v-card-text>
             <div class="d-flex align-center mb-4">
               <v-text-field
@@ -41,11 +85,23 @@
                 hide-details
               ></v-text-field>
             </div>
-            <div class="d-flex align-center mb-4">
+            <div v-if="admin && admin_ansicht" class="d-flex align-center mb-4">
               <!-- Select vuetify element if admin is true that has status as values -->
+
               <v-select
-                v-if="admin && admin_ansicht"
+                v-model="selected_bewertung"
+                :items="bewertungen"
+                prepend-inner-icon="mdi-list-status"
+                label="Filter Bewertung nach"
+                class="w-100 me-5"
+                hide-details
+                clearable
+                single-line
+              />
+
+              <v-select
                 v-model="selected_status"
+                prepend-inner-icon="mdi-check"
                 :items="status_list"
                 label="Filter Status nach"
                 class="w-100 me-5"
@@ -55,7 +111,6 @@
               />
 
               <v-checkbox
-                v-if="admin && admin_ansicht"
                 v-model="selected_aenderung"
                 label="Hat Änderungen"
                 style="min-width: 158px"
@@ -64,9 +119,27 @@
               >
               </v-checkbox>
             </div>
+
+            <div class="d-flex align-center mb-4">
+              <v-autocomplete
+                v-model="selected_author"
+                prepend-inner-icon="mdi-account"
+                :items="authors"
+                item-value="id"
+                item-title="name"
+                label="Filter nach Autor"
+                class="w-100 me-5"
+                hide-details
+                clearable
+                multiple
+                single-line
+              />
+            </div>
+
             <div class="d-flex align-center mb-4">
               <v-autocomplete
                 v-model="kategorie"
+                prepend-inner-icon="mdi-tag"
                 label="Zugehörige Kategorie"
                 class="me-3"
                 :items="store.kategorie"
@@ -242,6 +315,16 @@
       @close="song_dialog = false"
     />
   </v-dialog>
+
+  <v-snackbar v-model="snackbar" :timeout="3000">
+    {{ snackbar_message }}
+
+    <template #actions>
+      <v-btn color="pink" variant="text" @click="snackbar = false">
+        Close
+      </v-btn>
+    </template>
+  </v-snackbar>
 </template>
 <script>
 import { useAppStore } from "@/store/app";
@@ -267,6 +350,10 @@ export default {
       "Melodie Auftrag",
       "Strophe",
     ],
+    snackbar: false,
+    snackbar_message: "",
+    selected_bewertung: null,
+    selected_author: null,
     selected_status: null,
     kategorie: null,
     filter_expanded: false,
@@ -377,10 +464,25 @@ export default {
     gesangbuchlieder() {
       return this.store.gesangbuchlieder;
     },
+    authors() {
+      return this.store.used_authors;
+    },
     status_list() {
       // return unique status from all songs
       return _.uniq(
-        _.map(this.gesangbuchlieder, (elem) => status_mapping[elem["status"]]),
+        _.map(
+          this.gesangbuchlieder,
+          (elem) => status_mapping[elem["status"]],
+        ).filter((status) => _.isEmpty(status) === false),
+      );
+    },
+    bewertungen() {
+      // return unique status from all songs
+      return _.uniq(
+        _.map(
+          this.gesangbuchlieder,
+          (song) => song["bewertung_kleiner_kreis"].bezeichner,
+        ),
       );
     },
     filtered_gesangbuchlieder() {
@@ -391,6 +493,23 @@ export default {
           (this.selected_status &&
             status_mapping[elem["status"]] === this.selected_status),
       );
+
+      if (this.selected_bewertung) {
+        filtered_gesangbuchlied = _.filter(
+          filtered_gesangbuchlied,
+          (elem) =>
+            elem["bewertung_kleiner_kreis"].bezeichner ===
+            this.selected_bewertung,
+        );
+      }
+
+      if (this.selected_author && this.selected_author.length > 0) {
+        filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) =>
+          _.some(elem.authors, (author) =>
+            this.selected_author.includes(author.id),
+          ),
+        );
+      }
 
       // filter by selected_aenderung
       if (this.selected_aenderung) {
@@ -501,6 +620,56 @@ export default {
     }
   },
   methods: {
+    resetFilter() {
+      this.selected_status = null;
+      this.selected_bewertung = null;
+      this.selected_aenderung = false;
+      this.kategorie = null;
+      this.filter_by_suggestions = false;
+      this.filter_by_remarks = false;
+      this.selected_author = null;
+      this.strophenSearch = null;
+    },
+    copyFilterIntoLink() {
+      const appliedFilter = {};
+      if (this.strophenSearch)
+        appliedFilter.strophenSearch = this.strophenSearch;
+      if (this.selected_status)
+        appliedFilter.selected_status = this.selected_status;
+      if (this.selected_bewertung)
+        appliedFilter.selected_bewertung = this.selected_bewertung;
+      if (this.selected_aenderung)
+        appliedFilter.selected_aenderung = this.selected_aenderung;
+      if (this.kategorie) appliedFilter.kategorie = this.kategorie;
+      if (this.filter_by_suggestions)
+        appliedFilter.filter_by_suggestions = this.filter_by_suggestions;
+      if (this.filter_by_remarks)
+        appliedFilter.filter_by_remarks = this.filter_by_remarks;
+      if (this.selected_author)
+        appliedFilter.selected_author = this.selected_author;
+
+      if (Object.keys(appliedFilter).length === 0) {
+        this.snackbar_message = "Wähle zuerst einen filter an.";
+        this.snackbar = true;
+        return;
+      }
+
+      const jsonString = JSON.stringify(appliedFilter);
+      const base64String = btoa(jsonString);
+      const url = `${window.location.origin}/korrektur-lesung?filter=${base64String}`;
+
+      navigator.clipboard.writeText(url).then(
+        () => {
+          this.snackbar_message = "Filter wurde kopiert";
+          this.snackbar = true;
+        },
+        (err) => {
+          this.snackbar_message = `Ein fehler ist beim kopieren des links aufgetreten: ${url}`;
+          this.snackbar = true;
+          console.error(err);
+        },
+      );
+    },
     rowClick(item, value) {
       this.song_dialog = true;
       this.selected_song = value.item;

@@ -1,11 +1,11 @@
 <template>
-  <div v-if="!showTextOnly" class="text-h6 mx-auto mb-1">
+  <div v-if="includeTitle" class="text-h6 mx-auto mb-1">
     <span class="me-2"> Strophen </span>
   </div>
   <div
     v-for="(strophe, index) in show_strophen"
     :key="index"
-    :style="{ 'max-width': showTextOnly ? '' : '500px' }"
+    :style="{ 'max-width': !includeTitle ? '' : '500px' }"
     class="mx-auto"
   >
     <div
@@ -107,6 +107,10 @@ export default {
     showTextOnly: {
       type: Boolean,
       default: false,
+    },
+    includeTitle: {
+      type: Boolean,
+      default: true,
     },
   },
   data: () => ({

@@ -8,6 +8,7 @@ import { status_mapping } from "@/assets/js/utils";
 export const useAppStore = defineStore("app", {
   state: () => ({
     data_loaded: false,
+    used_author: [],
     author: [],
     text: [],
     melodie: [],
@@ -28,7 +29,7 @@ export const useAppStore = defineStore("app", {
   }),
   getters: {
     get_data_loaded: (state) => state.data_loaded,
-
+    used_authors: (state) => state.used_author,
     authors: (state) => state.author,
     texts: (state) => state.text,
     melodies: (state) => state.melodie,
@@ -179,7 +180,28 @@ export const useAppStore = defineStore("app", {
         null: { bezeichner: "", rangfolge: -1 },
       };
 
-      const authorById = { ..._.keyBy(author, "id"), null: "Keine" };
+      // Helper function to format individual author's years
+      const formatYears = (author) => {
+        const { geburtsjahr, sterbejahr } = author;
+        if (!geburtsjahr && !sterbejahr) return "";
+
+        const birthYear = geburtsjahr ? `*${geburtsjahr}` : "";
+        const deathYear = sterbejahr ? ` - ${sterbejahr}` : "";
+        return ` (${birthYear}${deathYear})`;
+      };
+
+      // Helper function to format author's full name and years
+      const formatAuthor = (author) => {
+        const fullName = `${author.vorname} ${author.nachname}`;
+        const years = formatYears(author);
+        return {
+          ...author,
+          name: `${fullName}${years}`,
+        };
+      };
+      const format_author = _.map(author, formatAuthor);
+
+      const authorById = { ..._.keyBy(format_author, "id"), null: "Keine" };
       const text_autor_grouped = {
         ..._.groupBy(text_autor, "text_id"),
         null: "Keine",
@@ -191,6 +213,7 @@ export const useAppStore = defineStore("app", {
         ),
         null: undefined,
       };
+
       text = _.map(text, (obj) => ({
         ...obj,
         authors: _.map(
@@ -378,10 +401,15 @@ export const useAppStore = defineStore("app", {
           ?.join(" ")
           ?.replace("\n", " ")
           ?.toLowerCase(),
+        authors: [
+          ...(textById[obj.textId]?.authors || []),
+          ...(melodieById[obj.melodieId]?.authors || []),
+        ],
         author_name:
           (textById[obj.textId]?.author_name
             ? `Text: ${textById[obj.textId]?.author_name}`
             : "") +
+          " " +
           (melodieById[obj.melodieId]?.author_name
             ? `Melodie: ${melodieById[obj.melodieId]?.author_name}`
             : ""),
@@ -396,7 +424,12 @@ export const useAppStore = defineStore("app", {
           bewertungKleinerKreisById[obj.bewertungKleinerKreis],
       }));
 
-      this.author = author;
+      this.used_author = _.uniqBy(
+        _.flatMap(gesangbuchlied, (song) => song.authors),
+        "id",
+      );
+
+      this.author = format_author;
       this.text = text;
       this.melodie = melodie;
       this.gesangbuchlied = gesangbuchlied;
