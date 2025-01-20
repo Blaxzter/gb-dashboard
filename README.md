@@ -5,6 +5,43 @@ It's written in Vue 3 with vuetify as the UI framework and a directus backend.
 
 ![dashboard.png](example-views%2Fdashboard.png)
 
+## Features
+
+Based on the dashboard images shown, here's a comprehensive feature list that could be added to the readme:
+
+# Features
+
+![gb-dashboard-feature](https://github.com/user-attachments/assets/06eea6bb-c84b-470c-bf55-67a9b6d2e9a7)
+
+### Dashboard Overview
+- Show various information on a glance
+- Total counts for: songs, texts, melodies and tasks
+- Distribution of categories, task groups and song ratings
+
+### Work Task Management
+- Task categorization system
+- Task status tracking
+- Assignment and tracking of:
+    - Texts needing melodies
+    - Melodies needing texts
+    - Author inquiries
+    - Melody revisions
+    - Other tasks
+
+### Content Administration
+- Upload system for songs, texts, and melodies
+- Missing assignments tracking
+- Duplicate entry detection
+- Content search functionality
+- Sorting and filtering capabilities
+- Pagination controls
+
+### Data Visualization
+- Interactive pie charts for category distribution
+- Bar charts for text-melody distribution
+- Task distribution visualization
+- Rating overview charts
+
 ## Project setup
 
 ### Frontend
@@ -41,17 +78,17 @@ There is no registration process; all users share these accounts for simplicity.
 ### Setting up the Shared Token
 
 1. **Generate a static authentication token in Directus**:
-   - Log in to your Directus instance as an admin.
-   - Navigate to **Settings** > **Roles & Permissions**.
-   - Select the role associated with the user accounts.
-   - Go to the **Tokens** tab and create a new static token.
+    - Log in to your Directus instance as an admin.
+    - Navigate to **Settings** > **Roles & Permissions**.
+    - Select the role associated with the user accounts.
+    - Go to the **Tokens** tab and create a new static token.
 
 2. **Set the token in the frontend environment variable**:
-   - Open your `.env` file.
-   - Set `VITE_AUTH_TOKEN` to the token you generated:
-     ```
-     VITE_AUTH_TOKEN=YOUR_SHARED_TOKEN
-     ```
+    - Open your `.env` file.
+    - Set `VITE_AUTH_TOKEN` to the token you generated:
+      ```
+      VITE_AUTH_TOKEN=YOUR_SHARED_TOKEN
+      ```
 
 By using this shared token, all users can authenticate with the application simultaneously without causing session conflicts in Directus. While this approach is less secure than individual logins, it prevents users from being logged out due to session overwrites.
 
