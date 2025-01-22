@@ -4,6 +4,8 @@ import axios from "@/assets/js/axiossConfig";
 
 import _ from "lodash";
 import { status_mapping } from "@/assets/js/utils";
+import router from "@/router";
+import { useUserStore } from "@/store/user";
 
 export const useAppStore = defineStore("app", {
   state: () => ({
@@ -26,6 +28,7 @@ export const useAppStore = defineStore("app", {
     melodie_file: [],
     gesangbuchlied_kategorie: [],
     file: [],
+    currentRequests: [],
   }),
   getters: {
     get_data_loaded: (state) => state.data_loaded,
@@ -54,86 +57,82 @@ export const useAppStore = defineStore("app", {
   },
   actions: {
     async fetchData() {
-      const [
-        authorResponse,
-        textResponse,
-        melodieResponse,
-        gesangbuchliedResponse,
-        arbeitskreisResponse,
-        kategorieResponse,
-        lizenzResponse,
-        auftragResponse,
-        terminResponse,
-        bewertungKleinerKreisResponse,
-        // N to M tables
-        textautorResponse,
-        melodieautorResponse,
-        melodieFilesResponse,
-        gesangbuchliedKategoriesResponse,
-        filesResponse,
-        gesangbuchliedFilesResponse,
-      ] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/autor?limit=-1`),
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/text?limit=-1`),
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/melodie?limit=-1`),
-        axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied?limit=-1`,
-        ),
-        axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/items/arbeitskreis?limit=-1`,
-        ),
-        axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/items/kategorie?limit=-1`,
-        ),
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/lizenz?limit=-1`),
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/auftrag?limit=-1`),
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/termin?limit=-1`),
-        axios.get(
-          `${
-            import.meta.env.VITE_BACKEND_URL
-          }/items/bewertungKleinerKreis?limit=-1`,
-        ),
-        // N M tabelle
-        axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/items/text_autor?limit=-1`,
-        ),
-        axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor?limit=-1`,
-        ),
-        axios.get(
-          `${import.meta.env.VITE_BACKEND_URL}/items/melodie_files?limit=-1`,
-        ),
-        axios.get(
-          `${
-            import.meta.env.VITE_BACKEND_URL
-          }/items/gesangbuchlied_kategorie?limit=-1`,
-        ),
-        axios.get(`${import.meta.env.VITE_BACKEND_URL}/files?limit=-1`),
-        axios.get(
-          `${
-            import.meta.env.VITE_BACKEND_URL
-          }/items/gesangbuchlied_files?limit=-1`,
-        ),
-      ]);
+      // Cancel any existing requests
+      this.cancelRequests();
 
-      return {
-        author: authorResponse.data.data,
-        text: textResponse.data.data,
-        melodie: melodieResponse.data.data,
-        gesangbuchlied: gesangbuchliedResponse.data.data,
-        arbeitskreis: arbeitskreisResponse.data.data,
-        kategorie: kategorieResponse.data.data,
-        lizenz: lizenzResponse.data.data,
-        auftrag: auftragResponse.data.data,
-        termin: terminResponse.data.data,
-        bewertungKleinerKreis: bewertungKleinerKreisResponse.data.data,
-        text_autor: textautorResponse.data.data,
-        melodie_autor: melodieautorResponse.data.data,
-        melodie_file: melodieFilesResponse.data.data,
-        gesangbuchlied_kategorie: gesangbuchliedKategoriesResponse.data.data,
-        file: filesResponse.data.data,
-        gesangbuchlied_files: gesangbuchliedFilesResponse.data.data,
-      };
+      const requests = [
+        { url: "/items/autor", label: "author" },
+        { url: "/items/text", label: "text" },
+        { url: "/items/melodie", label: "melodie" },
+        { url: "/items/gesangbuchlied", label: "gesangbuchlied" },
+        { url: "/items/arbeitskreis", label: "arbeitskreis" },
+        { url: "/items/kategorie", label: "kategorie" },
+        { url: "/items/lizenz", label: "lizenz" },
+        { url: "/items/auftrag", label: "auftrag" },
+        { url: "/items/termin", label: "termin" },
+        { url: "/items/bewertungKleinerKreis", label: "bewertungKleinerKreis" },
+        { url: "/items/text_autor", label: "textautor" },
+        { url: "/items/melodie_autor", label: "melodieautor" },
+        { url: "/items/melodie_files", label: "melodieFiles" },
+        {
+          url: "/items/gesangbuchlied_kategorie",
+          label: "gesangbuchliedKategories",
+        },
+        { url: "/files", label: "files" },
+        { url: "/items/gesangbuchlied_files", label: "gesangbuchliedFiles" },
+      ];
+
+      try {
+        const responses = await Promise.all(
+          requests.map(({ url, label }) => {
+            const controller = new AbortController();
+            const request = axios.get(
+              `${import.meta.env.VITE_BACKEND_URL}${url}?limit=-1`,
+              { signal: controller.signal },
+            );
+
+            // Store the controller so we can cancel if needed
+            this.currentRequests.push(controller);
+
+            return request;
+          }),
+        );
+
+        // Clear the controllers array after successful completion
+        this.currentRequests = [];
+
+        return {
+          author: responses[0].data.data,
+          text: responses[1].data.data,
+          melodie: responses[2].data.data,
+          gesangbuchlied: responses[3].data.data,
+          arbeitskreis: responses[4].data.data,
+          kategorie: responses[5].data.data,
+          lizenz: responses[6].data.data,
+          auftrag: responses[7].data.data,
+          termin: responses[8].data.data,
+          bewertungKleinerKreis: responses[9].data.data,
+          text_autor: responses[10].data.data,
+          melodie_autor: responses[11].data.data,
+          melodie_file: responses[12].data.data,
+          gesangbuchlied_kategorie: responses[13].data.data,
+          file: responses[14].data.data,
+          gesangbuchlied_files: responses[15].data.data,
+        };
+      } catch (error) {
+        if (error?.response?.status === 401) {
+          const userStore = useUserStore();
+          userStore.logout();
+        }
+        throw error;
+      }
+    },
+
+    cancelRequests() {
+      this.currentRequests.forEach((controller) => {
+        controller.abort();
+      });
+      this.currentRequests = [];
     },
 
     update_store_local() {

@@ -51,6 +51,7 @@ const useUserStore = defineStore("user", {
           email: username,
           password: authData.password,
         },
+        no_auth: true,
       })
         .then((response) => {
           // Use environment variable for kleiner_kreis users
@@ -72,10 +73,23 @@ const useUserStore = defineStore("user", {
         });
     },
     logout() {
+      const appStore = useAppStore();
+
+      // Cancel any pending requests
+      appStore.cancelRequests();
+
+      // Clear user data
       this.user = null;
+      this.kleiner_kreis = false;
+      this.kleiner_kreis_ansicht = false;
+
+      // Clear localStorage
       localStorage.removeItem("username");
       localStorage.removeItem("kleiner_kreis");
+      localStorage.removeItem("kleiner_kreis_ansicht");
+      localStorage.removeItem("access_token");
 
+      // Navigate to login
       router.replace("/login");
     },
     async autoLogin() {
@@ -100,6 +114,8 @@ const useUserStore = defineStore("user", {
       this.user = {
         username: authData.username,
       };
+
+      localStorage.setItem("access_token", response_data.access_token);
 
       if (remember_me) {
         localStorage.setItem("username", authData.username);
