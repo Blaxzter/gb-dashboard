@@ -3,12 +3,18 @@ import _ from "lodash";
 import { ref, watch, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useAppStore } from "@/store/app.js";
-import { chart_colors, chipColors, status_mapping } from "@/assets/js/utils.js";
+import {
+  chart_colors,
+  chipColors,
+  gesangbuch_kategorie_name_to_icon,
+  status_mapping,
+} from "@/assets/js/utils.js";
 import MediaComponent from "@/components/SongRelated/MediaComponent.vue";
 import StrophenList from "@/components/SongRelated/StrophenList.vue";
 
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
+import GesangbuchLiedComponent from "@/components/SongRelated/GesangbuchLiedComponent.vue";
 
 const store = useAppStore();
 
@@ -191,6 +197,19 @@ const filtered_gesangbuchlieder = computed(() => {
 
   return filtered_gesangbuchlied;
 });
+
+// Song dialog stuff
+const song_dialog = ref(false);
+const selected_song = ref(null);
+
+const modalClose = () => {
+  song_dialog.value = false;
+  selected_song.value = null;
+};
+
+const get_color = (category) => {
+  return chart_colors[category.id % chart_colors.length];
+};
 </script>
 
 <template>
@@ -282,26 +301,53 @@ const filtered_gesangbuchlieder = computed(() => {
         :key="lied.id"
       >
         <v-expansion-panel-title>
-          <div>
-            <div class="text-h6">
-              {{ lied.titel }}
+          <div class="w-100">
+            <div class="d-flex justify-space-between">
+              <div class="text-h6">
+                {{ lied.titel }}
+              </div>
+              <div class="d-flex ga-1">
+                <v-chip
+                  v-for="(category, index) in lied?.kategories"
+                  :key="index"
+                  label
+                  size="small"
+                  :prepend-icon="
+                    gesangbuch_kategorie_name_to_icon(
+                      category?.kategorie_name?.name,
+                    )
+                  "
+                  :style="{ 'background-color': get_color(category) }"
+                >
+                  {{ category?.kategorie_name?.name }}
+                </v-chip>
+              </div>
             </div>
             <div class="text-caption">
               {{
-                lied.strophen_connected.length > 150
-                  ? lied.strophen_connected.substring(0, 150) + "..."
-                  : lied.strophen_connected
+                lied.text.strophen_connected.length > 150
+                  ? lied.text.strophen_connected.substring(0, 150) + "..."
+                  : lied.text.strophen_connected
               }}
+            </div>
+            <div class="text-caption">
+              {{ lied.author_name }}
             </div>
           </div>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <splitpanes :dbl-click-splitter="false">
             <pane min-size="20">
-              <div class="position-relative h-100" style="overflow: auto">
+              <div class="position-relative h-100" style="min-height: 70vh">
                 <MediaComponent
-                  v-if="lied.melodie.files[0]"
-                  :file="lied.melodie.files[0]"
+                  v-if="
+                    lied.gesangbuchlied_satz_mit_melodie_und_text?.[0] ||
+                    lied.melodie?.files?.[0]
+                  "
+                  :file="
+                    lied.gesangbuchlied_satz_mit_melodie_und_text?.[0] ||
+                    lied.melodie?.files?.[0]
+                  "
                   :sing-mode-screen="true"
                 />
               </div>
@@ -317,6 +363,16 @@ const filtered_gesangbuchlieder = computed(() => {
                     :include-title="false"
                   />
                 </div>
+                <v-btn
+                  style="position: absolute; right: 10px; bottom: 10px"
+                  icon
+                  @click="
+                    selected_song = lied;
+                    song_dialog = true;
+                  "
+                >
+                  <v-icon>mdi-pencil</v-icon>
+                </v-btn>
               </div>
             </pane>
           </splitpanes>
@@ -324,6 +380,13 @@ const filtered_gesangbuchlieder = computed(() => {
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
+
+  <v-dialog v-model="song_dialog" width="700" @close="modalClose">
+    <GesangbuchLiedComponent
+      :selected-song="selected_song"
+      @close="song_dialog = false"
+    />
+  </v-dialog>
 
   <v-snackbar v-model="snackbar" :timeout="3000">
     {{ snackbar_message }}
