@@ -196,6 +196,13 @@ export const useAppStore = defineStore("app", {
         return {
           ...author,
           name: `${fullName}${years}`,
+          author_str:
+            `${author.vorname} ${author.nachname}` +
+            (author.geburtsjahr || author.sterbejahr
+              ? ` (${author.geburtsjahr ? "*" + author.geburtsjahr : ""} ${
+                  author.sterbejahr ? " - " + author.sterbejahr : ""
+                })`
+              : ""),
         };
       };
       const format_author = _.map(author, formatAuthor);
@@ -333,17 +340,6 @@ export const useAppStore = defineStore("app", {
       termin = _.map(termin, (obj) => ({
         ...obj,
         arbeitskreis_name: arbeitskreisById[obj.arbeitskreisId].name,
-      }));
-
-      author = _.map(author, (obj) => ({
-        ...obj,
-        author_str:
-          `${obj.vorname} ${obj.nachname}` +
-          (obj.geburtsjahr || obj.sterbejahr
-            ? ` (${obj.geburtsjahr ? "*" + obj.geburtsjahr : ""} ${
-                obj.sterbejahr ? " - " + obj.sterbejahr : ""
-              })`
-            : ""),
       }));
 
       const kategorieById = { ..._.keyBy(kategorie, "id"), null: "Keine" };
