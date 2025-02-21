@@ -85,6 +85,7 @@
                 hide-details
               ></v-text-field>
             </div>
+
             <div v-if="admin && admin_ansicht" class="d-flex align-center mb-4">
               <!-- Select vuetify element if admin is true that has status as values -->
 
@@ -132,6 +133,20 @@
                 hide-details
                 clearable
                 multiple
+                single-line
+              />
+
+              <v-select
+                v-model="check_autor_copyright"
+                label="Autor/Copyright prüfen"
+                prepend-inner-icon="mdi-copyright"
+                :items="[
+                  { title: 'Zu prüfen', value: true },
+                  { title: 'Geprüft', value: false },
+                ]"
+                class="w-100"
+                hide-details
+                clearable
                 single-line
               />
             </div>
@@ -365,6 +380,7 @@ export default {
     filter: [],
     store: useAppStore(),
     userStore: useUserStore(),
+    check_autor_copyright: null,
   }),
   computed: {
     possible_columns() {
@@ -567,6 +583,15 @@ export default {
         });
       }
 
+      // Update the autor_oder_copyright_checken filter
+      if (this.check_autor_copyright !== null) {
+        filtered_gesangbuchlied = _.filter(
+          filtered_gesangbuchlied,
+          (elem) =>
+            elem.autor_oder_copyright_checken === this.check_autor_copyright,
+        );
+      }
+
       return filtered_gesangbuchlied;
     },
     filter_by_remarks() {
@@ -629,6 +654,7 @@ export default {
       this.filter_by_remarks = false;
       this.selected_author = null;
       this.strophenSearch = null;
+      this.check_autor_copyright = null;
     },
     copyFilterIntoLink() {
       const appliedFilter = {};
@@ -647,6 +673,8 @@ export default {
         appliedFilter.filter_by_remarks = this.filter_by_remarks;
       if (this.selected_author)
         appliedFilter.selected_author = this.selected_author;
+      if (this.check_autor_copyright !== null)
+        appliedFilter.check_autor_copyright = this.check_autor_copyright;
 
       if (Object.keys(appliedFilter).length === 0) {
         this.snackbar_message = "Wähle zuerst einen filter an.";

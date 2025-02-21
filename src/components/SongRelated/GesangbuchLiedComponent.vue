@@ -278,6 +278,15 @@
           geändert.
         </span>
       </div>
+
+      <div v-if="selectedSong?.autor_oder_copyright_checken" class="mt-4">
+        <v-alert
+          type="warning"
+          title="Autor/Copyright prüfen"
+          text="Dieses Lied muss auf Autor oder Copyright geprüft werden."
+          class="mb-0"
+        />
+      </div>
     </v-card-text>
     <v-card-actions>
       <v-btn color="error" @click="$emit('close')">Schließen</v-btn>

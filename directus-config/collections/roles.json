@@ -11,6 +11,13 @@
     "icon": "supervised_user_circle",
     "description": "The user that is used to login user though the frontend.",
     "parent": null,
-    "_syncId": "22195edc-8378-4bb5-b0b1-18bd2932c5ce"
+    "_syncId": "5a0859e8-ddd9-4cfa-b160-3891a4bca80d"
+  },
+  {
+    "name": "Administrator",
+    "icon": "verified",
+    "description": "$t:admin_description",
+    "parent": null,
+    "_syncId": "5fe48c17-d63d-46e1-b18b-867876892188"
   }
 ]

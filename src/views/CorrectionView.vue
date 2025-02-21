@@ -31,6 +31,7 @@ const kategorie = ref(null);
 const filter_by_suggestions = ref(false);
 const filter_by_remarks = ref(false);
 const selected_author = ref(null);
+const check_autor_copyright = ref(null);
 
 // Snackbar state
 const snackbar = ref(false);
@@ -61,6 +62,7 @@ const applyFilterFromLink = () => {
     filter_by_suggestions.value = false;
     filter_by_remarks.value = false;
     selected_author.value = null;
+    check_autor_copyright.value = null;
 
     // Apply each filter if it exists in the decoded object
     if (appliedFilter.strophenSearch !== undefined) {
@@ -86,6 +88,9 @@ const applyFilterFromLink = () => {
     }
     if (appliedFilter.selected_author !== undefined) {
       selected_author.value = appliedFilter.selected_author;
+    }
+    if (appliedFilter.check_autor_copyright !== undefined) {
+      check_autor_copyright.value = appliedFilter.check_autor_copyright;
     }
 
     snackbar_message.value = "Filter wurden erfolgreich angewendet";
@@ -192,6 +197,15 @@ const filtered_gesangbuchlieder = computed(() => {
     });
   }
 
+  // Add the autor_oder_copyright_checken filter
+  if (check_autor_copyright.value !== null) {
+    filtered_gesangbuchlied = _.filter(
+      filtered_gesangbuchlied,
+      (elem) =>
+        elem.autor_oder_copyright_checken === check_autor_copyright.value,
+    );
+  }
+
   // sort by titel
   filtered_gesangbuchlied = _.sortBy(filtered_gesangbuchlied, "titel");
 
@@ -282,6 +296,14 @@ const get_color = (category) => {
         >{{ _author }}</v-chip
       >
     </template>
+    <v-chip
+      v-if="check_autor_copyright !== null"
+      prepend-icon="mdi-copyright"
+      :color="chipColors[8]"
+      variant="flat"
+    >
+      Autor/Copyright: {{ check_autor_copyright ? "Zu prüfen" : "Geprüft" }}
+    </v-chip>
   </div>
 
   <div v-if="!showSongs">
@@ -305,6 +327,12 @@ const get_color = (category) => {
             <div class="d-flex justify-space-between">
               <div class="text-h6">
                 {{ lied.titel }}
+                <v-icon
+                  v-if="lied.autor_oder_copyright_checken"
+                  icon="mdi-copyright"
+                  color="warning"
+                  size="small"
+                />
               </div>
               <div class="d-flex ga-1">
                 <v-chip
@@ -323,12 +351,15 @@ const get_color = (category) => {
                 </v-chip>
               </div>
             </div>
-            <div class="text-caption">
+            <div v-if="lied?.text?.strophen_connected" class="text-caption">
               {{
                 lied.text.strophen_connected.length > 150
                   ? lied.text.strophen_connected.substring(0, 150) + "..."
                   : lied.text.strophen_connected
               }}
+            </div>
+            <div v-else class="text-caption">
+              Dieses Lied hat keinen verknüpften Text oder Strophen.
             </div>
             <div class="text-caption">
               {{ lied.author_name }}
@@ -371,7 +402,7 @@ const get_color = (category) => {
                     song_dialog = true;
                   "
                 >
-                  <v-icon>mdi-pencil</v-icon>
+                  <v-icon>mdi-open-in-app</v-icon>
                 </v-btn>
               </div>
             </pane>
