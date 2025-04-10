@@ -20,6 +20,7 @@ const auftrag_type_to_name = {
 };
 
 const status_mapping = {
+  accepted: "Bewertet und genommen",
   draft: "Entwurf",
   published: "Veröffentlicht",
   uploaded: "Eingereicht via Formular",
