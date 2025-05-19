@@ -15,13 +15,10 @@
           ? 'hover-border'
           : ''
       "
+      @click="strophe.show = !strophe.show && !showTextOnly"
     >
       <div class="pb-0 me-3" style="white-space: nowrap">{{ index + 1 }}.</div>
-      <div
-        class="pb-0"
-        style="white-space: pre-line"
-        @click="strophe.show = !strophe.show && !showTextOnly"
-      >
+      <div class="pb-0" style="white-space: pre-line">
         {{ strophe.strophe }}
       </div>
       <div class="d-flex flex-column align-center ms-3">
@@ -136,5 +133,6 @@ export default {
     rgba(0, 0, 0, 0.9) 0px 0px 0px 1px;
   transition: box-shadow 0.3s ease-in-out;
   cursor: pointer;
+  border-radius: 4px;
 }
 </style>
