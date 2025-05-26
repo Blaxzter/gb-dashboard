@@ -549,5 +549,39 @@ export const useAppStore = defineStore("app", {
           this.file = response.data.data;
         });
     },
+
+    async updateTextStrophes(textId, strophes) {
+      const controller = new AbortController();
+      this.currentRequests.push(controller);
+
+      try {
+        const request = axios.patch(
+          `${import.meta.env.VITE_BACKEND_URL}/items/text/${textId}`,
+          {
+            strophenEinzeln: strophes,
+          },
+          { signal: controller.signal },
+        );
+
+        const response = await request;
+
+        // Remove controller from array after successful completion
+        this.currentRequests = this.currentRequests.filter(
+          (c) => c !== controller,
+        );
+
+        return response.data;
+      } catch (error) {
+        if (error?.response?.status === 401) {
+          const userStore = useUserStore();
+          userStore.logout();
+        }
+        // Remove controller from array on error as well
+        this.currentRequests = this.currentRequests.filter(
+          (c) => c !== controller,
+        );
+        throw error;
+      }
+    },
   },
 });
