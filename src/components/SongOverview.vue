@@ -257,6 +257,13 @@
 
       <span v-else>{{ item.text_titel }}</span>
     </template>
+    <template #[`item.text.strophen_connected_short`]="{ item }">
+      {{
+        item.text.strophen_connected_short
+          ? removeHyphenitionSigns(item.text.strophen_connected_short)
+          : ""
+      }}
+    </template>
     <template #[`item.melodie_titel`]="{ item }">
       <v-tooltip
         v-if="item.titel === item.melodie_titel"
@@ -645,6 +652,10 @@ export default {
     }
   },
   methods: {
+    removeHyphenitionSigns(text) {
+      if (!text) return text;
+      return text.replace(/¬/g, "");
+    },
     resetFilter() {
       this.selected_status = null;
       this.selected_bewertung = null;

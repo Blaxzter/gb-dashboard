@@ -55,6 +55,22 @@
         "
         @click="strophe.show = !strophe.show && !showTextOnly"
       >
+        <v-tooltip
+          v-if="!showTextOnly"
+          text="Text mit bindestrichen in die Zwischenablage kopieren"
+          location="bottom"
+        >
+          <template #activator="{ props }">
+            <v-icon
+              v-bind="props"
+              icon="mdi-content-copy"
+              size="tiny"
+              color="primary"
+              class="copy-button me-2 mt-1"
+              @click.stop="copyToClipboard(strophe.strophe)"
+            />
+          </template>
+        </v-tooltip>
         <div class="pb-0 me-3" style="white-space: nowrap">
           {{ index + 1 }}.
         </div>
@@ -73,6 +89,7 @@
                 icon="mdi-pencil"
                 size="tiny"
                 color="warning"
+                :class="index === 0 ? 'pt-2' : ''"
               />
             </template>
           </v-tooltip>
@@ -88,7 +105,9 @@
                 icon="mdi-message"
                 size="tiny"
                 color="warning"
-                :class="strophe.aenderungsvorschlag ? 'pt-2' : ''"
+                :class="
+                  strophe.aenderungsvorschlag || index === 0 ? 'pt-2' : ''
+                "
               />
             </template>
           </v-tooltip>
@@ -244,6 +263,38 @@ export default {
       }
     },
 
+    copyToClipboard(text) {
+      // Replace ¬ symbols with - symbols
+      const textToCopy = text.replace(/¬/g, "-");
+
+      if (navigator.clipboard && window.isSecureContext) {
+        // Use the modern clipboard API
+        navigator.clipboard
+          .writeText(textToCopy)
+          .then(() => {
+            // Optional: Show a success message or toast
+            console.log("Text copied to clipboard successfully");
+          })
+          .catch((err) => {
+            console.error("Failed to copy text: ", err);
+          });
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand("copy");
+          console.log("Text copied to clipboard successfully (fallback)");
+        } catch (err) {
+          console.error("Failed to copy text (fallback): ", err);
+        }
+        document.body.removeChild(textArea);
+      }
+    },
+
     saveSettings() {
       localStorage.setItem(
         "strophen-show-syllable-symbols",
@@ -287,5 +338,10 @@ export default {
   transition: box-shadow 0.3s ease-in-out;
   cursor: pointer;
   border-radius: 4px;
+}
+
+.copy-button:hover {
+  transform: scale(1.1);
+  transition: transform 0.2s ease-in-out;
 }
 </style>
