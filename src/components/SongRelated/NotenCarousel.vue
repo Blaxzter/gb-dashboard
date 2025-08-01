@@ -13,7 +13,11 @@
       :key="i"
       :src="file.type.includes('image') ? getImgUrl(file.id) : null"
     >
-      <MediaComponent :file="file" @fullscreen_pdf="fullscreen_pdf" />
+      <MediaComponent
+        v-if="file"
+        :file="file"
+        @fullscreen_pdf="fullscreen_pdf"
+      />
     </v-carousel-item>
   </v-carousel>
   <div

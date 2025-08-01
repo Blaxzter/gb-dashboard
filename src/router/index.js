@@ -49,6 +49,12 @@ const routes = [
           import(/* webpackChunkName: "home" */ "@/views/SongOverviewView.vue"),
       },
       {
+        path: "fokusmodus",
+        name: "Fokusmodus",
+        component: () =>
+          import(/* webpackChunkName: "home" */ "@/views/SingModeView.vue"),
+      },
+      {
         path: "doppelteeintraege",
         name: "DoubleEntries",
         component: () =>

@@ -6,6 +6,8 @@ import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
+import vueDevTools from "vite-plugin-vue-devtools";
+
 // https://vitejs.dev/config/
 export default defineConfig({
   css: {
@@ -26,6 +28,7 @@ export default defineConfig({
         configFile: "src/styles/settings.scss",
       },
     }),
+    vueDevTools(),
   ],
   define: { "process.env": {} },
   resolve: {

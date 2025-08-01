@@ -72,7 +72,7 @@ export default {
 
 <template>
   <div
-    v-if="singModeScreen && file.type !== 'application/pdf'"
+    v-if="singModeScreen && file?.type !== 'application/pdf'"
     style="position: absolute; z-index: 20"
     class="pl-5 pt-2"
   >
@@ -91,7 +91,7 @@ export default {
       @click="maxWidth = maxWidth + 5 > 100 ? maxWidth : maxWidth + 5"
     />
   </div>
-  <div v-if="file.type === 'application/pdf'" class="h-100">
+  <div v-if="file?.type === 'application/pdf'" class="h-100">
     <div v-if="singModeScreen" class="h-100">
       <vue-pdf-app
         ref="pdfApp"

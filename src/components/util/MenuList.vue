@@ -64,6 +64,13 @@ export default {
         public: true,
       },
       {
+        name: "Fokusmodus",
+        route: "/fokusmodus",
+        icon: "mdi-microphone-variant",
+        marginButton: true,
+        public: true,
+      },
+      {
         name: "Arbeitsaufträge",
         route: "/arbeitsauftraege",
         icon: "mdi-file-document-outline",
