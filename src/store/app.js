@@ -242,16 +242,18 @@ export const useAppStore = defineStore("app", {
                 })`
               : ""),
         ).join(", "),
-        strophen_connected: _.map(obj.strophenEinzeln, "strophe")?.join("\n\n"),
-        strophen_connected_short: _.map(obj.strophenEinzeln, "strophe")
+        strophen_connected: _.map(obj.strophenEinzeln, (elem) =>
+          elem?.strophe?.replaceAll("¬", ""),
+        )?.join("\n\n"),
+        strophen_connected_short: _.map(obj.strophenEinzeln, (elem) =>
+          elem?.strophe?.replaceAll("¬", ""),
+        )
           ?.join(" ")
           .substring(0, 50),
         strophe_short: _.map(
           obj.strophenEinzeln?.slice(0, 3),
           (elem, idx) =>
-            `${idx + 1}. ${elem?.strophe?.replace("\n", " ").substring(0, 30)}${
-              elem?.strophe?.length > 15 ? "..." : ""
-            }`,
+            `${idx + 1}. ${elem?.strophe?.replaceAll("¬", "")?.replace("\n", " ").substring(0, 30)}${elem?.strophe?.length > 15 ? "..." : ""}`,
         ).join(" "),
       }));
       text = _.map(text, (obj) => ({
@@ -394,6 +396,7 @@ export const useAppStore = defineStore("app", {
           "strophe",
         )
           ?.join(" ")
+          ?.replaceAll("¬", "")
           ?.replace("\n", " ")
           ?.toLowerCase(),
         authors: [
