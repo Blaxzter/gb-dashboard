@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="h-100">
+  <v-container fluid class="sing-mode-container">
     <!-- Selection Layout -->
     <div v-if="!showSongView" class="h-100">
       <div class="d-flex align-center justify-space-between mb-8">
@@ -136,7 +136,93 @@
 
       <!-- Two Column Selection Layout (when not linked) -->
       <div v-else class="selection-layout">
-        <!-- Left Column: Melodie Selection -->
+        <!-- Left Column: Text Selection -->
+        <div class="text-section">
+          <v-card variant="outlined" class="h-100">
+            <v-card-title class="d-flex align-center">
+              <v-icon class="me-2">mdi-text</v-icon>
+              Text & Strophen
+            </v-card-title>
+            <v-card-text class="flex-grow-1">
+              <!-- Text Selection -->
+              <div class="mb-4">
+                <div class="text-h6 mb-3">Text auswählen</div>
+                <v-autocomplete
+                  v-model="selectedText"
+                  label="Suche nach Texten"
+                  :items="store_texte"
+                  :custom-filter="custom_filter"
+                  item-title="titel"
+                  item-value="id"
+                  hide-details="auto"
+                  class="mb-4"
+                  return-object
+                  clearable
+                  @update:model-value="onTextSelected"
+                >
+                  <template #item="{ props, item }">
+                    <v-list-item
+                      v-bind="props"
+                      :title="item?.raw?.titel"
+                      :subtitle="item?.raw?.author_name"
+                    >
+                      <template #append>
+                        <v-chip size="small" color="primary">
+                          {{ item?.raw?.strophenEinzeln?.length || 0 }} Strophen
+                        </v-chip>
+                      </template>
+                      <span style="font-size: 0.8rem">{{
+                        item?.raw?.strophe_short
+                      }}</span>
+                    </v-list-item>
+                  </template>
+                </v-autocomplete>
+              </div>
+
+              <!-- Text Preview -->
+              <div v-if="selectedText?.strophenEinzeln">
+                <div class="text-subtitle-1 mb-2">Textvorschau:</div>
+                <div class="preview-box">
+                  <h3>{{ selectedText?.titel }}</h3>
+                  <div
+                    v-for="(
+                      strophe, index
+                    ) in selectedText.strophenEinzeln.slice(0, 2)"
+                    :key="index"
+                    class="mb-2"
+                  >
+                    <strong>{{ index + 1 }}.</strong>
+                    {{ strophe.strophe }}
+                  </div>
+                  <div
+                    v-if="selectedText.strophenEinzeln.length > 2"
+                    class="text-caption"
+                  >
+                    ... und
+                    {{ selectedText.strophenEinzeln.length - 2 }} weitere
+                    Strophen
+                  </div>
+                </div>
+
+                <v-alert type="success" variant="tonal" class="mt-3">
+                  Text verfügbar und bereit zur Anzeige
+                </v-alert>
+              </div>
+              <div v-else-if="!selectedText">
+                <v-alert type="info" variant="tonal">
+                  Bitte wählen Sie einen Text aus
+                </v-alert>
+              </div>
+              <div v-else>
+                <v-alert type="warning" variant="tonal">
+                  Ausgewählter Text hat keine Strophen
+                </v-alert>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+
+        <!-- Right Column: Melodie Selection -->
         <div class="melodie-section">
           <v-card variant="outlined" class="h-100">
             <v-card-title class="d-flex align-center">
@@ -228,92 +314,6 @@
               <v-alert v-else-if="!selectedMelodie" type="info" variant="tonal">
                 Bitte wählen Sie eine Melodie aus
               </v-alert>
-            </v-card-text>
-          </v-card>
-        </div>
-
-        <!-- Right Column: Text Selection -->
-        <div class="text-section">
-          <v-card variant="outlined" class="h-100">
-            <v-card-title class="d-flex align-center">
-              <v-icon class="me-2">mdi-text</v-icon>
-              Text & Strophen
-            </v-card-title>
-            <v-card-text class="flex-grow-1">
-              <!-- Text Selection -->
-              <div class="mb-4">
-                <div class="text-h6 mb-3">Text auswählen</div>
-                <v-autocomplete
-                  v-model="selectedText"
-                  label="Suche nach Texten"
-                  :items="store_texte"
-                  :custom-filter="custom_filter"
-                  item-title="titel"
-                  item-value="id"
-                  hide-details="auto"
-                  class="mb-4"
-                  return-object
-                  clearable
-                  @update:model-value="onTextSelected"
-                >
-                  <template #item="{ props, item }">
-                    <v-list-item
-                      v-bind="props"
-                      :title="item?.raw?.titel"
-                      :subtitle="item?.raw?.author_name"
-                    >
-                      <template #append>
-                        <v-chip size="small" color="primary">
-                          {{ item?.raw?.strophenEinzeln?.length || 0 }} Strophen
-                        </v-chip>
-                      </template>
-                      <span style="font-size: 0.8rem">{{
-                        item?.raw?.strophe_short
-                      }}</span>
-                    </v-list-item>
-                  </template>
-                </v-autocomplete>
-              </div>
-
-              <!-- Text Preview -->
-              <div v-if="selectedText?.strophenEinzeln">
-                <div class="text-subtitle-1 mb-2">Textvorschau:</div>
-                <div class="preview-box">
-                  <h3>{{ selectedText?.titel }}</h3>
-                  <div
-                    v-for="(
-                      strophe, index
-                    ) in selectedText.strophenEinzeln.slice(0, 2)"
-                    :key="index"
-                    class="mb-2"
-                  >
-                    <strong>{{ index + 1 }}.</strong>
-                    {{ strophe.strophe }}
-                  </div>
-                  <div
-                    v-if="selectedText.strophenEinzeln.length > 2"
-                    class="text-caption"
-                  >
-                    ... und
-                    {{ selectedText.strophenEinzeln.length - 2 }} weitere
-                    Strophen
-                  </div>
-                </div>
-
-                <v-alert type="success" variant="tonal" class="mt-3">
-                  Text verfügbar und bereit zur Anzeige
-                </v-alert>
-              </div>
-              <div v-else-if="!selectedText">
-                <v-alert type="info" variant="tonal">
-                  Bitte wählen Sie einen Text aus
-                </v-alert>
-              </div>
-              <div v-else>
-                <v-alert type="warning" variant="tonal">
-                  Ausgewählter Text hat keine Strophen
-                </v-alert>
-              </div>
             </v-card-text>
           </v-card>
         </div>
@@ -708,12 +708,11 @@ export default {
 .display-pane {
   position: relative;
   width: 100%;
-  height: 100vh;
+  min-height: 500px;
   background-color: #fcfcfc;
   border-radius: 5px;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease-in-out;
 
   &.fullscreen-mode {
     position: fixed;
@@ -730,6 +729,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
   padding: 12px 20px;
   background-color: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid #e0e0e0;
@@ -746,6 +746,12 @@ export default {
 .splitpanes-container {
   flex: 1;
   position: relative;
+  width: 100%;
+  height: 100%;
+
+  .splitpanes__pane {
+    height: auto;
+  }
 }
 
 .back-button {
@@ -776,6 +782,12 @@ export default {
 }
 
 .text-content {
+  height: calc(100vh - 300px); // Account for header, padding, and footer space
   padding: 60px 40px 40px;
+}
+
+.sing-mode-container {
+  height: auto;
+  max-height: none;
 }
 </style>

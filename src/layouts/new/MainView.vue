@@ -9,10 +9,12 @@
         </v-col>
 
         <v-col cols="12" lg="10">
-          <v-sheet min-height="70vh" rounded="lg">
-            <v-container>
+          <v-sheet rounded="lg" class="content-sheet">
+            <!-- <v-container>
+            </v-container> -->
+            <div class="pa-4">
               <router-view />
-            </v-container>
+            </div>
 
             <v-divider class="my-4"></v-divider>
 
@@ -37,5 +39,17 @@ import FooterBar from "@/layouts/new/FooterBar.vue";
 .nav-sheet {
   position: sticky;
   top: 80px;
+}
+
+.content-sheet {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-sheet .pa-4 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 </style>
