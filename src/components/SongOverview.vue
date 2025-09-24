@@ -509,6 +509,7 @@ export default {
       );
     },
     filtered_gesangbuchlieder() {
+      console.log("filtered_gesangbuchlieder");
       let filtered_gesangbuchlied = _.filter(
         this.gesangbuchlieder,
         (elem) =>

@@ -46,10 +46,4 @@ import FooterBar from "@/layouts/new/FooterBar.vue";
   display: flex;
   flex-direction: column;
 }
-
-.content-sheet .pa-4 {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
 </style>
