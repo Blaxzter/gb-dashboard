@@ -26,8 +26,8 @@ RUN apk add --no-cache gettext
 WORKDIR /usr/share/nginx/html
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Copy nginx.conf template
-COPY nginx.conf.template /etc/nginx/templates/nginx.conf.template
+# Copy nginx.conf template - use default.conf.template for proper processing
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

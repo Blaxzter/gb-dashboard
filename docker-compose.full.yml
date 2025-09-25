@@ -9,12 +9,11 @@ networks:
 services:
   frontend:
     build: .
-    restart:
-      always
+    restart: always
     ports:
       - "8082:80"
     # networks:
-      # - nginx-net
+    # - nginx-net
     environment:
       VIRTUAL_HOST: ${FRONTEND_VIRTUAL_HOST}
       VITE_DEFAULT_USER_ALIAS: ${VITE_DEFAULT_USER_ALIAS}
@@ -30,7 +29,7 @@ services:
 
       LETSENCRYPT_HOST: ${FRONTEND_LETSENCRYPT_HOST}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
-      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME}
 
   database:
