@@ -1,7 +1,7 @@
 <template>
-  <WorkOrders />
+    <WorkOrders />
 </template>
 
 <script setup>
-import WorkOrders from "@/components/Workorders/WorkOrders.vue";
+import WorkOrders from '@/components/Workorders/WorkOrders.vue';
 </script>

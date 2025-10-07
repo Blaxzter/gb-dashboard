@@ -1,19 +1,19 @@
 <template>
-  <v-menu transition="scale-transition">
-    <template #activator="{ props }">
-      <v-btn color="primary" v-bind="props" icon="mdi-menu"> </v-btn>
-    </template>
+    <v-menu transition="scale-transition">
+        <template #activator="{ props }">
+            <v-btn color="primary" v-bind="props" icon="mdi-menu"> </v-btn>
+        </template>
 
-    <MenuList />
-  </v-menu>
+        <MenuList />
+    </v-menu>
 </template>
 
 <script>
-import MenuList from "@/components/util/MenuList.vue";
+import MenuList from '@/components/util/MenuList.vue';
 
 export default {
-  name: "MenuComponent",
-  components: { MenuList },
+    name: 'MenuComponent',
+    components: { MenuList },
 };
 </script>
 

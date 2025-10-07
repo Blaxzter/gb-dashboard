@@ -1,7 +1,7 @@
 <template>
-  <DashboardComponent />
+    <DashboardComponent />
 </template>
 
 <script setup>
-import DashboardComponent from "@/components/DashboardComponent.vue";
+import DashboardComponent from '@/components/DashboardComponent.vue';
 </script>

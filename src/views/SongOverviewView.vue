@@ -1,7 +1,7 @@
 <template>
-  <SongOverview />
+    <SongOverview />
 </template>
 
 <script setup>
-import SongOverview from "@/components/SongOverview.vue";
+import SongOverview from '@/components/SongOverview.vue';
 </script>

@@ -1,7 +1,7 @@
 <template>
-  <SettingsComponent />
+    <SettingsComponent />
 </template>
 
 <script setup>
-import SettingsComponent from "@/components/SettingsComponent.vue";
+import SettingsComponent from '@/components/SettingsComponent.vue';
 </script>

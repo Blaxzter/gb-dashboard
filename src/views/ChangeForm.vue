@@ -1,7 +1,7 @@
 <template>
-  <ChangeSuggestionUpload />
+    <ChangeSuggestionUpload />
 </template>
 
 <script setup>
-import ChangeSuggestionUpload from "@/components/upload/ChangeSuggestionUpload.vue";
+import ChangeSuggestionUpload from '@/components/upload/ChangeSuggestionUpload.vue';
 </script>

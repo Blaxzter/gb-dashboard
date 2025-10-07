@@ -1,27 +1,34 @@
 <template>
     <div class="print-song-container">
-        <!-- Categories - Top Right -->
-        <div class="categories-section">
-            <v-chip
-                v-for="(category, index) in selectedSong?.kategories"
-                :key="index"
-                size="small"
-                :prepend-icon="gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)"
-                :style="{ 'background-color': get_color(category) }"
-                class="me-1"
-            >
-                {{ category?.kategorie_name?.name }}
-            </v-chip>
-        </div>
+        <!-- Title and Categories Row -->
+        <div class="title-categories-row">
+            <!-- Title -->
+            <div class="title-wrapper">
+                <h1 class="song-title">
+                    {{ selectedSong?.gesangbuch_titel }}
+                </h1>
+            </div>
 
-        <!-- Title -->
-        <h1 class="song-title">
-            {{ selectedSong?.gesangbuch_titel }}
-        </h1>
+            <!-- Categories -->
+            <div class="categories-section">
+                <v-chip
+                    v-for="(category, index) in selectedSong?.kategories"
+                    :key="index"
+                    size="small"
+                    :prepend-icon="
+                        gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)
+                    "
+                    :style="{ 'background-color': get_color(category) }"
+                    class="me-1"
+                >
+                    {{ category?.kategorie_name?.name }}
+                </v-chip>
+            </div>
+        </div>
 
         <!-- First Note/Image from Carousel -->
         <div v-if="firstCarouselFile" class="notes-section">
-          <NotenCarousel
+            <NotenCarousel
                 :melodie="selectedSong?.melodie"
                 :gesangbuchlied-satz-mit-melodie-und-text="
                     selectedSong?.gesangbuchlied_satz_mit_melodie_und_text
@@ -33,20 +40,22 @@
         <!-- Verses with Annotations -->
         <div class="verses-section">
             <h2 class="section-title">Strophen</h2>
-            <div
-                v-for="(strophe, index) in selectedSong?.text?.strophenEinzeln"
-                :key="index"
-                class="verse-row"
-            >
-                <div class="verse-content">
-                    <div class="verse-number">{{ index + 1 }}.</div>
-                    <div class="verse-text">
-                        {{ formatStropheText(strophe.strophe) }}
+            <div class="verses-container" :class="{ 'verses-wrapped': wrapLayout }">
+                <div
+                    v-for="(strophe, index) in selectedSong?.text?.strophenEinzeln"
+                    :key="index"
+                    class="verse-item"
+                >
+                    <div class="verse-content">
+                        <div class="verse-number">{{ index + 1 }}.</div>
+                        <div class="verse-text">
+                            {{ formatStropheText(strophe.strophe) }}
+                        </div>
                     </div>
-                </div>
-                <div v-if="strophe.anmerkung" class="verse-annotation">
-                    <v-icon icon="mdi-message" size="x-small" class="me-1" />
-                    <span>{{ strophe.anmerkung }}</span>
+                    <div v-if="strophe.anmerkung" class="verse-annotation">
+                        <v-icon icon="mdi-message" size="x-small" class="me-1" />
+                        <span>{{ strophe.anmerkung }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -124,7 +133,7 @@
         </div>
 
         <!-- Copyright Check Alert -->
-        <div v-if="selectedSong?.autor_oder_copyright_checken" class="copyright-alert">
+        <div v-if="selectedSong?.autor_oder_copyright_checken && !hideCopyrightAlert" class="copyright-alert">
             <v-alert
                 type="warning"
                 title="Autor/Copyright prüfen"
@@ -149,6 +158,14 @@ export default {
         selectedSong: {
             type: Object,
             required: true,
+        },
+        wrapLayout: {
+            type: Boolean,
+            default: false,
+        },
+        hideCopyrightAlert: {
+            type: Boolean,
+            default: false,
         },
     },
     computed: {
@@ -185,32 +202,42 @@ export default {
 .print-song-container {
     width: 210mm; /* A4 width */
     min-height: 297mm; /* A4 height */
-    padding: 15mm;
+    padding: 8mm;
     background: white;
     box-sizing: border-box;
     position: relative;
     page-break-after: always;
 }
 
-/* Categories - Top Right */
+/* Title and Categories Row - 60/40 Split */
+.title-categories-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    align-items: flex-start;
+}
+
+.title-wrapper {
+    flex: 0 0 60%;
+    min-width: 0; /* Allow text to wrap properly */
+}
+
+/* Categories */
 .categories-section {
-    position: absolute;
-    top: 15mm;
-    right: 15mm;
+    flex: 0 0 40%;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    max-width: 50%;
     justify-content: flex-end;
+    align-content: flex-start;
 }
 
 /* Title */
 .song-title {
-    font-size: 24pt;
+    font-size: 14pt;
     font-weight: bold;
-    margin-bottom: 15px;
+    margin-bottom: 0;
     margin-top: 0;
-    padding-right: 50%; /* Make room for categories */
 }
 
 /* Notes Section */
@@ -238,12 +265,30 @@ export default {
     margin-top: 0;
 }
 
-.verse-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
+/* Default: Straight/Vertical Layout */
+.verses-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.verse-item {
+    display: flex;
     gap: 15px;
-    margin-bottom: 12px;
     page-break-inside: avoid; /* Keep verse and annotation together */
+}
+
+/* Wrapped Layout Mode */
+.verses-container.verses-wrapped {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px 15px;
+    align-items: start;
+}
+
+.verses-container.verses-wrapped .verse-item {
+    flex-direction: column;
+    gap: 6px;
 }
 
 .verse-content {
@@ -268,10 +313,19 @@ export default {
     font-style: italic;
     display: flex;
     align-items: flex-start;
-    max-width: 200px;
     padding: 4px 8px;
     background-color: #f5f5f5;
     border-radius: 4px;
+}
+
+/* Annotation alignment for straight layout */
+.verses-container:not(.verses-wrapped) .verse-annotation {
+    max-width: 200px;
+}
+
+/* Annotation alignment for wrapped layout */
+.verses-container.verses-wrapped .verse-annotation {
+    margin-left: 35px; /* Align with verse text (verse-number width + gap) */
 }
 
 /* Authors Section */
@@ -350,7 +404,7 @@ export default {
         width: 100%;
         min-height: 100vh;
         margin: 0;
-        padding: 15mm;
+        padding: 8mm;
         page-break-after: always;
     }
 
@@ -359,7 +413,7 @@ export default {
     }
 
     /* Ensure verses don't break awkwardly */
-    .verse-row {
+    .verse-item {
         page-break-inside: avoid;
     }
 

@@ -42,6 +42,17 @@ Based on the dashboard images shown, here's a comprehensive feature list that co
 - Task distribution visualization
 - Rating overview charts
 
+### Performance & Offline Support
+- Service Worker caching for improved performance
+- Song data cached for 1 hour
+- Documents (PDFs, images, audio) cached for 1 week
+- Offline access to previously viewed content
+- Cache controls in footer (enable/disable, clear cache)
+- Toast notifications when data is loaded from cache
+- Cache hit statistics
+
+See [CACHE_README.md](CACHE_README.md) for detailed documentation on caching functionality.
+
 ## Project setup
 
 ### Frontend

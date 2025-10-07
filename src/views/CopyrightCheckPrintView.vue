@@ -13,6 +13,15 @@
                         </v-chip>
                     </v-col>
                     <v-col cols="auto">
+                        <v-switch
+                            v-model="wrapLayout"
+                            color="primary"
+                            label="Strophen umbrechend"
+                            hide-details
+                            density="compact"
+                        />
+                    </v-col>
+                    <v-col cols="auto">
                         <v-btn color="primary" prepend-icon="mdi-printer" @click="printPage">
                             Drucken
                         </v-btn>
@@ -35,6 +44,8 @@
                 v-for="(song, index) in songs"
                 :key="index"
                 :selected-song="song"
+                :wrap-layout="wrapLayout"
+                :hide-copyright-alert="true"
             />
         </div>
 
@@ -66,6 +77,7 @@ export default {
             store: useAppStore(),
             songs: [],
             loading: true,
+            wrapLayout: false,
         };
     },
     async mounted() {
