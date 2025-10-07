@@ -83,6 +83,22 @@ const routes = [
     ],
   },
   {
+    path: "/druckansicht",
+    name: "PrintView",
+    component: () =>
+      import(/* webpackChunkName: "home" */ "@/views/PrintView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/copyright-pruefen-druckansicht",
+    name: "CopyrightCheckPrintView",
+    component: () =>
+      import(
+        /* webpackChunkName: "home" */ "@/views/CopyrightCheckPrintView.vue"
+      ),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/login",
     name: "Login",
     component: () =>

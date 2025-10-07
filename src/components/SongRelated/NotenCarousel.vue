@@ -21,7 +21,7 @@
     </v-carousel-item>
   </v-carousel>
   <div
-    v-if="carousel_files.length"
+    v-if="carousel_files.length && !print"
     class="d-flex flex-row text-subtitle-2 align-center"
     style="max-width: 600px"
   >
@@ -88,6 +88,10 @@ export default {
     gesangbuchliedSatzMitMelodieUndText: {
       type: Array,
       required: true,
+    },
+    print: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ["visible_file"],
