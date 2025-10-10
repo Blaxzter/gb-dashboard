@@ -364,7 +364,7 @@ const get_color = (category) => {
                                         lied.gesangbuchlied_satz_mit_melodie_und_text?.[0] ||
                                         lied.melodie?.files?.[0]
                                     "
-                                    :sing-mode-screen="true"
+                                    :screen-mode="'sing-mode'"
                                 />
                             </div>
                         </pane>

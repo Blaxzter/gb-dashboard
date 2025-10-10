@@ -116,7 +116,7 @@ export default {
                     style="overflow: hidden"
                 >
                     <div v-if="!book_fully_open" class="flip-content position-relative h-100">
-                        <MediaComponent :file="selectedMediaFile" :sing-mode-screen="true" />
+                        <MediaComponent :file="selectedMediaFile" :screen-mode="'sing-mode'" />
                     </div>
                 </div>
                 <div
@@ -143,7 +143,7 @@ export default {
             <splitpanes :dbl-click-splitter="false" @resize="setPosition">
                 <pane min-size="20">
                     <div class="position-relative h-100" style="overflow: auto">
-                        <MediaComponent :file="selectedMediaFile" :sing-mode-screen="true" />
+                        <MediaComponent :file="selectedMediaFile" :screen-mode="'sing-mode'" />
                     </div>
                 </pane>
                 <pane min-size="20" style="overflow: auto">

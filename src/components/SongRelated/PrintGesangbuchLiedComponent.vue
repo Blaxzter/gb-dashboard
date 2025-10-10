@@ -1,5 +1,146 @@
 <template>
-    <div class="print-song-container">
+    <div ref="container" class="print-song-container">
+        <!-- Content to measure (everything except media) -->
+        <div ref="contentToMeasure" style="opacity: 0; position: absolute; width: 100%;" v-if="calculatedMediaHeight === 0">
+            <!-- Title and Categories Row -->
+            <div class="title-categories-row">
+                <!-- Title -->
+                <div class="title-wrapper">
+                    <h1 class="song-title">
+                        {{ selectedSong?.gesangbuch_titel }}
+                    </h1>
+                </div>
+
+                <!-- Categories -->
+                <div class="categories-section">
+                    <v-chip
+                        v-for="(category, index) in selectedSong?.kategories"
+                        :key="index"
+                        size="small"
+                        :prepend-icon="
+                            gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)
+                        "
+                        :style="{ 'background-color': get_color(category) }"
+                        class="me-1"
+                    >
+                        {{ category?.kategorie_name?.name }}
+                    </v-chip>
+                </div>
+            </div>
+
+            <!-- Verses with Annotations -->
+            <div class="verses-section">
+                <h2 class="section-title">Strophen</h2>
+                <div class="verses-container" :class="{ 'verses-wrapped': wrapLayout }">
+                    <div
+                        v-for="(strophe, index) in selectedSong?.text?.strophenEinzeln"
+                        :key="index"
+                        class="verse-item"
+                    >
+                        <div class="verse-content">
+                            <div class="verse-number">{{ index + 1 }}.</div>
+                            <div class="verse-text">
+                                {{ formatStropheText(strophe.strophe) }}
+                            </div>
+                        </div>
+                        <div v-if="strophe.anmerkung" class="verse-annotation">
+                            <v-icon icon="mdi-message" size="x-small" class="me-1" />
+                            <span>{{ strophe.anmerkung }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Authors and Submitter Row -->
+            <div class="authors-submitter-row">
+                <!-- Authors -->
+                <div class="authors-section">
+                    <div
+                        v-for="(author_source, index_1) in [
+                            { name: 'Text', src: selectedSong?.text?.authors },
+                            { name: 'Melodie', src: selectedSong?.melodie?.authors },
+                        ]"
+                        :key="index_1"
+                    >
+                        <div v-if="author_source?.src?.length" class="author-group">
+                            <h3 class="author-type">{{ author_source.name }} Autor</h3>
+                            <div
+                                v-for="(author, index) in author_source.src"
+                                :key="index"
+                                class="author-item"
+                            >
+                                <span class="author-number">{{ index + 1 }}.</span>
+                                <span class="author-name">
+                                    {{ author.vorname }} {{ author.nachname }}
+                                    {{
+                                        author.geburtsjahr || author.sterbejahr
+                                            ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
+                                            : ''
+                                    }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submitter -->
+                <div v-if="selectedSong?.einreicherName" class="submitter-section">
+                    <h3 class="author-type">Eingereicht von</h3>
+                    <div class="submitter-name">{{ selectedSong?.einreicherName }}</div>
+                </div>
+            </div>
+
+            <!-- General Annotations -->
+            <div
+                v-if="
+                    selectedSong?.anmerkung ||
+                    selectedSong?.text?.anmerkung ||
+                    selectedSong?.melodie?.anmerkung
+                "
+                class="general-annotations"
+            >
+                <h3 class="section-subtitle">Anmerkung:</h3>
+                <div v-if="selectedSong?.anmerkung" class="annotation-item">
+                    {{ selectedSong?.anmerkung }}
+                </div>
+                <div v-if="selectedSong?.text?.anmerkung" class="annotation-item">
+                    <v-icon icon="mdi-text-box" size="small" class="me-2" />
+                    {{ selectedSong?.text.anmerkung }}
+                </div>
+                <div v-if="selectedSong?.melodie?.anmerkung" class="annotation-item">
+                    <v-icon icon="mdi-music" size="small" class="me-2" />
+                    {{ selectedSong?.melodie.anmerkung }}
+                </div>
+            </div>
+
+            <!-- Gesangbuch 2000 Reference -->
+            <div v-if="selectedSong?.liednummer2000" class="gb2000-section">
+                <span class="label">Gesangbuchlied 2000:</span>
+                <span>{{ selectedSong?.liednummer2000 }}</span>
+                <span v-if="selectedSong?.melodieGeaendert || selectedSong?.textGeaendert"> mit </span>
+                <v-icon v-if="selectedSong?.melodieGeaendert" icon="mdi-music-box" size="small" />
+                <span v-if="selectedSong?.melodieGeaendert && selectedSong?.textGeaendert"> und </span>
+                <v-icon v-if="selectedSong?.textGeaendert" icon="mdi-text-box-edit" size="small" />
+                <span v-if="selectedSong?.melodieGeaendert || selectedSong?.textGeaendert">
+                    geändert.
+                </span>
+            </div>
+
+            <!-- Copyright Check Alert -->
+            <div
+                v-if="selectedSong?.autor_oder_copyright_checken && !hideCopyrightAlert"
+                class="copyright-alert"
+            >
+                <v-alert
+                    type="warning"
+                    title="Autor/Copyright prüfen"
+                    text="Dieses Lied muss auf Autor oder Copyright geprüft werden."
+                    density="compact"
+                />
+            </div>
+        </div>
+
+        <!-- Actual visible content -->
         <!-- Title and Categories Row -->
         <div class="title-categories-row">
             <!-- Title -->
@@ -27,13 +168,12 @@
         </div>
 
         <!-- First Note/Image from Carousel -->
-        <div v-if="firstCarouselFile" class="notes-section">
-            <NotenCarousel
-                :melodie="selectedSong?.melodie"
-                :gesangbuchlied-satz-mit-melodie-und-text="
-                    selectedSong?.gesangbuchlied_satz_mit_melodie_und_text
-                "
-                :print="true"
+        <div v-if="firstCarouselFile" ref="notesSection" class="notes-section">
+            <MediaComponent
+                v-if="firstCarouselFile && calculatedMediaHeight > 0"
+                :file="firstCarouselFile"
+                :screen-mode="'print'"
+                :max-height="calculatedMediaHeight"
             />
         </div>
 
@@ -60,40 +200,43 @@
             </div>
         </div>
 
-        <!-- Authors -->
-        <div class="authors-section">
-            <div
-                v-for="(author_source, index_1) in [
-                    { name: 'Text', src: selectedSong?.text?.authors },
-                    { name: 'Melodie', src: selectedSong?.melodie?.authors },
-                ]"
-                :key="index_1"
-            >
-                <div v-if="author_source?.src?.length" class="author-group">
-                    <h3 class="author-type">{{ author_source.name }} Autor</h3>
-                    <div
-                        v-for="(author, index) in author_source.src"
-                        :key="index"
-                        class="author-item"
-                    >
-                        <span class="author-number">{{ index + 1 }}.</span>
-                        <span class="author-name">
-                            {{ author.vorname }} {{ author.nachname }}
-                            {{
-                                author.geburtsjahr || author.sterbejahr
-                                    ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
-                                    : ''
-                            }}
-                        </span>
+        <!-- Authors and Submitter Row -->
+        <div class="authors-submitter-row">
+            <!-- Authors -->
+            <div class="authors-section">
+                <div
+                    v-for="(author_source, index_1) in [
+                        { name: 'Text', src: selectedSong?.text?.authors },
+                        { name: 'Melodie', src: selectedSong?.melodie?.authors },
+                    ]"
+                    :key="index_1"
+                >
+                    <div v-if="author_source?.src?.length" class="author-group">
+                        <h3 class="author-type">{{ author_source.name }} Autor</h3>
+                        <div
+                            v-for="(author, index) in author_source.src"
+                            :key="index"
+                            class="author-item"
+                        >
+                            <span class="author-number">{{ index + 1 }}.</span>
+                            <span class="author-name">
+                                {{ author.vorname }} {{ author.nachname }}
+                                {{
+                                    author.geburtsjahr || author.sterbejahr
+                                        ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
+                                        : ''
+                                }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Submitter -->
-        <div v-if="selectedSong?.einreicherName" class="submitter-section">
-            <span class="label">Eingereicht von:</span>
-            <span>{{ selectedSong?.einreicherName }}</span>
+            <!-- Submitter -->
+            <div v-if="selectedSong?.einreicherName" class="submitter-section">
+                <h3 class="author-type">Eingereicht von</h3>
+                <div class="submitter-name">{{ selectedSong?.einreicherName }}</div>
+            </div>
         </div>
 
         <!-- General Annotations -->
@@ -133,7 +276,10 @@
         </div>
 
         <!-- Copyright Check Alert -->
-        <div v-if="selectedSong?.autor_oder_copyright_checken && !hideCopyrightAlert" class="copyright-alert">
+        <div
+            v-if="selectedSong?.autor_oder_copyright_checken && !hideCopyrightAlert"
+            class="copyright-alert"
+        >
             <v-alert
                 type="warning"
                 title="Autor/Copyright prüfen"
@@ -145,14 +291,16 @@
 </template>
 
 <script>
-import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
+// import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
+import MediaComponent from '@/components/SongRelated/MediaComponent.vue';
 import { gesangbuch_kategorie_name_to_icon, chart_colors } from '@/assets/js/utils';
 import _ from 'lodash';
 
 export default {
     name: 'PrintGesangbuchLiedComponent',
     components: {
-        NotenCarousel,
+        // NotenCarousel,
+        MediaComponent,
     },
     props: {
         selectedSong: {
@@ -167,6 +315,12 @@ export default {
             type: Boolean,
             default: false,
         },
+    },
+    data() {
+        return {
+            calculatedMediaHeight: 0,
+            pageData: null,
+        };
     },
     computed: {
         firstCarouselFile() {
@@ -184,6 +338,12 @@ export default {
             return uniqueFiles.length > 0 ? uniqueFiles[0] : null;
         },
     },
+    mounted() {
+        this.calculateMediaHeight();
+    },
+    updated() {
+        this.calculateMediaHeight();
+    },
     methods: {
         gesangbuch_kategorie_name_to_icon,
         get_color(category) {
@@ -194,6 +354,52 @@ export default {
             // Remove syllable symbols for print
             return text.replace(/¬/g, '');
         },
+        calculateMediaHeight() {
+            this.$nextTick(() => {
+                const container = this.$refs.container;
+                const contentToMeasure = this.$refs.contentToMeasure;
+
+                if (!container || !contentToMeasure) {
+                    return;
+                }
+
+                // Get container dimensions
+                const containerStyles = window.getComputedStyle(container);
+                const containerPadding =
+                    parseFloat(containerStyles.paddingTop) +
+                    parseFloat(containerStyles.paddingBottom);
+
+                // A4 height in pixels (at 96 DPI: 297mm = 1122.5px)
+                const a4HeightPx = 297 * 3.7795275591; // mm to px conversion
+
+                // Measure the content height
+                const contentHeight = contentToMeasure.offsetHeight;
+
+                // Calculate available space for media
+                // Total available = A4 height - padding - content height - margin buffer
+                const marginBuffer = 200; // 20px margin for notes section
+                const availableHeight = a4HeightPx - containerPadding - contentHeight - marginBuffer;
+                // console.log('Available height:', availableHeight);
+
+                // Set minimum height of 100px, maximum of available space
+                const calculatedHeight = Math.max(100, Math.min(availableHeight, a4HeightPx * 0.6));
+                // console.log('Calculated height:', calculatedHeight);
+
+                this.calculatedMediaHeight = calculatedHeight;
+
+                // console.log('Container padding:', containerPadding);
+                // console.log('Content height:', contentHeight);
+                // console.log('Available height:', availableHeight);
+                // console.log('Calculated media height:', calculatedHeight);
+                // this.pageData = {
+                //     calculatedMediaHeight: calculatedHeight,
+                //     containerPadding,
+                //     contentHeight,
+                //     availableHeight,
+                //     calculatedHeight: calculatedHeight,
+                // };
+            });
+        },
     },
 };
 </script>
@@ -202,11 +408,25 @@ export default {
 .print-song-container {
     width: 210mm; /* A4 width */
     min-height: 297mm; /* A4 height */
-    padding: 8mm;
+    padding: 7mm;
     background: white;
     box-sizing: border-box;
     position: relative;
     page-break-after: always;
+    page-break-inside: avoid; /* Try to keep each song on one page */
+}
+
+.page-data {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 10pt;
+    font-family: monospace;
+    z-index: 1000;
 }
 
 /* Title and Categories Row - 60/40 Split */
@@ -218,13 +438,13 @@ export default {
 }
 
 .title-wrapper {
-    flex: 0 0 60%;
+    flex: 0 0 55%;
     min-width: 0; /* Allow text to wrap properly */
 }
 
 /* Categories */
 .categories-section {
-    flex: 0 0 40%;
+    flex: 0 0 45%;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -242,9 +462,8 @@ export default {
 
 /* Notes Section */
 .notes-section {
-    /* max-height: 20vh; /* 20% of viewport height, approximately 20% of A4 */
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -255,7 +474,7 @@ export default {
 
 /* Verses Section */
 .verses-section {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .section-title {
@@ -300,11 +519,13 @@ export default {
     font-weight: 600;
     min-width: 25px;
     flex-shrink: 0;
+    font-size: 10pt;
 }
 
 .verse-text {
     white-space: pre-line;
     line-height: 1.5;
+    font-size: 10pt;
 }
 
 .verse-annotation {
@@ -328,19 +549,31 @@ export default {
     margin-left: 35px; /* Align with verse text (verse-number width + gap) */
 }
 
+/* Authors and Submitter Row */
+.authors-submitter-row {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 10px;
+    page-break-inside: avoid; /* Keep authors together */
+    flex-wrap: wrap;
+}
+
 /* Authors Section */
 .authors-section {
-    margin-bottom: 15px;
+    display: flex;
+    gap: 20px;
+    flex: 1;
 }
 
 .author-group {
-    margin-bottom: 10px;
+    flex: 1;
+    min-width: 150px;
 }
 
 .author-type {
     font-size: 11pt;
     font-weight: 600;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     margin-top: 0;
 }
 
@@ -357,25 +590,31 @@ export default {
 
 /* Submitter Section */
 .submitter-section {
-    margin-bottom: 10px;
+    flex: 0 0 auto;
+    min-width: 150px;
+}
+
+.submitter-name {
     font-size: 10pt;
+    margin-bottom: 3px;
 }
 
 /* General Annotations */
 .general-annotations {
-    margin-bottom: 15px;
+    margin-bottom: 3px;
+    page-break-inside: avoid; /* Keep annotations together */
 }
 
 .section-subtitle {
     font-size: 11pt;
     font-weight: 600;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     margin-top: 0;
 }
 
 .annotation-item {
     font-size: 10pt;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     white-space: pre-wrap;
     display: flex;
     align-items: flex-start;
@@ -389,13 +628,13 @@ export default {
 
 /* Copyright Alert */
 .copyright-alert {
-    margin-top: 15px;
+    margin-top: 13px;
 }
 
 /* Common */
 .label {
     font-weight: 600;
-    margin-right: 5px;
+    margin-right: 3px;
 }
 
 /* Print Styles */
@@ -404,12 +643,8 @@ export default {
         width: 100%;
         min-height: 100vh;
         margin: 0;
-        padding: 8mm;
+        padding: 7mm;
         page-break-after: always;
-    }
-
-    .notes-section {
-        max-height: 60mm; /* Fixed height for print */
     }
 
     /* Ensure verses don't break awkwardly */
@@ -425,7 +660,12 @@ export default {
 @media screen {
     .print-song-container {
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        margin: 20px auto;
+        margin: 0px auto 20px auto;
     }
+}
+
+
+::v-deep(.section-subtitle) {
+  margin-bottom: 0;
 }
 </style>

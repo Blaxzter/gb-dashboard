@@ -373,7 +373,7 @@
                             <div class="position-relative h-100" style="overflow: auto">
                                 <MediaComponent
                                     :file="selectedMediaFile"
-                                    :sing-mode-screen="true"
+                                    :screen-mode="'sing-mode'"
                                 />
                             </div>
                         </pane>

@@ -1,18 +1,12 @@
 import pluginVue from 'eslint-plugin-vue';
-import prettierPlugin from 'eslint-plugin-prettier/recommended';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default [
     ...pluginVue.configs['flat/recommended'],
-    prettierPlugin,
+    eslintConfigPrettier,
     {
         rules: {
             'vue/no-v-html': 'off',
-            'prettier/prettier': [
-                'error',
-                {
-                    endOfLine: 'auto',
-                },
-            ],
         },
     },
 ];

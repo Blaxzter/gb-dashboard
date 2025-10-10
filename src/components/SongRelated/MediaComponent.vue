@@ -12,9 +12,13 @@ export default {
             type: Object,
             required: true,
         },
-        singModeScreen: {
-            type: Boolean,
-            default: false,
+        screenMode: {
+            type: String,
+            default: null,
+        },
+        maxHeight: {
+            type: Number,
+            default: null,
         },
     },
     emits: ['fullscreen_pdf'],
@@ -69,9 +73,9 @@ export default {
 
 <template>
     <div
-        v-if="singModeScreen && file?.type !== 'application/pdf'"
+        v-if="screenMode === 'sing-mode' && file?.type !== 'application/pdf'"
         style="position: absolute; z-index: 20"
-        class="pl-5 pt-2"
+        class="pl-5 pt-2 position-relative"
     >
         <v-btn
             icon="mdi-magnify-minus-outline"
@@ -89,7 +93,7 @@ export default {
         />
     </div>
     <div v-if="file?.type === 'application/pdf'" class="h-100">
-        <div v-if="singModeScreen" class="h-100">
+        <div v-if="screenMode === 'sing-mode'" class="h-100">
             <vue-pdf-app
                 ref="pdfApp"
                 :config="config"
@@ -101,14 +105,14 @@ export default {
         <div
             v-else
             class="d-flex align-center justify-center fill-height"
-            :class="{ 'bg-grey': !singModeScreen }"
+            :class="{ 'bg-grey': screenMode !== 'sing-mode' && screenMode !== 'print' }"
         >
             <vue-pdf-embed
-                :height="300"
+                :height="screenMode === 'print' && maxHeight ? maxHeight : 300"
                 :source="getPdfUrl(file.id)"
                 :page="1"
-                style="cursor: pointer"
-                @click="fullscreen_pdf($event, file)"
+                :style="screenMode === 'print' ? '' : 'cursor: pointer'"
+                @click="screenMode !== 'print' ? fullscreen_pdf($event, file) : null"
             />
         </div>
     </div>
@@ -145,40 +149,46 @@ export default {
         </div>
     </div>
     <div
-        v-else-if="is_image(file) && singModeScreen"
-        class="d-flex flex-column align-center pt-5 h-100"
+        v-else-if="is_image(file) && (screenMode === 'sing-mode' || screenMode === 'print')"
+        class="d-flex flex-column align-center h-100"
+        :class="{ 'pt-5': screenMode === 'sing-mode' }"
     >
-        <div :class="{ 'pa-10': singModeScreen }">
-            <div class="text-h6 mb-3">
+        <div :class="{ 'pa-10': screenMode === 'sing-mode' }">
+            <div v-if="screenMode === 'sing-mode'" class="text-h6 mb-3">
                 {{ file.title }}
             </div>
             <div class="d-flex align-center justify-center">
-                <div :style="{ maxWidth: `${maxWidth}%` }">
+                <div
+                    :style="{
+                        maxWidth: `${maxWidth}%`,
+                        maxHeight: screenMode === 'print' && maxHeight ? `${maxHeight}px` : 'none'
+                    }"
+                >
                     <img
                         :src="getImgUrl(file.id)"
                         alt="Bild"
-                        style="max-height: 100%; max-width: 100%"
+                        :style="{
+                            maxHeight: screenMode === 'print' && maxHeight ? `${maxHeight}px` : '100%',
+                            maxWidth: '100%',
+                            objectFit: 'contain'
+                        }"
                     />
                 </div>
             </div>
         </div>
     </div>
-    <div v-else-if="!is_image(file)" class="d-flex flex-column align-center justify-center h-100">
-        <div class="d-flex align-center">
-            <div class="me-4">
-                <v-icon size="40">mdi-file</v-icon>
+    <div v-else>
+        <div class="d-flex flex-column align-center justify-center h-100">
+            <v-icon size="40">mdi-file</v-icon>
+            <div class="text-h6">
+                {{ file.title }}
             </div>
-            <div>
-                <div class="text-h6">
-                    {{ file.title }}
-                </div>
-                <div class="d-flex align-center">
-                    <div class="me-3">
-                        Dieses Dateiformat wird aktuell <br />
-                        noch nicht unterstützt.
-                    </div>
-                    <v-icon size="40">mdi-emoticon-sad-outline</v-icon>
-                </div>
+            <div class="text-subtitle-2">
+                Dieses Dateiformat wird aktuell noch nicht unterstützt.
+            </div>
+            <div class="text-subtitle-2">
+                {{ file.type }}
+                {{ is_image(file) }}
             </div>
         </div>
     </div>
