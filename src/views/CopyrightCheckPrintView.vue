@@ -160,8 +160,7 @@ export default {
             // Filter songs that need copyright checking and have "rein" in kleiner kreis bewertung
             this.songs = this.store.gesangbuchlieder.filter(
                 (song) =>
-                    song.autor_oder_copyright_checken === true &&
-                    song.bewertung_kleiner_kreis?.bezeichner?.toLowerCase() === 'rein',
+                    song.autor_oder_copyright_checken === true && song.bewertung_kleiner_kreis?.bezeichner?.toLowerCase()?.includes('rein'),
             );
 
             // Initialize all songs as visible
