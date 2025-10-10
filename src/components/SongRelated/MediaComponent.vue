@@ -177,7 +177,7 @@ export default {
             </div>
         </div>
     </div>
-    <div v-else>
+    <div v-else-if="!is_image(file)">
         <div class="d-flex flex-column align-center justify-center h-100">
             <v-icon size="40">mdi-file</v-icon>
             <div class="text-h6">
@@ -188,7 +188,6 @@ export default {
             </div>
             <div class="text-subtitle-2">
                 {{ file.type }}
-                {{ is_image(file) }}
             </div>
         </div>
     </div>
