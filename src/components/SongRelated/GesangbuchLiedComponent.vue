@@ -176,7 +176,7 @@
                     </div>
                     <div v-if="selectedSong?.bewertungAnmerkung" class="ms-10 d-flex">
                         <v-icon icon="mdi-arrow-right-bottom" class="me-2" />
-                        <div class="pt-1">
+                        <div class="pt-1 white-space-pre">
                             {{ selectedSong?.bewertungAnmerkung }}
                         </div>
                     </div>
@@ -197,7 +197,7 @@
                     </div>
                     <div v-if="selectedSong?.text?.bewertungAnmerkung" class="ms-10 d-flex">
                         <v-icon icon="mdi-arrow-right-bottom" class="me-2" />
-                        <div class="pt-1">
+                        <div class="pt-1 white-space-pre">
                             {{ selectedSong?.text?.bewertungAnmerkung }}
                         </div>
                     </div>
@@ -218,7 +218,7 @@
                     </div>
                     <div v-if="selectedSong?.melodie?.bewertungAnmerkung" class="ms-10 d-flex">
                         <v-icon icon="mdi-arrow-right-bottom" class="me-2" />
-                        <div class="pt-1">
+                        <div class="pt-1 white-space-pre">
                             {{ selectedSong?.melodie?.bewertungAnmerkung }}
                         </div>
                     </div>
