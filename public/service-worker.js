@@ -157,6 +157,13 @@ self.addEventListener('activate', (event) => {
 // Fetch event - implement caching strategy
 self.addEventListener('fetch', (event) => {
     const { request } = event;
+
+    // Only cache GET requests - POST/PUT/PATCH/DELETE cannot be cached
+    if (request.method !== 'GET') {
+        console.log('[SW] ⚠️ Skipping non-GET request:', request.method, request.url);
+        return;
+    }
+
     const cacheInfo = shouldCacheUrl(request.url);
 
     if (!cacheInfo.cache) {

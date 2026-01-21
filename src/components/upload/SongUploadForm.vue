@@ -393,396 +393,417 @@ export default {
             }
         },
         async send_data() {
-            // VALIDATE TEXT AUTHORS
-            console.log('VALIDATE TEXT AUTHORS');
-            let to_be_created_text_authors = [];
-            if (!this.existing_text) {
-                for (let author of this.text.authors) {
-                    console.log(author);
-                    if (!this.validate_author(author)) {
-                        alert('Ein Text Autor hat keinen Nachnamen.');
-                        return;
-                    }
-                    let to_be_created_text_author = {
-                        vorname: author.firstName === '' ? null : author.firstName,
-                        nachname: author.lastName === '' ? null : author.lastName,
-                        geburtsjahr: author.birthdate
-                            ? Number(moment(author.birthdate).format('YYYY'))
-                            : null,
-                        sterbejahr: author.deathdate
-                            ? Number(moment(author.deathdate).format('YYYY'))
-                            : null,
-                    };
-                    if (!_.every(to_be_created_text_author, (val) => val === null)) {
-                        to_be_created_text_author['status'] = 'uploaded';
-                        to_be_created_text_authors.push(to_be_created_text_author);
-                    }
-                }
-            }
+            try {
+                this.loading = true;
 
-            // VALIDATE MELODIE AUTHORS
-            console.log('VALIDATE MELODIE AUTHORS');
-            let to_be_created_melodie_authors = [];
-            if (!this.existing_melodie) {
-                for (let author of this.melodie.authors) {
-                    if (!this.validate_author(author)) {
-                        alert('Ein Melodie Autor hat keinen Nachnamen.');
-                        return;
-                    }
-                    let to_be_created_melodie_author = {
-                        vorname: author.firstName === '' ? null : author.firstName,
-                        nachname: author.lastName === '' ? null : author.lastName,
-                        geburtsjahr: author.birthdate
-                            ? Number(moment(author.birthdate).format('YYYY'))
-                            : null,
-                        sterbejahr: author.deathdate
-                            ? Number(moment(author.deathdate).format('YYYY'))
-                            : null,
-                    };
-                    if (!_.every(to_be_created_melodie_author, (val) => val === null)) {
-                        to_be_created_melodie_author['status'] = 'uploaded';
-                        to_be_created_melodie_authors.push(to_be_created_melodie_author);
+                // VALIDATE ALL DATA FIRST
+                console.log('VALIDATE TEXT AUTHORS');
+                let to_be_created_text_authors = [];
+                if (!this.existing_text) {
+                    for (let author of this.text.authors) {
+                        console.log(author);
+                        if (!this.validate_author(author)) {
+                            alert('Ein Text Autor hat keinen Nachnamen.');
+                            return;
+                        }
+                        let to_be_created_text_author = {
+                            vorname: author.firstName === '' ? null : author.firstName,
+                            nachname: author.lastName === '' ? null : author.lastName,
+                            geburtsjahr: author.birthdate
+                                ? Number(moment(author.birthdate).format('YYYY'))
+                                : null,
+                            sterbejahr: author.deathdate
+                                ? Number(moment(author.deathdate).format('YYYY'))
+                                : null,
+                        };
+                        if (!_.every(to_be_created_text_author, (val) => val === null)) {
+                            to_be_created_text_author['status'] = 'uploaded';
+                            to_be_created_text_authors.push(to_be_created_text_author);
+                        }
                     }
                 }
-            }
 
-            if (!Number.isInteger(Number(this.liednummer2000))) {
-                alert('Lied Nummer 2000 ist keine Zahl.');
-                this.liednummer2000 = null;
-                return;
-            }
+                // VALIDATE MELODIE AUTHORS
+                console.log('VALIDATE MELODIE AUTHORS');
+                let to_be_created_melodie_authors = [];
+                if (!this.existing_melodie) {
+                    for (let author of this.melodie.authors) {
+                        if (!this.validate_author(author)) {
+                            alert('Ein Melodie Autor hat keinen Nachnamen.');
+                            return;
+                        }
+                        let to_be_created_melodie_author = {
+                            vorname: author.firstName === '' ? null : author.firstName,
+                            nachname: author.lastName === '' ? null : author.lastName,
+                            geburtsjahr: author.birthdate
+                                ? Number(moment(author.birthdate).format('YYYY'))
+                                : null,
+                            sterbejahr: author.deathdate
+                                ? Number(moment(author.deathdate).format('YYYY'))
+                                : null,
+                        };
+                        if (!_.every(to_be_created_melodie_author, (val) => val === null)) {
+                            to_be_created_melodie_author['status'] = 'uploaded';
+                            to_be_created_melodie_authors.push(to_be_created_melodie_author);
+                        }
+                    }
+                }
 
-            // CREATE GESANGBUCHLIED
-            console.log('CREATE GESANGBUCHLIED');
-            let create_gesangbuchlied = {
-                titel: _.isEmpty(this.title) ? null : this.title,
-                externerLink: _.isEmpty(this.externer_link) ? null : this.externer_link,
-                linkCloud: _.isEmpty(this.cloud_link) ? null : this.cloud_link,
-                anmerkung: _.isEmpty(this.anmerkung) ? null : this.anmerkung,
-                liednummer2000: _.isEmpty(this.liednummer2000) ? null : Number(this.liednummer2000),
-                einreicherName: _.isEmpty(this.einreicherName) ? null : this.einreicherName,
-            };
+                if (!Number.isInteger(Number(this.liednummer2000))) {
+                    alert('Lied Nummer 2000 ist keine Zahl.');
+                    this.liednummer2000 = null;
+                    return;
+                }
 
-            if (!_.every(create_gesangbuchlied, (val) => val === null)) {
-                create_gesangbuchlied['melodieGeaendert'] =
-                    _.find(this.geandert, (elem) => elem === 'melodie_geaendert') !== undefined;
-                create_gesangbuchlied['textGeaendert'] =
-                    _.find(this.geandert, (elem) => elem === 'text_geaendert') !== undefined;
-                create_gesangbuchlied['status'] = 'uploaded';
+                // UPLOAD FILES FIRST (if any)
+                console.log('UPLOAD FILES');
+                let created_files = [];
+                if (this.melodie.noten && this.melodie.noten.length > 0) {
+                    created_files = await this.upload_file();
+                }
 
-                console.log(create_gesangbuchlied);
-                let created_gesangbuchlied = null;
-                await axios
-                    .post(
+                // CREATE GESANGBUCHLIED
+                console.log('CREATE GESANGBUCHLIED');
+                let create_gesangbuchlied = {
+                    titel: _.isEmpty(this.title) ? null : this.title,
+                    externerLink: _.isEmpty(this.externer_link) ? null : this.externer_link,
+                    linkCloud: _.isEmpty(this.cloud_link) ? null : this.cloud_link,
+                    anmerkung: _.isEmpty(this.anmerkung) ? null : this.anmerkung,
+                    liednummer2000: _.isEmpty(this.liednummer2000)
+                        ? null
+                        : Number(this.liednummer2000),
+                    einreicherName: _.isEmpty(this.einreicherName) ? null : this.einreicherName,
+                };
+
+                if (!_.every(create_gesangbuchlied, (val) => val === null)) {
+                    create_gesangbuchlied['melodieGeaendert'] =
+                        _.find(this.geandert, (elem) => elem === 'melodie_geaendert') !== undefined;
+                    create_gesangbuchlied['textGeaendert'] =
+                        _.find(this.geandert, (elem) => elem === 'text_geaendert') !== undefined;
+                    create_gesangbuchlied['status'] = 'uploaded';
+
+                    console.log(create_gesangbuchlied);
+                    let created_gesangbuchlied = null;
+                    const resp = await axios.post(
                         `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied`,
                         create_gesangbuchlied,
-                    )
-                    .then((resp) => {
-                        console.log('created gesangbuchlied', resp.data.data);
-                        created_gesangbuchlied = resp.data.data;
-                        this.successfully_created.gesangbuchlied = resp.data.data;
-                        this.store.addGesangbuchlied(resp.data.data);
-                    });
+                    );
+                    console.log('created gesangbuchlied', resp.data.data);
+                    created_gesangbuchlied = resp.data.data;
+                    this.successfully_created.gesangbuchlied = resp.data.data;
+                    this.store.addGesangbuchlied(resp.data.data);
 
-                if (created_gesangbuchlied !== null) {
-                    // CREATE KATEGORIE GESANGBUCHLIED
-                    console.log('CREATE KATEGORIE GESANGBUCHLIED');
-                    let to_be_created_category_lied_mapping = [];
-                    for (let current_category of this.kategorie) {
-                        let category_lied = {
-                            gesangbuchlied_id: created_gesangbuchlied.id,
-                            kategorie_id: current_category.id,
-                        };
-                        if (!_.every(category_lied, (val) => val === null))
-                            to_be_created_category_lied_mapping.push(category_lied);
-                    }
-                    if (to_be_created_category_lied_mapping.length !== 0) {
-                        console.log(
-                            'to_be_created_category_lied_mapping',
-                            to_be_created_category_lied_mapping,
-                        );
-                        await axios
-                            .post(
+                    if (created_gesangbuchlied !== null) {
+                        // CREATE KATEGORIE GESANGBUCHLIED MAPPINGS IN BATCH
+                        console.log('CREATE KATEGORIE GESANGBUCHLIED');
+                        if (this.kategorie.length > 0) {
+                            let to_be_created_category_lied_mapping = this.kategorie.map(
+                                (current_category) => ({
+                                    gesangbuchlied_id: created_gesangbuchlied.id,
+                                    kategorie_id: current_category.id,
+                                }),
+                            );
+
+                            console.log(
+                                'to_be_created_category_lied_mapping',
+                                to_be_created_category_lied_mapping,
+                            );
+                            const categoryResp = await axios.post(
                                 `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`,
                                 to_be_created_category_lied_mapping,
-                            )
-                            .then((resp) => {
-                                console.log(
-                                    'created to_be_created_category_lied_mapping',
-                                    resp.data.data,
-                                );
-                                this.successfully_created.category_gesangbuchlied_mapping =
-                                    resp.data.data;
-                                _.forEach(resp.data.data, (elem) =>
-                                    this.store.addKategorieGesangbuchlied(elem),
-                                );
-                            });
+                            );
+                            console.log(
+                                'created to_be_created_category_lied_mapping',
+                                categoryResp.data.data,
+                            );
+                            this.successfully_created.category_gesangbuchlied_mapping =
+                                categoryResp.data.data;
+                            _.forEach(categoryResp.data.data, (elem) =>
+                                this.store.addKategorieGesangbuchlied(elem),
+                            );
+                        }
                     }
-                }
 
-                // CREATE TEXT
-                console.log('CREATE TEXT');
-                let created_text = null;
-                let created_text_authors = [];
-                if (!this.existing_text) {
-                    let create_text = {
-                        titel: _.isEmpty(this.text.title) ? null : this.text.title,
-                        quelle: _.isEmpty(this.text.quelle) ? null : this.text.quelle,
-                        quelllink: _.isEmpty(this.text.quelllink) ? null : this.text.quelllink,
-                        anmerkung: _.isEmpty(this.text.anmerkung) ? null : this.text.anmerkung,
-                    };
+                    // CREATE TEXT
+                    console.log('CREATE TEXT');
+                    let created_text = null;
+                    let created_text_authors = [];
+                    if (!this.existing_text) {
+                        let create_text = {
+                            titel: _.isEmpty(this.text.title) ? null : this.text.title,
+                            quelle: _.isEmpty(this.text.quelle) ? null : this.text.quelle,
+                            quelllink: _.isEmpty(this.text.quelllink) ? null : this.text.quelllink,
+                            anmerkung: _.isEmpty(this.text.anmerkung) ? null : this.text.anmerkung,
+                        };
 
-                    const strophen_empty = !_.includes(
-                        _.map(this.text.strophen, (elem) => _.isEmpty(elem.strophe)),
-                        false,
-                    );
+                        const strophen_empty = !_.includes(
+                            _.map(this.text.strophen, (elem) => _.isEmpty(elem.strophe)),
+                            false,
+                        );
 
-                    // Check if a value is set
-                    if (!_.every(create_text, (val) => val === null) || !strophen_empty) {
-                        create_text['status'] = 'uploaded';
-                        // trim strophen.strophe in every element before assigning to strophenEinzeln
-                        create_text['strophenEinzeln'] = _.map(this.text.strophen, (elem) => {
-                            return {
-                                ...elem,
-                                strophe: _.isEmpty(elem.strophe) ? null : elem.strophe.trim(),
-                            };
-                        });
-
-                        console.log('create_text', create_text);
-                        await axios
-                            .post(`${import.meta.env.VITE_BACKEND_URL}/items/text`, create_text)
-                            .then((resp) => {
-                                console.log('created text', resp.data.data);
-                                created_text = resp.data.data;
-                                this.successfully_created.text = resp.data.data;
-                                this.store.addText(resp.data.data);
+                        // Check if a value is set
+                        if (!_.every(create_text, (val) => val === null) || !strophen_empty) {
+                            create_text['status'] = 'uploaded';
+                            // trim strophen.strophe in every element before assigning to strophenEinzeln
+                            create_text['strophenEinzeln'] = _.map(this.text.strophen, (elem) => {
+                                return {
+                                    ...elem,
+                                    strophe: _.isEmpty(elem.strophe) ? null : elem.strophe.trim(),
+                                };
                             });
 
-                        // CREATE NEW TEXT AUTHORS
-                        console.log('CREATE NEW TEXT AUTHORS');
-                        if (!this.existing_text && to_be_created_text_authors.length !== 0) {
-                            console.log('to_be_created_text_authors', to_be_created_text_authors);
-                            await axios
-                                .post(
+                            console.log('create_text', create_text);
+                            const textResp = await axios.post(
+                                `${import.meta.env.VITE_BACKEND_URL}/items/text`,
+                                create_text,
+                            );
+                            console.log('created text', textResp.data.data);
+                            created_text = textResp.data.data;
+                            this.successfully_created.text = textResp.data.data;
+                            this.store.addText(textResp.data.data);
+
+                            // CREATE NEW TEXT AUTHORS IN BATCH
+                            console.log('CREATE NEW TEXT AUTHORS');
+                            if (to_be_created_text_authors.length > 0) {
+                                console.log(
+                                    'to_be_created_text_authors',
+                                    to_be_created_text_authors,
+                                );
+                                const authorsResp = await axios.post(
                                     `${import.meta.env.VITE_BACKEND_URL}/items/autor`,
                                     to_be_created_text_authors,
-                                )
-                                .then((resp) => {
-                                    console.log('created authors', resp.data.data);
-                                    created_text_authors = resp.data.data;
-                                    this.successfully_created.authors.push(...resp.data.data);
-                                    _.forEach(resp.data.data, (elem) => this.store.addAuthor(elem));
-                                });
-                        }
+                                );
+                                console.log('created authors', authorsResp.data.data);
+                                created_text_authors = authorsResp.data.data;
+                                this.successfully_created.authors.push(...authorsResp.data.data);
+                                _.forEach(authorsResp.data.data, (elem) =>
+                                    this.store.addAuthor(elem),
+                                );
+                            }
 
-                        // CRATE TEXT AUTHOR MAPPING N:M
-                        created_text_authors.push(...this.text.selected_authors);
-                        let to_be_created_text_author_mapping = [];
-                        for (let created_author of created_text_authors) {
-                            let create_author_text = {
-                                text_id: created_text?.id,
-                                autor_id: created_author.id,
-                            };
-                            if (!_.every(create_author_text, (val) => val === null))
-                                to_be_created_text_author_mapping.push(create_author_text);
-                        }
+                            // CREATE TEXT AUTHOR MAPPING N:M IN BATCH
+                            created_text_authors.push(...this.text.selected_authors);
+                            if (created_text_authors.length > 0) {
+                                let to_be_created_text_author_mapping = created_text_authors.map(
+                                    (created_author) => ({
+                                        text_id: created_text?.id,
+                                        autor_id: created_author.id,
+                                    }),
+                                );
 
-                        if (to_be_created_text_author_mapping.length !== 0) {
-                            console.log(
-                                'to_be_created_text_author_mapping',
-                                to_be_created_text_author_mapping,
-                            );
-                            await axios
-                                .post(
+                                console.log(
+                                    'to_be_created_text_author_mapping',
+                                    to_be_created_text_author_mapping,
+                                );
+                                const textAuthorResp = await axios.post(
                                     `${import.meta.env.VITE_BACKEND_URL}/items/text_autor`,
                                     to_be_created_text_author_mapping,
-                                )
-                                .then((resp) => {
-                                    console.log('created text_author_mapping', resp.data.data);
-                                    this.successfully_created.text_author_mapping.push(
-                                        ...resp.data.data,
-                                    );
-                                    _.forEach(resp.data.data, (elem) =>
-                                        this.store.addTextAutor(elem),
-                                    );
-                                });
+                                );
+                                console.log(
+                                    'created text_author_mapping',
+                                    textAuthorResp.data.data,
+                                );
+                                this.successfully_created.text_author_mapping.push(
+                                    ...textAuthorResp.data.data,
+                                );
+                                _.forEach(textAuthorResp.data.data, (elem) =>
+                                    this.store.addTextAutor(elem),
+                                );
+                            }
                         }
                     }
-                }
 
-                // CREATE MELODIE
-                console.log('CREATE MELODIE');
-                let created_melodie = null;
-                if (!this.existing_melodie) {
-                    let create_melodie = {
-                        titel: _.isEmpty(this.melodie.title) ? null : this.melodie.title,
-                        quelle: _.isEmpty(this.melodie.quelle) ? null : this.melodie.quelle,
-                        quelllink: _.isEmpty(this.melodie.quelllink)
-                            ? null
-                            : this.melodie.quelllink,
-                        anmerkung: _.isEmpty(this.melodie.anmerkung)
-                            ? null
-                            : this.melodie.anmerkung,
-                    };
+                    // CREATE MELODIE
+                    console.log('CREATE MELODIE');
+                    let created_melodie = null;
+                    if (!this.existing_melodie) {
+                        let create_melodie = {
+                            titel: _.isEmpty(this.melodie.title) ? null : this.melodie.title,
+                            quelle: _.isEmpty(this.melodie.quelle) ? null : this.melodie.quelle,
+                            quelllink: _.isEmpty(this.melodie.quelllink)
+                                ? null
+                                : this.melodie.quelllink,
+                            anmerkung: _.isEmpty(this.melodie.anmerkung)
+                                ? null
+                                : this.melodie.anmerkung,
+                        };
 
-                    if (!_.every(create_melodie, (val) => val === null)) {
-                        create_melodie['status'] = 'uploaded';
-                        console.log('create_melodie', create_melodie);
+                        if (!_.every(create_melodie, (val) => val === null)) {
+                            create_melodie['status'] = 'uploaded';
+                            console.log('create_melodie', create_melodie);
 
-                        await axios
-                            .post(
+                            const melodieResp = await axios.post(
                                 `${import.meta.env.VITE_BACKEND_URL}/items/melodie`,
                                 create_melodie,
-                            )
-                            .then((resp) => {
-                                console.log('created created_melodie', resp.data.data);
-                                created_melodie = resp.data.data;
-                                this.successfully_created.melodie = resp.data.data;
-                                this.store.addMelodie(resp.data.data);
-                            });
+                            );
+                            console.log('created created_melodie', melodieResp.data.data);
+                            created_melodie = melodieResp.data.data;
+                            this.successfully_created.melodie = melodieResp.data.data;
+                            this.store.addMelodie(melodieResp.data.data);
 
-                        // CREATE NEW MELODIE AUTHORS
-                        console.log('CREATE NEW MELODIE AUTHORS');
-                        let created_melodie_authors = [];
-                        if (!this.existing_melodie && to_be_created_melodie_authors.length !== 0) {
-                            console.log('created_melodie_author', to_be_created_melodie_authors);
-                            await axios
-                                .post(
+                            // CREATE NEW MELODIE AUTHORS IN BATCH
+                            console.log('CREATE NEW MELODIE AUTHORS');
+                            let created_melodie_authors = [];
+                            if (to_be_created_melodie_authors.length > 0) {
+                                console.log(
+                                    'created_melodie_author',
+                                    to_be_created_melodie_authors,
+                                );
+                                const melodieAuthorsResp = await axios.post(
                                     `${import.meta.env.VITE_BACKEND_URL}/items/autor`,
                                     to_be_created_melodie_authors,
-                                )
-                                .then((resp) => {
-                                    console.log('created melodie authors', resp.data.data);
-                                    created_melodie_authors = resp.data.data;
-                                    this.successfully_created.authors.push(...resp.data.data);
-                                    _.forEach(resp.data.data, (elem) => this.store.addAuthor(elem));
-                                });
-                        }
+                                );
+                                console.log(
+                                    'created melodie authors',
+                                    melodieAuthorsResp.data.data,
+                                );
+                                created_melodie_authors = melodieAuthorsResp.data.data;
+                                this.successfully_created.authors.push(
+                                    ...melodieAuthorsResp.data.data,
+                                );
+                                _.forEach(melodieAuthorsResp.data.data, (elem) =>
+                                    this.store.addAuthor(elem),
+                                );
+                            }
 
-                        // MELODIE AUTHOR N TO M MAPPING
-                        created_melodie_authors.push(...this.melodie.selected_authors);
-                        if (this.melodie.use_same_author_for_text) {
-                            created_melodie_authors.push(...created_text_authors);
-                        }
+                            // MELODIE AUTHOR N TO M MAPPING IN BATCH
+                            created_melodie_authors.push(...this.melodie.selected_authors);
+                            if (this.melodie.use_same_author_for_text) {
+                                created_melodie_authors.push(...created_text_authors);
+                            }
 
-                        let to_be_created_melodie_author_mapping = [];
-                        for (let created_author of created_melodie_authors) {
-                            let create_author_melodie = {
-                                melodie_id: created_melodie.id,
-                                autor_id: created_author.id,
-                            };
-                            if (!_.every(create_author_melodie, (val) => val === null))
-                                to_be_created_melodie_author_mapping.push(create_author_melodie);
-                        }
-                        if (to_be_created_melodie_author_mapping.length !== 0) {
-                            console.log(
-                                'to_be_created_melodie_author_mapping',
-                                to_be_created_melodie_author_mapping,
-                            );
-                            await axios
-                                .post(
+                            if (created_melodie_authors.length > 0) {
+                                let to_be_created_melodie_author_mapping =
+                                    created_melodie_authors.map((created_author) => ({
+                                        melodie_id: created_melodie.id,
+                                        autor_id: created_author.id,
+                                    }));
+
+                                console.log(
+                                    'to_be_created_melodie_author_mapping',
+                                    to_be_created_melodie_author_mapping,
+                                );
+                                const melodieAuthorResp = await axios.post(
                                     `${import.meta.env.VITE_BACKEND_URL}/items/melodie_autor`,
                                     to_be_created_melodie_author_mapping,
-                                )
-                                .then((resp) => {
-                                    console.log('created melodie_author_mapping', resp.data.data);
-                                    this.successfully_created.melodie_author_mapping.push(
-                                        ...resp.data.data,
-                                    );
-                                    _.forEach(resp.data.data, (elem) =>
-                                        this.store.addMelodieAutor(elem),
-                                    );
-                                });
-                        }
+                                );
+                                console.log(
+                                    'created melodie_author_mapping',
+                                    melodieAuthorResp.data.data,
+                                );
+                                this.successfully_created.melodie_author_mapping.push(
+                                    ...melodieAuthorResp.data.data,
+                                );
+                                _.forEach(melodieAuthorResp.data.data, (elem) =>
+                                    this.store.addMelodieAutor(elem),
+                                );
+                            }
 
-                        // MELODIE TO FILE MELODIE MAPPING
-                        const created_files = await this.upload_file();
-                        let to_be_created_melodie_file_mapping = [];
-                        for (let created_file of created_files) {
-                            let create_file_melodie = {
-                                melodie_id: created_melodie.id,
-                                directus_files_id: created_file.id,
-                            };
-                            to_be_created_melodie_file_mapping.push(create_file_melodie);
-                        }
+                            // MELODIE TO FILE MAPPING IN BATCH
+                            if (created_files.length > 0) {
+                                let to_be_created_melodie_file_mapping = created_files.map(
+                                    (created_file) => ({
+                                        melodie_id: created_melodie.id,
+                                        directus_files_id: created_file.id,
+                                    }),
+                                );
 
-                        if (to_be_created_melodie_file_mapping.length !== 0) {
-                            console.log(
-                                'to_be_created_melodie_file_mapping',
-                                to_be_created_melodie_file_mapping,
-                            );
-                            await axios
-                                .post(
+                                console.log(
+                                    'to_be_created_melodie_file_mapping',
+                                    to_be_created_melodie_file_mapping,
+                                );
+                                const melodieFilesResp = await axios.post(
                                     `${import.meta.env.VITE_BACKEND_URL}/items/melodie_files`,
                                     to_be_created_melodie_file_mapping,
-                                )
-                                .then((resp) => {
-                                    console.log('created melodie_files', resp.data.data);
-                                    this.successfully_created.melodie_files = resp.data.data;
-                                    _.forEach(resp.data.data, (elem) =>
-                                        this.store.addMelodieFile(elem),
-                                    );
-                                });
+                                );
+                                console.log('created melodie_files', melodieFilesResp.data.data);
+                                this.successfully_created.melodie_files =
+                                    melodieFilesResp.data.data;
+                                _.forEach(melodieFilesResp.data.data, (elem) =>
+                                    this.store.addMelodieFile(elem),
+                                );
+                            }
                         }
+                    }
+
+                    // UPDATE GESANGBUCHLIED WITH TEXT AND MELODIE IDs
+                    let update_gesangbuchlied = {};
+                    const textId = this.existing_text
+                        ? this.selected_text?.id
+                        : created_text
+                          ? created_text.id
+                          : null;
+                    if (textId) {
+                        update_gesangbuchlied['textId'] = textId;
+                    }
+                    const melodieId = this.existing_melodie
+                        ? this.selected_melodie?.id
+                        : created_melodie
+                          ? created_melodie.id
+                          : null;
+                    if (melodieId) {
+                        update_gesangbuchlied['melodieId'] = melodieId;
+                    }
+
+                    if (!_.every(update_gesangbuchlied, (val) => val === null)) {
+                        console.log('update_gesangbuchlied', update_gesangbuchlied);
+                        const updateResp = await axios.patch(
+                            `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${created_gesangbuchlied.id}`,
+                            update_gesangbuchlied,
+                        );
+                        console.log('updated gesangbuchlied', updateResp.data.data);
+                        this.successfully_created.gesangbuchlied = updateResp.data.data;
+                        this.store.updateGesangbuchlied(updateResp.data.data);
                     }
                 }
 
-                // UPDATE AUTHOR WITH TEXT AND MELODIE
-                let update_gesangbuchlied = {};
-                // text und melodie
-                const textId = this.existing_text
-                    ? this.selected_text?.id
-                    : created_text
-                      ? created_text.id
-                      : null;
-                if (textId) {
-                    update_gesangbuchlied['textId'] = textId;
-                }
-                const melodieId = this.existing_melodie
-                    ? this.selected_melodie?.id
-                    : created_melodie
-                      ? created_melodie.id
-                      : null;
-                if (melodieId) {
-                    update_gesangbuchlied['melodieId'] = melodieId;
-                }
+                // Refresh store data
+                await this.store.update_store_local();
 
-                console.log(update_gesangbuchlied);
-                if (!_.every(update_gesangbuchlied, (val) => val === null)) {
-                    console.log('update_gesangbuchlied', update_gesangbuchlied);
-                    await axios
-                        .patch(
-                            `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${created_gesangbuchlied.id}`,
-                            update_gesangbuchlied,
-                        )
-                        .then((resp) => {
-                            console.log('updated gesangbuchlied', resp.data.data);
-                            this.successfully_created.gesangbuchlied = resp.data.data;
-                            this.store.updateGesangbuchlied(resp.data.data);
-                        });
-                }
+                console.log('✅ Upload completed successfully!');
+            } catch (error) {
+                console.error('❌ Upload failed:', error);
+                alert(
+                    'Upload fehlgeschlagen: ' +
+                        (error.response?.data?.errors?.[0]?.message || error.message),
+                );
+            } finally {
+                this.loading = false;
             }
-
-            // loadData again
-            this.store.update_store_local();
         },
         async upload_file() {
-            if (this.melodie.noten) {
+            const uploadedFiles = [];
+            if (this.melodie.noten && this.melodie.noten.length > 0) {
+                console.log('Uploading', this.melodie.noten.length, 'files...');
+
+                // Upload files sequentially to avoid overloading the server
                 for (let file of this.melodie.noten) {
-                    console.log('Upload file ', file);
+                    console.log('Upload file', file.name);
                     const formData = new FormData();
                     formData.append('title', file.name);
                     formData.append('file', file);
 
-                    await axios
-                        .post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData)
-                        .then((resp) => {
-                            this.successfully_created.created_files.push(resp.data.data);
-                            this.store.addFile(resp.data.data);
-                        });
+                    try {
+                        const resp = await axios.post(
+                            `${import.meta.env.VITE_BACKEND_URL}/files`,
+                            formData,
+                            {
+                                headers: {
+                                    'Content-Type': 'multipart/form-data',
+                                },
+                            },
+                        );
+                        uploadedFiles.push(resp.data.data);
+                        this.successfully_created.created_files.push(resp.data.data);
+                        this.store.addFile(resp.data.data);
+                        console.log('✅ File uploaded:', file.name);
+                    } catch (error) {
+                        console.error('❌ Failed to upload file:', file.name, error);
+                        throw new Error(`Datei-Upload fehlgeschlagen: ${file.name}`);
+                    }
                 }
             }
-            return this.successfully_created.created_files;
+            return uploadedFiles;
         },
 
         reset_data() {
