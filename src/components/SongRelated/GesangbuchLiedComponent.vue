@@ -134,6 +134,12 @@
                 <span> {{ selectedSong?.einreicherName }} </span>
             </div>
 
+            <div v-if="selectedSong?.text?.korrekturlesung1" class="mb-4">
+                <v-chip color="success" prepend-icon="mdi-check-circle">
+                    Text: Korrekturlesung abgeschlossen
+                </v-chip>
+            </div>
+
             <div
                 v-if="
                     selectedSong?.anmerkung ||

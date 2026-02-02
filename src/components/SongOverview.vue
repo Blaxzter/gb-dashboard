@@ -209,6 +209,16 @@
                                         </v-btn>
                                     </template>
                                 </v-tooltip>
+                                <v-tooltip
+                                    text="Nur Gesangbuchlieder mit Korrekturlesung anzeigen."
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-btn v-bind="props" value="korrekturlesung1">
+                                            <v-icon color="primary">mdi-check-circle</v-icon>
+                                        </v-btn>
+                                    </template>
+                                </v-tooltip>
                             </v-btn-toggle>
                         </div>
                         <!-- Drop down with multi select  -->
@@ -510,6 +520,14 @@ export default {
                 );
             }
 
+            // filter by korrekturlesung1
+            if (this.filter_by_korrekturlesung1) {
+                filtered_gesangbuchlied = _.filter(
+                    filtered_gesangbuchlied,
+                    (elem) => elem.text?.korrekturlesung1 === true,
+                );
+            }
+
             filtered_gesangbuchlied = _.filter(
                 filtered_gesangbuchlied,
                 (elem) =>
@@ -570,6 +588,9 @@ export default {
         },
         filter_by_suggestions() {
             return this.filter.includes('suggestions');
+        },
+        filter_by_korrekturlesung1() {
+            return this.filter.includes('korrekturlesung1');
         },
         admin() {
             return this.userStore.is_kleiner_kreis;
@@ -652,6 +673,8 @@ export default {
             if (this.selected_status) appliedFilter.selected_status = this.selected_status;
             if (this.selected_bewertung) appliedFilter.selected_bewertung = this.selected_bewertung;
             if (this.selected_aenderung) appliedFilter.selected_aenderung = this.selected_aenderung;
+            if (this.filter_by_korrekturlesung1)
+                appliedFilter.filter_by_korrekturlesung1 = this.filter_by_korrekturlesung1;
             if (this.kategorie) appliedFilter.kategorie = this.kategorie;
             if (this.filter_by_suggestions)
                 appliedFilter.filter_by_suggestions = this.filter_by_suggestions;

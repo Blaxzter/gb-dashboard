@@ -1,13 +1,31 @@
 <template>
     <v-card class="pa-3">
         <v-card-title>
-            <v-card-title class="d-flex justify-space-between">
-                <div>
-                    {{ text.titel }}
+            <v-card-title>
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        {{ text.titel }}
+                    </div>
+                    <div>
+                        {{ status_mapping[text.status] }}
+                    </div>
                 </div>
-                <div>
-                    {{ status_mapping[text.status] }}
-                </div>
+                <v-tooltip
+                    v-if="text.korrekturlesung1"
+                    text="Korrekturlesung abgeschlossen"
+                    location="bottom"
+                >
+                    <template #activator="{ props }">
+                        <v-chip
+                            v-bind="props"
+                            color="success"
+                            prepend-icon="mdi-check-circle"
+                            size="small"
+                        >
+                            Korrekturlesung 1
+                        </v-chip>
+                    </template>
+                </v-tooltip>
             </v-card-title>
         </v-card-title>
 
