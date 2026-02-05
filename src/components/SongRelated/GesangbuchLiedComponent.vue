@@ -117,13 +117,20 @@
                         class="d-flex flex-row mb-4"
                     >
                         <div class="me-2">{{ index + 1 }}.</div>
-                        <div>
-                            {{ author.vorname }} {{ author.nachname }}
-                            {{
-                                author.geburtsjahr || author.sterbejahr
-                                    ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
-                                    : ''
-                            }}
+                        <div class="d-flex flex-column">
+                            <div class="text-grey-darken-2">{{ author.autorPrefix || '' }}</div>
+                            <div>
+                                {{ author.vorname }} {{ author.nachname }}
+                                {{
+                                    author.geburtsjahr || author.sterbejahr
+                                        ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
+                                        : ''
+                                }}
+                            </div>
+                            <div class="text-grey-darken-2">
+                                {{ author.autorSuffix || '' }}
+                                {{ author?.ursprungsAutorObj?.author_str }}
+                            </div>
                         </div>
                     </div>
                 </div>

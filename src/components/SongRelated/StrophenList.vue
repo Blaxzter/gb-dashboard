@@ -17,7 +17,7 @@
                             icon="mdi-format-letter-matches"
                             size="small"
                             variant="text"
-                            :color="showSyllableSymbols ? 'primary' : 'grey'"
+                            :color="effectiveShowSyllableSymbols ? 'primary' : 'grey'"
                             v-bind="props"
                             @click="toggleSyllableSymbols"
                         />
@@ -29,7 +29,7 @@
                             icon="mdi-circle-small"
                             size="small"
                             variant="text"
-                            :color="showSpacesAsDots ? 'primary' : 'grey'"
+                            :color="effectiveShowSpacesAsDots ? 'primary' : 'grey'"
                             v-bind="props"
                             @click="toggleSpacesAsDots"
                         />
@@ -142,8 +142,8 @@
             <SyllableEditList
                 :text="{ strophenEinzeln: [strophe] }"
                 :include-title="false"
-                :show-syllable-symbols="showSyllableSymbols"
-                :show-spaces-as-dots="showSpacesAsDots"
+                :show-syllable-symbols="effectiveShowSyllableSymbols"
+                :show-spaces-as-dots="effectiveShowSpacesAsDots"
                 @update-strophen="updateStrophe(index, $event)"
             />
         </div>
@@ -178,14 +178,22 @@ export default {
             type: Boolean,
             default: true,
         },
+        showSyllableSymbols: {
+            type: Boolean,
+            default: null,
+        },
+        showSpacesAsDots: {
+            type: Boolean,
+            default: null,
+        },
     },
     data: () => ({
         store: useAppStore(),
         userStore: useUserStore(),
         show_strophen: [],
         syllableEditMode: false,
-        showSyllableSymbols: false,
-        showSpacesAsDots: false,
+        internalShowSyllableSymbols: false,
+        internalShowSpacesAsDots: false,
     }),
     computed: {
         // Computed property to determine if the text is a song
@@ -194,6 +202,16 @@ export default {
         },
         isAdminView() {
             return this.userStore.is_kleiner_kreis_ansicht;
+        },
+        effectiveShowSyllableSymbols() {
+            return this.showSyllableSymbols !== null
+                ? this.showSyllableSymbols
+                : this.internalShowSyllableSymbols;
+        },
+        effectiveShowSpacesAsDots() {
+            return this.showSpacesAsDots !== null
+                ? this.showSpacesAsDots
+                : this.internalShowSpacesAsDots;
         },
     },
     mounted() {
@@ -211,12 +229,12 @@ export default {
         },
 
         toggleSyllableSymbols() {
-            this.showSyllableSymbols = !this.showSyllableSymbols;
+            this.internalShowSyllableSymbols = !this.internalShowSyllableSymbols;
             this.saveSettings();
         },
 
         toggleSpacesAsDots() {
-            this.showSpacesAsDots = !this.showSpacesAsDots;
+            this.internalShowSpacesAsDots = !this.internalShowSpacesAsDots;
             this.saveSettings();
         },
 
@@ -224,13 +242,13 @@ export default {
             let formattedText = text;
 
             // Hide syllable symbols if option is disabled
-            if (!this.showSyllableSymbols) {
-                formattedText = formattedText.replace(/¬/g, '');
+            if (!this.effectiveShowSyllableSymbols) {
+                formattedText = formattedText?.replace(/¬/g, '') || 'Kein Text';
             }
 
             // Replace spaces with dots if option is enabled
-            if (this.showSpacesAsDots) {
-                formattedText = formattedText.replace(/ /g, '·\u200B');
+            if (this.effectiveShowSpacesAsDots) {
+                formattedText = formattedText?.replace(/ /g, '·\u200B') || 'Kein Text';
             }
 
             return formattedText;
@@ -291,11 +309,11 @@ export default {
         saveSettings() {
             localStorage.setItem(
                 'strophen-show-syllable-symbols',
-                JSON.stringify(this.showSyllableSymbols),
+                JSON.stringify(this.internalShowSyllableSymbols),
             );
             localStorage.setItem(
                 'strophen-show-spaces-as-dots',
-                JSON.stringify(this.showSpacesAsDots),
+                JSON.stringify(this.internalShowSpacesAsDots),
             );
         },
 
@@ -304,11 +322,11 @@ export default {
             const savedSpacesAsDots = localStorage.getItem('strophen-show-spaces-as-dots');
 
             if (savedSyllableSymbols !== null) {
-                this.showSyllableSymbols = JSON.parse(savedSyllableSymbols);
+                this.internalShowSyllableSymbols = JSON.parse(savedSyllableSymbols);
             }
 
             if (savedSpacesAsDots !== null) {
-                this.showSpacesAsDots = JSON.parse(savedSpacesAsDots);
+                this.internalShowSpacesAsDots = JSON.parse(savedSpacesAsDots);
             }
         },
     },

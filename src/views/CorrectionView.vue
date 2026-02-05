@@ -202,6 +202,13 @@ const filtered_gesangbuchlieder = computed(() => {
     return filtered_gesangbuchlied;
 });
 
+// Syllable view state for each song
+const syllableViewEnabled = ref({});
+
+const toggleSyllableView = (liedId) => {
+    syllableViewEnabled.value[liedId] = !syllableViewEnabled.value[liedId];
+};
+
 // Song dialog stuff
 const song_dialog = ref(false);
 const selected_song = ref(null);
@@ -370,13 +377,38 @@ const get_color = (category) => {
                         </pane>
                         <pane min-size="20">
                             <div class="pl-10 pt-10">
-                                <h2>{{ lied.titel }}</h2>
+                                <div class="d-flex align-center justify-space-between ga-2 mb-3">
+                                    <h2 class="mb-0">{{ lied.titel }}</h2>
+                                    <v-tooltip
+                                        text="Silbensymbole und Leerzeichen anzeigen"
+                                        location="bottom"
+                                    >
+                                        <template #activator="{ props }">
+                                            <v-btn
+                                                icon="mdi-format-letter-matches"
+                                                size="small"
+                                                variant="text"
+                                                :color="
+                                                    syllableViewEnabled[lied.id]
+                                                        ? 'primary'
+                                                        : 'grey'
+                                                "
+                                                v-bind="props"
+                                                @click="toggleSyllableView(lied.id)"
+                                            />
+                                        </template>
+                                    </v-tooltip>
+                                </div>
                                 <div>
                                     <StrophenList
                                         :text="lied?.text"
                                         :show-extra-strophen-data="true"
                                         :show-text-only="false"
                                         :include-title="false"
+                                        :show-syllable-symbols="
+                                            syllableViewEnabled[lied.id] || false
+                                        "
+                                        :show-spaces-as-dots="syllableViewEnabled[lied.id] || false"
                                     />
                                 </div>
                                 <v-btn

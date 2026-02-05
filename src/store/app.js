@@ -208,6 +208,19 @@ export const useAppStore = defineStore('app', {
             const format_author = _.map(author, formatAuthor);
 
             const authorById = { ..._.keyBy(format_author, 'id'), null: 'Keine' };
+
+            // We need to add authors to the ursprungsAutor of the text_autor and melodie_autor tables
+            text_autor = _.map(text_autor, (obj) => ({
+                ...obj,
+                ursprungsAutorObj: authorById[obj.ursprungsAutor],
+            }));
+
+            melodie_autor = _.map(melodie_autor, (obj) => ({
+                ...obj,
+                ursprungsAutorObj: authorById[obj.ursprungsAutor],
+            }));
+
+            // debugger;
             const text_autor_grouped = {
                 ..._.groupBy(text_autor, 'text_id'),
                 null: 'Keine',
@@ -222,7 +235,12 @@ export const useAppStore = defineStore('app', {
 
             text = _.map(text, (obj) => ({
                 ...obj,
-                authors: _.map(text_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+                authors: _.map(text_autor_grouped[obj.id], (elem) => {
+                    return {
+                        ...authorById[elem.autor_id],
+                        ...elem,
+                    };
+                }),
                 auftrag: auftragByText_id[obj.id],
                 bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
             }));
@@ -275,7 +293,9 @@ export const useAppStore = defineStore('app', {
             };
             melodie = _.map(melodie, (obj) => ({
                 ...obj,
-                authors: _.map(melodie_autor_grouped[obj.id], (elem) => authorById[elem.autor_id]),
+                authors: _.map(melodie_autor_grouped[obj.id], (elem) => {
+                    return { ...authorById[elem.autor_id], ...elem };
+                }),
                 silben_pro_strophe: obj.silben
                     ? obj.silben.split('-').reduce((sum, num) => {
                           const parsedNum = parseInt(num);
