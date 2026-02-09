@@ -84,7 +84,13 @@
             />
 
             <div class="mb-4">
-                <StrophenList :text="selectedSong?.text" :show-extra-strophen-data="false" />
+                <StrophenList
+                    :text="selectedSong?.text"
+                    :show-extra-strophen-data="false"
+                    :edit-mode="editMode"
+                    @toggle-edit-mode="editMode = !editMode"
+                    @edit-completed="editMode = false"
+                />
             </div>
 
             <v-chip-group>
@@ -331,6 +337,7 @@ export default {
         melodie_dialog: false,
         copied: false,
         visible_file: null,
+        editMode: false,
     }),
     computed: {
         rang_to_color() {

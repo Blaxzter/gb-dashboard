@@ -444,6 +444,7 @@ const get_color = (category) => {
                                         "
                                         :show-spaces-as-dots="syllableViewEnabled[lied.id] || false"
                                         :edit-mode="editModeEnabled[lied.id] || false"
+                                        @toggle-edit-mode="toggleEditMode(lied.id)"
                                         @edit-completed="editModeEnabled[lied.id] = false"
                                     />
                                 </div>

@@ -1,14 +1,32 @@
 <template>
     <div v-if="includeTitle" class="text-h6 mx-auto mb-1 d-flex align-center">
         <span class="me-2"> Strophen </span>
-        <v-btn
-            v-if="isAdmin && isAdminView"
-            icon="mdi-pencil"
-            size="small"
-            variant="text"
-            color="primary"
-            @click="toggleEditMode"
-        />
+        <div v-if="isAdmin && isAdminView" class="d-flex ga-2">
+            <v-tooltip text="Silbenmodus bearbeiten" location="bottom">
+                <template #activator="{ props }">
+                    <v-btn
+                        icon="mdi-format-letter-matches"
+                        size="small"
+                        variant="text"
+                        :color="syllableEditMode ? 'primary' : 'grey'"
+                        v-bind="props"
+                        @click="toggleSyllableEditMode"
+                    />
+                </template>
+            </v-tooltip>
+            <v-tooltip text="Text bearbeiten" location="bottom">
+                <template #activator="{ props }">
+                    <v-btn
+                        icon="mdi-pencil"
+                        size="small"
+                        variant="text"
+                        :color="editMode ? 'primary' : 'grey'"
+                        v-bind="props"
+                        @click="toggleTextEditMode"
+                    />
+                </template>
+            </v-tooltip>
+        </div>
         <v-expand-transition>
             <div v-if="syllableEditMode" class="ms-4 d-flex ga-2">
                 <v-tooltip text="Silbensymbole ein-/ausblenden" location="bottom">
@@ -231,7 +249,7 @@ export default {
             default: false,
         },
     },
-    emits: ['edit-completed'],
+    emits: ['edit-completed', 'toggle-edit-mode'],
     data: () => ({
         store: useAppStore(),
         userStore: useUserStore(),
@@ -283,8 +301,12 @@ export default {
         },
     },
     methods: {
-        toggleEditMode() {
+        toggleSyllableEditMode() {
             this.syllableEditMode = !this.syllableEditMode;
+        },
+
+        toggleTextEditMode() {
+            this.$emit('toggle-edit-mode');
         },
 
         toggleSyllableSymbols() {

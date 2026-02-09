@@ -31,7 +31,13 @@
 
         <v-card-text class="px-8">
             <div class="mb-4">
-                <StrophenList :text="text" :show-extra-strophen-data="true" />
+                <StrophenList
+                    :text="text"
+                    :show-extra-strophen-data="true"
+                    :edit-mode="editMode"
+                    @toggle-edit-mode="editMode = !editMode"
+                    @edit-completed="editMode = false"
+                />
             </div>
 
             <div>
@@ -158,6 +164,9 @@ export default {
         },
     },
     emits: ['close'],
+    data: () => ({
+        editMode: false,
+    }),
     computed: {
         auftrag_type_to_name() {
             return auftrag_type_to_name;
