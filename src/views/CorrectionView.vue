@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
+import { useUserStore } from '@/store/user.js';
 import {
     chart_colors,
     chipColors,
@@ -17,6 +18,7 @@ import 'splitpanes/dist/splitpanes.css';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
 const store = useAppStore();
+const userStore = useUserStore();
 
 const { author, gesangbuchlieder } = store;
 
@@ -209,6 +211,13 @@ const toggleSyllableView = (liedId) => {
     syllableViewEnabled.value[liedId] = !syllableViewEnabled.value[liedId];
 };
 
+// Edit mode state for each song
+const editModeEnabled = ref({});
+
+const toggleEditMode = (liedId) => {
+    editModeEnabled.value[liedId] = !editModeEnabled.value[liedId];
+};
+
 // Song dialog stuff
 const song_dialog = ref(false);
 const selected_song = ref(null);
@@ -379,27 +388,52 @@ const get_color = (category) => {
                             <div class="pl-10 pt-10">
                                 <div class="d-flex align-center justify-space-between ga-2 mb-3">
                                     <h2 class="mb-0">{{ lied.titel }}</h2>
-                                    <v-tooltip
-                                        text="Silbensymbole und Leerzeichen anzeigen"
-                                        location="bottom"
-                                    >
-                                        <template #activator="{ props }">
-                                            <v-btn
-                                                icon="mdi-format-letter-matches"
-                                                size="small"
-                                                variant="text"
-                                                :color="
-                                                    syllableViewEnabled[lied.id]
-                                                        ? 'primary'
-                                                        : 'grey'
-                                                "
-                                                v-bind="props"
-                                                @click="toggleSyllableView(lied.id)"
-                                            />
-                                        </template>
-                                    </v-tooltip>
+                                    <div class="d-flex ga-2">
+                                        <v-tooltip
+                                            text="Silbensymbole und Leerzeichen anzeigen"
+                                            location="bottom"
+                                        >
+                                            <template #activator="{ props }">
+                                                <v-btn
+                                                    icon="mdi-format-letter-matches"
+                                                    size="small"
+                                                    variant="text"
+                                                    :color="
+                                                        syllableViewEnabled[lied.id]
+                                                            ? 'primary'
+                                                            : 'grey'
+                                                    "
+                                                    v-bind="props"
+                                                    @click="toggleSyllableView(lied.id)"
+                                                />
+                                            </template>
+                                        </v-tooltip>
+                                        <v-tooltip
+                                            v-if="
+                                                userStore.is_kleiner_kreis &&
+                                                userStore.is_kleiner_kreis_ansicht
+                                            "
+                                            text="Text bearbeiten"
+                                            location="bottom"
+                                        >
+                                            <template #activator="{ props }">
+                                                <v-btn
+                                                    icon="mdi-pencil"
+                                                    size="small"
+                                                    variant="text"
+                                                    :color="
+                                                        editModeEnabled[lied.id]
+                                                            ? 'primary'
+                                                            : 'grey'
+                                                    "
+                                                    v-bind="props"
+                                                    @click="toggleEditMode(lied.id)"
+                                                />
+                                            </template>
+                                        </v-tooltip>
+                                    </div>
                                 </div>
-                                <div>
+                                <div class="pe-1">
                                     <StrophenList
                                         :text="lied?.text"
                                         :show-extra-strophen-data="true"
@@ -409,6 +443,8 @@ const get_color = (category) => {
                                             syllableViewEnabled[lied.id] || false
                                         "
                                         :show-spaces-as-dots="syllableViewEnabled[lied.id] || false"
+                                        :edit-mode="editModeEnabled[lied.id] || false"
+                                        @edit-completed="editModeEnabled[lied.id] = false"
                                     />
                                 </div>
                                 <v-btn

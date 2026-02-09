@@ -44,8 +44,19 @@
         :style="{ 'max-width': !includeTitle ? '' : '500px' }"
         class="mx-auto"
     >
+        <!-- Edit Mode -->
+        <div v-if="editMode">
+            <v-textarea
+                v-model="editedStrophen[index].strophe"
+                :label="`Strophentext ${index + 1}`"
+                variant="outlined"
+                auto-grow
+                rows="3"
+                density="compact"
+            />
+        </div>
         <!-- Normal Mode -->
-        <div v-if="!syllableEditMode">
+        <div v-else-if="!syllableEditMode">
             <div
                 class="d-flex py-3 px-5"
                 :class="
@@ -148,6 +159,35 @@
             />
         </div>
     </div>
+
+    <!-- Save/Cancel buttons for Edit Mode -->
+    <div v-if="editMode" class="d-flex flex-column align-center ga-2 mt-4 mb-2">
+        <v-alert
+            v-if="saveError"
+            type="error"
+            variant="tonal"
+            closable
+            @click:close="saveError = null"
+        >
+            {{ saveError }}
+        </v-alert>
+        <div class="d-flex ga-2">
+            <v-btn
+                color="primary"
+                variant="elevated"
+                :loading="isSaving"
+                :disabled="isSaving"
+                @click="saveEditedStrophen"
+            >
+                <v-icon start>mdi-content-save</v-icon>
+                Speichern
+            </v-btn>
+            <v-btn color="grey" variant="outlined" :disabled="isSaving" @click="cancelEdit">
+                <v-icon start>mdi-close</v-icon>
+                Abbrechen
+            </v-btn>
+        </div>
+    </div>
 </template>
 
 <script>
@@ -186,7 +226,12 @@ export default {
             type: Boolean,
             default: null,
         },
+        editMode: {
+            type: Boolean,
+            default: false,
+        },
     },
+    emits: ['edit-completed'],
     data: () => ({
         store: useAppStore(),
         userStore: useUserStore(),
@@ -194,6 +239,9 @@ export default {
         syllableEditMode: false,
         internalShowSyllableSymbols: false,
         internalShowSpacesAsDots: false,
+        editedStrophen: [],
+        isSaving: false,
+        saveError: null,
     }),
     computed: {
         // Computed property to determine if the text is a song
@@ -220,8 +268,19 @@ export default {
             show: this.showExtraStrophenData,
         }));
 
+        // Initialize edited strophen as deep copy
+        this.editedStrophen = _.cloneDeep(this.show_strophen);
+
         // Load settings from localStorage
         this.loadSettings();
+    },
+    watch: {
+        editMode(newVal) {
+            if (newVal) {
+                // Reset edited strophen when entering edit mode
+                this.editedStrophen = _.cloneDeep(this.show_strophen);
+            }
+        },
     },
     methods: {
         toggleEditMode() {
@@ -317,6 +376,17 @@ export default {
             );
         },
 
+        saveSettings() {
+            localStorage.setItem(
+                'strophen-show-syllable-symbols',
+                JSON.stringify(this.internalShowSyllableSymbols),
+            );
+            localStorage.setItem(
+                'strophen-show-spaces-as-dots',
+                JSON.stringify(this.internalShowSpacesAsDots),
+            );
+        },
+
         loadSettings() {
             const savedSyllableSymbols = localStorage.getItem('strophen-show-syllable-symbols');
             const savedSpacesAsDots = localStorage.getItem('strophen-show-spaces-as-dots');
@@ -328,6 +398,47 @@ export default {
             if (savedSpacesAsDots !== null) {
                 this.internalShowSpacesAsDots = JSON.parse(savedSpacesAsDots);
             }
+        },
+
+        async saveEditedStrophen() {
+            this.isSaving = true;
+            this.saveError = null;
+
+            try {
+                // Save to Directus backend via store
+                await this.store.updateTextStrophes(
+                    this.text.id,
+                    this.editedStrophen.map((strophe, index) => ({
+                        strophe: strophe.strophe,
+                        // Preserve original values for these fields
+                        aenderungsvorschlag: this.show_strophen[index].aenderungsvorschlag,
+                        anmerkung: this.show_strophen[index].anmerkung,
+                    })),
+                );
+
+                // Update local data only after successful save
+                this.show_strophen = this.show_strophen.map((strophe, index) => ({
+                    ...strophe,
+                    strophe: this.editedStrophen[index].strophe,
+                }));
+
+                // Emit event to close edit mode
+                this.$emit('edit-completed');
+            } catch (error) {
+                console.error('Error saving strophen:', error);
+                this.saveError =
+                    'Fehler beim Speichern der Änderungen. Bitte versuchen Sie es erneut.';
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
+        cancelEdit() {
+            // Reset edited strophen
+            this.editedStrophen = _.cloneDeep(this.show_strophen);
+            this.saveError = null;
+            // Emit event to close edit mode
+            this.$emit('edit-completed');
         },
     },
 };

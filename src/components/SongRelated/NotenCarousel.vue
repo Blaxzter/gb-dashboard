@@ -168,6 +168,7 @@ export default {
         colorDelimiters() {
             // Wait for the next tick to ensure the DOM has been updated
             this.$nextTick(() => {
+                if (!this.$refs.carousel) return;
                 const delimiters = this.$refs.carousel.$el.querySelectorAll(
                     '.v-carousel__controls .v-btn',
                 );
