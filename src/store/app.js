@@ -555,20 +555,36 @@ export const useAppStore = defineStore('app', {
             });
         },
 
-        async updateTextStrophes(textId, strophes) {
+        async updateTextStrophes(textId, strophes, korrekturgelesen = null) {
             const controller = new AbortController();
             this.currentRequests.push(controller);
 
             try {
+                const payload = {
+                    strophenEinzeln: strophes,
+                };
+
+                // Only include korrekturgelesen if it's explicitly provided
+                if (korrekturgelesen !== null) {
+                    payload.korrekturlesung1 = korrekturgelesen;
+                }
+
                 const request = axios.patch(
                     `${import.meta.env.VITE_BACKEND_URL}/items/text/${textId}`,
-                    {
-                        strophenEinzeln: strophes,
-                    },
+                    payload,
                     { signal: controller.signal },
                 );
 
                 const response = await request;
+
+                // Update local text object in store
+                const textIndex = this.text.findIndex((t) => t.id === textId);
+                if (textIndex !== -1) {
+                    this.text[textIndex].strophenEinzeln = strophes;
+                    if (korrekturgelesen !== null) {
+                        this.text[textIndex].korrekturlesung1 = korrekturgelesen;
+                    }
+                }
 
                 // Remove controller from array after successful completion
                 this.currentRequests = this.currentRequests.filter((c) => c !== controller);

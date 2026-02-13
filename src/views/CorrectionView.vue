@@ -327,6 +327,21 @@ const get_color = (category) => {
                     <div class="w-100">
                         <div class="d-flex justify-space-between">
                             <div class="text-h6">
+                                <v-tooltip
+                                    v-if="lied.text?.korrekturlesung1"
+                                    text="Korrektur gelesen"
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-icon
+                                            v-bind="props"
+                                            icon="mdi-check-circle"
+                                            color="success"
+                                            size="small"
+                                            class="me-1"
+                                        />
+                                    </template>
+                                </v-tooltip>
                                 {{ lied.titel }}
                                 <v-icon
                                     v-if="lied.autor_oder_copyright_checken"

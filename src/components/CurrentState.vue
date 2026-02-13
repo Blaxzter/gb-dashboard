@@ -64,6 +64,11 @@
                 <SongRatingOverview :chart-options="chart_options" />
             </v-card>
         </v-col>
+        <v-col cols="12" lg="6">
+            <v-card class="pa-3">
+                <CorrectionViewedStatus :chart-options="chart_options" />
+            </v-card>
+        </v-col>
         <v-col cols="12" lg="12">
             <v-card class="pa-3">
                 <SongCategories :chart-options="chart_options" :filtered="true" />
@@ -80,6 +85,7 @@ import WorkOrder from '@/components/dashboard/WorkOrder.vue';
 import SongCategories from '@/components/dashboard/SongCategories.vue';
 import SongRatingStatus from '@/components/dashboard/SongRatingStatus.vue';
 import SongRatingOverview from '@/components/dashboard/SongRatingOverview.vue';
+import CorrectionViewedStatus from '@/components/dashboard/CorrectionViewedStatus.vue';
 import _ from 'lodash';
 
 export default {
@@ -89,6 +95,7 @@ export default {
         SongRatingStatus,
         WorkOrder,
         SongCategories,
+        CorrectionViewedStatus,
     },
     data: () => ({
         tab: null,

@@ -189,6 +189,13 @@
         >
             {{ saveError }}
         </v-alert>
+        <v-checkbox
+            v-model="korrekturlesung1"
+            label="Korrektur gelesen"
+            color="primary"
+            density="compact"
+            hide-details
+        />
         <div class="d-flex ga-2">
             <v-btn
                 color="primary"
@@ -260,6 +267,7 @@ export default {
         editedStrophen: [],
         isSaving: false,
         saveError: null,
+        korrekturlesung1: false,
     }),
     computed: {
         // Computed property to determine if the text is a song
@@ -289,6 +297,9 @@ export default {
         // Initialize edited strophen as deep copy
         this.editedStrophen = _.cloneDeep(this.show_strophen);
 
+        // Initialize korrekturlesung1 from text object
+        this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
+
         // Load settings from localStorage
         this.loadSettings();
     },
@@ -297,6 +308,8 @@ export default {
             if (newVal) {
                 // Reset edited strophen when entering edit mode
                 this.editedStrophen = _.cloneDeep(this.show_strophen);
+                // Reset korrekturlesung1 from text object
+                this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
             }
         },
     },
@@ -436,6 +449,7 @@ export default {
                         aenderungsvorschlag: this.show_strophen[index].aenderungsvorschlag,
                         anmerkung: this.show_strophen[index].anmerkung,
                     })),
+                    this.korrekturlesung1,
                 );
 
                 // Update local data only after successful save
@@ -458,6 +472,8 @@ export default {
         cancelEdit() {
             // Reset edited strophen
             this.editedStrophen = _.cloneDeep(this.show_strophen);
+            // Reset korrekturlesung1
+            this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
             this.saveError = null;
             // Emit event to close edit mode
             this.$emit('edit-completed');
