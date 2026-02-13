@@ -130,7 +130,8 @@ export default {
     mounted() {
         console.log(import.meta.env.VITE_BACKEND_URL);
         if (this.user_store.is_logged_in) {
-            router.push('dashboard');
+            const redirectPath = this.$route.query.redirect || '/dashboard';
+            router.push(redirectPath);
         }
     },
     methods: {
@@ -147,7 +148,8 @@ export default {
                         this.remember_me,
                     )
                     .then(() => {
-                        router.push('/');
+                        const redirectPath = this.$route.query.redirect || '/dashboard';
+                        router.push(redirectPath);
                         this.loadingLogin = false;
                     })
                     .catch((error) => {

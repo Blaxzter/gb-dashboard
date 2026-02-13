@@ -118,7 +118,7 @@ router.beforeEach(async (to, from, next) => {
             return;
         }
         console.log('Not logged in');
-        next('/login');
+        next({ path: '/login', query: { redirect: to.fullPath } });
         return;
     }
     next();
