@@ -1,17 +1,16 @@
 networks:
-  nginx-net:
+  traefik-net:
     external: true
 
 services:
- frontend:
-   build: .
-   restart:
-     always
-   ports:
-     - "8082:80"
-   networks:
-     - nginx-net
-   environment:
-     VIRTUAL_HOST: ${FRONTEND_VIRTUAL_HOST}
-     LETSENCRYPT_HOST: ${FRONTEND_LETSENCRYPT_HOST}
-     LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+  frontend:
+    build: .
+    restart: always
+    networks:
+      - traefik-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-frontend.rule=Host(`${FRONTEND_VIRTUAL_HOST}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-frontend.entrypoints=websecure
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-frontend.tls.certresolver=letsencrypt
+      - traefik.http.services.${COMPOSE_PROJECT_NAME}-frontend.loadbalancer.server.port=80
