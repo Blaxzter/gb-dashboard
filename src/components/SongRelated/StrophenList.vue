@@ -370,7 +370,9 @@ export default {
 
         copyToClipboard(text) {
             // Replace ¬ symbols with - symbols
-            const textToCopy = text.replace(/¬/g, '-');
+            let textToCopy = text.replace(/¬/g, '-');
+            // Ensure space after punctuation when followed by a letter (fixes missing spaces at line breaks)
+            textToCopy = textToCopy.replace(/([.,;:!?])(?=[A-ZÄÖÜa-zäöüß])/g, '$1 ');
 
             if (navigator.clipboard && window.isSecureContext) {
                 // Use the modern clipboard API
