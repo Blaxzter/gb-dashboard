@@ -374,6 +374,9 @@ export default {
             // Ensure space after punctuation when followed by a letter (fixes missing spaces at line breaks)
             textToCopy = textToCopy.replace(/([.,;:!?])(?=[A-ZÄÖÜa-zäöüß])/g, '$1 ');
 
+            // Only add space when the next line starts with a letter (continuation)
+            textToCopy = textToCopy.replace(/([^\s])\n(?=[A-ZÄÖÜa-zäöüß])/g, '$1 \n');
+
             if (navigator.clipboard && window.isSecureContext) {
                 // Use the modern clipboard API
                 navigator.clipboard
