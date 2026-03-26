@@ -249,12 +249,14 @@ export const useAppStore = defineStore('app', {
                 author_name: _.map(
                     obj.authors,
                     (elem) =>
+                        (elem.autorPrefix ? elem.autorPrefix + ' ' : '') +
                         `${elem.vorname} ${elem.nachname}` +
                         (elem.geburtsjahr || elem.sterbejahr
                             ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${
                                   elem.sterbejahr ? ' - ' + elem.sterbejahr : ''
                               })`
-                            : ''),
+                            : '') +
+                        (elem.autorSuffix ? ' ' + elem.autorSuffix : ''),
                 ).join(', '),
                 strophen_connected: _.map(obj.strophenEinzeln, (elem) =>
                     elem?.strophe?.replaceAll('¬', ''),
@@ -312,12 +314,14 @@ export const useAppStore = defineStore('app', {
                 author_name: _.map(
                     obj.authors,
                     (elem) =>
+                        (elem.autorPrefix ? elem.autorPrefix + ' ' : '') +
                         `${elem.vorname} ${elem.nachname}` +
                         (elem.geburtsjahr || elem.sterbejahr
                             ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${
                                   elem.sterbejahr ? ' - ' + elem.sterbejahr : ''
                               })`
-                            : ''),
+                            : '') +
+                        (elem.autorSuffix ? ' ' + elem.autorSuffix : ''),
                 ).join(', '),
                 files: _.map(obj.files_urls, (elem) => file_grouped[elem]),
             }));
