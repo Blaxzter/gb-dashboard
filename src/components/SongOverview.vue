@@ -8,8 +8,11 @@
         :headers="headers"
         :items="filtered_gesangbuchlieder"
         :search="search"
+        :sort-by="sortBy"
+        multi-sort
         locale="de"
         @click:row="rowClick"
+        @update:sort-by="onSortBy"
     >
         <template #top>
             <div class="d-flex align-center">
@@ -330,7 +333,11 @@
     </v-data-table>
 
     <v-dialog v-model="song_dialog" width="700" @close="modalClose">
-        <GesangbuchLiedComponent :selected-song="selected_song" @close="song_dialog = false" />
+        <GesangbuchLiedComponent
+            :selected-song="selected_song"
+            @close="song_dialog = false"
+            @switch-song="switchSong"
+        />
     </v-dialog>
 
     <v-snackbar v-model="snackbar" :timeout="3000">
@@ -378,6 +385,7 @@ export default {
         store: useAppStore(),
         userStore: useUserStore(),
         check_autor_copyright: null,
+        sortBy: [],
     }),
     computed: {
         possible_columns() {
@@ -393,6 +401,7 @@ export default {
             ];
             if (this.admin && this.admin_ansicht) {
                 columns.push('Bewertung');
+                columns.push('Liednummer 2026');
             }
             return columns;
         },
@@ -401,6 +410,25 @@ export default {
         },
         headers() {
             let headers = [];
+            if (
+                this.admin &&
+                this.admin_ansicht &&
+                this.selected_columns.includes('Liednummer 2026')
+            ) {
+                headers.push({
+                    title: 'Liednummer 2026',
+                    align: 'end',
+                    key: 'liednummer2026',
+                    sort: (a, b) => {
+                        const ea = a == null || a === '';
+                        const eb = b == null || b === '';
+                        if (ea && eb) return 0;
+                        if (ea) return 1;
+                        if (eb) return -1;
+                        return Number(a) - Number(b);
+                    },
+                });
+            }
             if (this.selected_columns.includes('Titel')) {
                 headers.push({
                     title: 'Titel',
@@ -705,12 +733,34 @@ export default {
                 },
             );
         },
+        onSortBy(newSort) {
+            const liedEntry = newSort.find((s) => s.key === 'liednummer2026');
+            if (liedEntry) {
+                const rest = newSort.filter((s) => s.key !== 'liednummer2026');
+                this.sortBy = [
+                    { key: '_has_liednummer2026', order: 'desc' },
+                    liedEntry,
+                    ...rest,
+                ];
+            } else {
+                this.sortBy = newSort;
+            }
+        },
         rowClick(item, value) {
             this.song_dialog = true;
             this.selected_song = value.item;
             this.$router.replace(`/gesangbuchlieder/${this.selected_song.id}`);
             // set tab title to song title
             document.title = this.selected_song.gesangbuch_titel;
+        },
+        switchSong(song) {
+            if (!song) return;
+            this.selected_song = song;
+            this.song_dialog = true;
+            this.$router.replace(`/gesangbuchlieder/${song.id}`);
+            if (song?.gesangbuch_titel) {
+                document.title = song.gesangbuch_titel;
+            }
         },
         modalClose() {
             this.song_dialog = false;

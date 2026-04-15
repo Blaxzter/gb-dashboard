@@ -428,6 +428,12 @@ export const useAppStore = defineStore('app', {
                 melodie_titel: melodieById[obj.melodieId]?.titel,
                 // bewertung kleiner kreis
                 bewertung_kleiner_kreis: bewertungKleinerKreisById[obj.bewertungKleinerKreis],
+                _has_liednummer2026:
+                    obj.liednummer2026 !== null &&
+                    obj.liednummer2026 !== undefined &&
+                    obj.liednummer2026 !== ''
+                        ? 1
+                        : 0,
             }));
 
             this.used_author = _.uniqBy(

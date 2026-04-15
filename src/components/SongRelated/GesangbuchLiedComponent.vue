@@ -244,6 +244,38 @@
                 </div>
             </div>
 
+            <div
+                v-if="
+                    is_kleiner_kreis &&
+                    is_kleiner_kreis_ansicht &&
+                    (selectedSong?.liednummer2026 ||
+                        selectedSong?.deutscheLiedfassung ||
+                        selectedSong?.melodie?.choralbuchNummer)
+                "
+                class="my-2"
+            >
+                <div v-if="selectedSong?.liednummer2026">
+                    <span class="text-subtitle-1 font-weight-medium"> Gesangbuchlied 2026: </span>
+                    <span> {{ selectedSong?.liednummer2026 }} </span>
+                </div>
+                <div v-if="selectedSong?.melodie?.choralbuchNummer">
+                    <span class="text-subtitle-1 font-weight-medium"> Choralbuch Nr.: </span>
+                    <span> {{ selectedSong?.melodie?.choralbuchNummer }} </span>
+                </div>
+                <div v-if="deutsche_liedfassung_id" class="text-grey-darken-2">
+                    <v-icon icon="mdi-link-variant" size="small" class="me-1" />
+                    <span>Liednummer übernommen von deutscher Liedfassung: </span>
+                    <a
+                        href="#"
+                        class="text-primary"
+                        style="text-decoration: underline"
+                        @click.prevent="openDeutscheLiedfassung"
+                    >
+                        {{ deutsche_liedfassung_titel || `#${deutsche_liedfassung_id}` }}
+                    </a>
+                </div>
+            </div>
+
             <div>
                 <span
                     v-if="selectedSong?.liednummer2000"
@@ -311,6 +343,7 @@ import { gesangbuch_kategorie_name_to_icon, chart_colors, rang_to_color } from '
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import { useUserStore } from '@/store/user';
+import { useAppStore } from '@/store/app';
 
 import _ from 'lodash';
 import SingModeDialog from '@/components/SongRelated/SingModeDialog.vue';
@@ -330,9 +363,10 @@ export default {
             required: true,
         },
     },
-    emits: ['close'],
+    emits: ['close', 'switch-song'],
     data: () => ({
         user: useUserStore(),
+        appStore: useAppStore(),
         text_dialog: false,
         melodie_dialog: false,
         copied: false,
@@ -348,6 +382,19 @@ export default {
         },
         is_kleiner_kreis_ansicht() {
             return this.user.is_kleiner_kreis_ansicht;
+        },
+        deutsche_liedfassung_id() {
+            const dlf = this.selectedSong?.deutscheLiedfassung;
+            if (dlf == null) return null;
+            return typeof dlf === 'object' ? dlf.id : dlf;
+        },
+        deutsche_liedfassung_song() {
+            const id = this.deutsche_liedfassung_id;
+            if (id == null) return null;
+            return _.find(this.appStore.gesangbuchlieder, { id: Number(id) });
+        },
+        deutsche_liedfassung_titel() {
+            return this.deutsche_liedfassung_song?.gesangbuch_titel;
         },
         text_has_done_auftraege() {
             return this.has_only_done_auftraege(this.selectedSong.text.auftrag);
@@ -373,6 +420,12 @@ export default {
             // Open the print view in a new tab with the current song
             const url = `/druckansicht?songId=${this.selectedSong.id}`;
             window.open(url, '_blank');
+        },
+        openDeutscheLiedfassung() {
+            const song = this.deutsche_liedfassung_song;
+            if (song) {
+                this.$emit('switch-song', song);
+            }
         },
     },
 };
