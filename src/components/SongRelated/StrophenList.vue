@@ -304,6 +304,17 @@ export default {
         this.loadSettings();
     },
     watch: {
+        text: {
+            handler(newText) {
+                this.show_strophen = _.map(newText?.strophenEinzeln, (obj) => ({
+                    ...obj,
+                    show: this.showExtraStrophenData,
+                }));
+                this.editedStrophen = _.cloneDeep(this.show_strophen);
+                this.korrekturlesung1 = newText?.korrekturlesung1 || false;
+            },
+            deep: true,
+        },
         editMode(newVal) {
             if (newVal) {
                 // Reset edited strophen when entering edit mode
