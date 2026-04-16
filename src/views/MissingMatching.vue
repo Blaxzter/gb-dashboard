@@ -49,10 +49,10 @@ export default {
         },
         missingAuthors() {
             const text_author_ids = _.flatMap(this.store.gesangbuchlieder, (lied) =>
-                _.map(lied.text?.authors, (author) => author.id),
+                _.map(lied.text?.authors, (author) => author.autor_id),
             );
             const melody_author_ids = _.flatMap(this.store.gesangbuchlieder, (lied) =>
-                _.map(lied.melodie?.authors, (author) => author.id),
+                _.map(lied.melodie?.authors, (author) => author.autor_id),
             );
 
             return _.filter(
