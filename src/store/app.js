@@ -438,7 +438,7 @@ export const useAppStore = defineStore('app', {
 
             this.used_author = _.uniqBy(
                 _.flatMap(gesangbuchlied, (song) => song.authors),
-                'id',
+                'autor_id',
             );
 
             this.author = format_author;

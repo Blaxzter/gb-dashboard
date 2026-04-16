@@ -129,7 +129,7 @@
                                 v-model="selected_author"
                                 prepend-inner-icon="mdi-account"
                                 :items="authors"
-                                item-value="id"
+                                item-value="autor_id"
                                 item-title="name"
                                 label="Filter nach Autor"
                                 class="w-100 me-5"
@@ -536,7 +536,7 @@ export default {
 
             if (this.selected_author && this.selected_author.length > 0) {
                 filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) =>
-                    _.some(elem.authors, (author) => this.selected_author.includes(author.id)),
+                    _.some(elem.authors, (author) => this.selected_author.includes(author.autor_id)),
                 );
             }
 
