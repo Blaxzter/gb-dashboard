@@ -135,7 +135,7 @@ const filtered_gesangbuchlieder = computed(() => {
 
     if (selected_author.value && selected_author.value.length > 0) {
         filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) =>
-            _.some(elem.authors, (author) => selected_author.value.includes(author.id)),
+            _.some(elem.authors, (author) => selected_author.value.includes(author.autor_id)),
         );
     }
 
