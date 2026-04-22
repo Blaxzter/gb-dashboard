@@ -222,6 +222,16 @@
                                         </v-btn>
                                     </template>
                                 </v-tooltip>
+                                <v-tooltip
+                                    text="Nur Gesangbuchlieder ohne Korrekturlesung anzeigen."
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-btn v-bind="props" value="not_korrekturlesung1">
+                                            <v-icon color="primary">mdi-close-circle</v-icon>
+                                        </v-btn>
+                                    </template>
+                                </v-tooltip>
                             </v-btn-toggle>
                         </div>
                         <!-- Drop down with multi select  -->
@@ -511,10 +521,13 @@ export default {
             );
         },
         bewertungen() {
-            // return unique status from all songs
-            return _.uniq(
-                _.map(this.gesangbuchlieder, (song) => song['bewertung_kleiner_kreis'].bezeichner),
+            const rated = _.uniq(
+                _.map(
+                    this.gesangbuchlieder,
+                    (song) => song?.bewertung_kleiner_kreis?.bezeichner,
+                ).filter((b) => !_.isEmpty(b)),
             );
+            return [...rated, 'Unbewertet'];
         },
         filtered_gesangbuchlieder() {
             console.log('filtered_gesangbuchlieder');
@@ -527,10 +540,11 @@ export default {
             );
 
             if (this.selected_bewertung) {
+                const target =
+                    this.selected_bewertung === 'Unbewertet' ? '' : this.selected_bewertung;
                 filtered_gesangbuchlied = _.filter(
                     filtered_gesangbuchlied,
-                    (elem) =>
-                        elem['bewertung_kleiner_kreis'].bezeichner === this.selected_bewertung,
+                    (elem) => elem['bewertung_kleiner_kreis'].bezeichner === target,
                 );
             }
 
@@ -553,6 +567,11 @@ export default {
                 filtered_gesangbuchlied = _.filter(
                     filtered_gesangbuchlied,
                     (elem) => elem.text?.korrekturlesung1 === true,
+                );
+            } else if (this.filter_by_not_korrekturlesung1) {
+                filtered_gesangbuchlied = _.filter(
+                    filtered_gesangbuchlied,
+                    (elem) => elem.text?.korrekturlesung1 !== true,
                 );
             }
 
@@ -620,6 +639,9 @@ export default {
         filter_by_korrekturlesung1() {
             return this.filter.includes('korrekturlesung1');
         },
+        filter_by_not_korrekturlesung1() {
+            return this.filter.includes('not_korrekturlesung1');
+        },
         admin() {
             return this.userStore.is_kleiner_kreis;
         },
@@ -630,6 +652,17 @@ export default {
     watch: {
         selected_columns(newValue) {
             localStorage.setItem('selected_columns', JSON.stringify(newValue));
+        },
+        filter(newValue, oldValue) {
+            const added = _.difference(newValue, oldValue);
+            if (added.includes('korrekturlesung1') && newValue.includes('not_korrekturlesung1')) {
+                this.filter = newValue.filter((v) => v !== 'not_korrekturlesung1');
+            } else if (
+                added.includes('not_korrekturlesung1') &&
+                newValue.includes('korrekturlesung1')
+            ) {
+                this.filter = newValue.filter((v) => v !== 'korrekturlesung1');
+            }
         },
         song_dialog: function (newValue) {
             if (!newValue) {
@@ -653,8 +686,31 @@ export default {
         },
     },
     mounted() {
-        if (this.$route.query.filter_kategorie) {
-            this.kategorie = [{ name: this.$route.query.filter_kategorie }];
+        const q = this.$route.query;
+        let filterFromQuery = false;
+
+        if (q.filter_kategorie) {
+            this.kategorie = [{ name: q.filter_kategorie }];
+            filterFromQuery = true;
+        }
+        if (q.selected_bewertung !== undefined) {
+            this.selected_bewertung = q.selected_bewertung || 'Unbewertet';
+            filterFromQuery = true;
+        }
+        if (q.selected_aenderung === 'true') {
+            this.selected_aenderung = true;
+            filterFromQuery = true;
+        }
+        if (q.filter_by_korrekturlesung1 === 'true') {
+            this.filter = _.union(this.filter, ['korrekturlesung1']);
+            filterFromQuery = true;
+        }
+        if (q.filter_by_not_korrekturlesung1 === 'true') {
+            this.filter = _.union(this.filter, ['not_korrekturlesung1']);
+            filterFromQuery = true;
+        }
+
+        if (filterFromQuery) {
             this.filter_expanded = ['filter_expanded'];
         }
 
@@ -703,6 +759,8 @@ export default {
             if (this.selected_aenderung) appliedFilter.selected_aenderung = this.selected_aenderung;
             if (this.filter_by_korrekturlesung1)
                 appliedFilter.filter_by_korrekturlesung1 = this.filter_by_korrekturlesung1;
+            if (this.filter_by_not_korrekturlesung1)
+                appliedFilter.filter_by_not_korrekturlesung1 = this.filter_by_not_korrekturlesung1;
             if (this.kategorie) appliedFilter.kategorie = this.kategorie;
             if (this.filter_by_suggestions)
                 appliedFilter.filter_by_suggestions = this.filter_by_suggestions;

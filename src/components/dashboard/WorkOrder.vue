@@ -51,7 +51,10 @@ export default {
             );
         },
         work_chart_data() {
-            let labels = this.work_order_label;
+            let labels = _.map(
+                this.work_order_label,
+                (label, i) => `${label} (${this.work_orders_data_list[i]})`,
+            );
             const vibrantPastelPalette = [
                 '#1ba3c6',
                 '#2cb5c0',

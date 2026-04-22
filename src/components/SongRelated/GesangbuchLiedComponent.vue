@@ -108,19 +108,32 @@
 
             <div
                 v-for="(author_source, index_1) in [
-                    { name: 'Text', src: selectedSong?.text?.authors },
-                    { name: 'Melodie', src: selectedSong?.melodie?.authors },
+                    {
+                        name: 'Text',
+                        src: selectedSong?.text?.authors,
+                        copyright: selectedSong?.text?.copyright,
+                    },
+                    {
+                        name: 'Melodie',
+                        src: selectedSong?.melodie?.authors,
+                        copyright: selectedSong?.melodie?.copyright,
+                    },
                 ]"
                 :key="index_1"
             >
-                <div v-if="author_source?.src?.length">
-                    <div class="text-subtitle-1 font-weight-medium">
+                <v-sheet
+                    v-if="author_source?.src?.length || author_source.copyright"
+                    color="grey-lighten-4"
+                    rounded="lg"
+                    class="mb-3 pa-3"
+                >
+                    <div class="text-subtitle-1 font-weight-medium mb-2">
                         {{ author_source.name }} Autor
                     </div>
                     <div
                         v-for="(author, index) in author_source.src"
                         :key="index"
-                        class="d-flex flex-row mb-4"
+                        class="d-flex flex-row mb-3"
                     >
                         <div class="me-2">{{ index + 1 }}.</div>
                         <div class="d-flex flex-column">
@@ -139,27 +152,55 @@
                             </div>
                         </div>
                     </div>
+                    <div
+                        v-if="author_source.copyright"
+                        class="text-grey-darken-2 text-body-2 white-space-pre"
+                    >
+                        © {{ author_source.copyright }}
+                    </div>
+                </v-sheet>
+            </div>
+
+            <v-sheet
+                v-if="
+                    selectedSong?.copyright ||
+                    selectedSong?.einreicherName ||
+                    selectedSong?.text?.korrekturlesung1
+                "
+                color="grey-lighten-4"
+                rounded="lg"
+                class="mb-3 pa-3"
+            >
+                <div v-if="selectedSong?.copyright">
+                    <div class="text-subtitle-1 font-weight-medium">Copyright:</div>
+                    <div class="white-space-pre">© {{ selectedSong?.copyright }}</div>
                 </div>
-            </div>
+                <div v-if="selectedSong?.einreicherName" :class="{ 'mt-2': selectedSong?.copyright }">
+                    <span class="text-subtitle-1 font-weight-medium"> Eingereicht von: </span>
+                    <span> {{ selectedSong?.einreicherName }} </span>
+                </div>
+                <div
+                    v-if="selectedSong?.text?.korrekturlesung1"
+                    :class="{
+                        'mt-2':
+                            selectedSong?.copyright || selectedSong?.einreicherName,
+                    }"
+                >
+                    <v-chip color="success" prepend-icon="mdi-check-circle">
+                        Text: Korrekturlesung abgeschlossen
+                    </v-chip>
+                </div>
+            </v-sheet>
 
-            <div v-if="selectedSong?.einreicherName" class="mb-4">
-                <span class="text-subtitle-1 font-weight-medium"> Eingereicht von: </span>
-                <span> {{ selectedSong?.einreicherName }} </span>
-            </div>
-
-            <div v-if="selectedSong?.text?.korrekturlesung1" class="mb-4">
-                <v-chip color="success" prepend-icon="mdi-check-circle">
-                    Text: Korrekturlesung abgeschlossen
-                </v-chip>
-            </div>
-
-            <div
+            <v-sheet
                 v-if="
                     selectedSong?.anmerkung ||
                     selectedSong?.text?.anmerkung ||
                     selectedSong?.melodie?.anmerkung
                 "
-                class="mb-4"
+                color="grey-lighten-4"
+                rounded="lg"
+                class="mb-3 pa-3"
             >
                 <div class="text-subtitle-1 font-weight-medium">Anmerkung:</div>
                 <div class="white-space-pre">{{ selectedSong?.anmerkung }}</div>
@@ -176,9 +217,14 @@
                         {{ selectedSong?.melodie.anmerkung }}
                     </div>
                 </div>
-            </div>
+            </v-sheet>
 
-            <div v-if="is_kleiner_kreis && is_kleiner_kreis_ansicht">
+            <v-sheet
+                v-if="is_kleiner_kreis && is_kleiner_kreis_ansicht"
+                color="grey-lighten-4"
+                rounded="lg"
+                class="mb-3 pa-3"
+            >
                 <div class="text-subtitle-1 font-weight-medium">Bewertung Kleiner Kreis:</div>
                 <div>
                     <div
@@ -242,9 +288,9 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </v-sheet>
 
-            <div
+            <v-sheet
                 v-if="
                     is_kleiner_kreis &&
                     is_kleiner_kreis_ansicht &&
@@ -252,7 +298,9 @@
                         selectedSong?.deutscheLiedfassung ||
                         selectedSong?.melodie?.choralbuchNummer)
                 "
-                class="my-2"
+                color="grey-lighten-4"
+                rounded="lg"
+                class="mb-3 pa-3"
             >
                 <div v-if="selectedSong?.liednummer2026">
                     <span class="text-subtitle-1 font-weight-medium"> Gesangbuchlied 2026: </span>
@@ -274,15 +322,15 @@
                         {{ deutsche_liedfassung_titel || `#${deutsche_liedfassung_id}` }}
                     </a>
                 </div>
-            </div>
+            </v-sheet>
 
-            <div>
-                <span
-                    v-if="selectedSong?.liednummer2000"
-                    class="text-subtitle-1 font-weight-medium"
-                >
-                    Gesangbuchlied 2000:
-                </span>
+            <v-sheet
+                v-if="selectedSong?.liednummer2000"
+                color="grey-lighten-4"
+                rounded="lg"
+                class="mb-3 pa-3"
+            >
+                <span class="text-subtitle-1 font-weight-medium"> Gesangbuchlied 2000: </span>
                 <span> {{ selectedSong?.liednummer2000 }} </span>
                 <span v-if="selectedSong?.melodieGeaendert || selectedSong?.textGeaendert">
                     mit
@@ -303,7 +351,7 @@
                 <span v-if="selectedSong?.melodieGeaendert || selectedSong?.textGeaendert">
                     geändert.
                 </span>
-            </div>
+            </v-sheet>
 
             <div v-if="selectedSong?.autor_oder_copyright_checken" class="mt-4">
                 <v-alert

@@ -56,19 +56,25 @@ export default {
             return _.countBy(this.rated_song_bezeichner);
         },
         song_rating_data() {
-            const rated_songs = _.map(
-                this.rated_song_data_list,
-                (value, key) => this.rated_song_data_list[key],
-            );
-
+            const counts = this.rated_song_data_list;
             const vibrantPastelPalette = ['#1eb995', '#ffcd56', '#ff3341'];
 
+            const data = [
+                counts['Bewertet'] ?? 0,
+                counts['Bewertet mit Änderungsvorschlag'] ?? 0,
+                counts['Unbewertet'] ?? 0,
+            ];
+
             return {
-                labels: ['Bewertet', ['Bewertet mit', 'Änderungsvorschlag'], 'Unbewertet'],
+                labels: [
+                    `Bewertet (${data[0]})`,
+                    [`Bewertet mit`, `Änderungsvorschlag (${data[1]})`],
+                    `Unbewertet (${data[2]})`,
+                ],
                 datasets: [
                     {
                         backgroundColor: vibrantPastelPalette,
-                        data: rated_songs,
+                        data,
                     },
                 ],
             };
@@ -76,6 +82,10 @@ export default {
         enhancedChartOptions() {
             return {
                 ...this.chartOptions,
+                onClick: this.handle_click_events,
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
                 plugins: {
                     ...this.chartOptions.plugins,
                     legend: {
@@ -97,6 +107,19 @@ export default {
                     },
                 },
             };
+        },
+    },
+    methods: {
+        handle_click_events(_event, chartElements) {
+            if (!chartElements || !chartElements.length) return;
+            const index = chartElements[0].index;
+            const query = {};
+            if (index === 1) {
+                query.selected_aenderung = 'true';
+            } else if (index === 2) {
+                query.selected_bewertung = '';
+            }
+            this.$router.push({ name: 'Gesangbuchlieder', query });
         },
     },
 };

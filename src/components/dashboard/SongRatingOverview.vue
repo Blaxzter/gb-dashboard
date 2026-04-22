@@ -2,7 +2,11 @@
     <div class="text-h5">Übersicht Bewertungen</div>
     <div class="mt-3">
         <div style="height: 400px">
-            <Doughnut ref="song_rating_chart" :data="song_rating_data" :options="chartOptions" />
+            <Doughnut
+                ref="song_rating_chart"
+                :data="song_rating_data"
+                :options="enhancedChartOptions"
+            />
         </div>
     </div>
 </template>
@@ -35,6 +39,15 @@ export default {
     computed: {
         songs() {
             return this.store.gesangbuchlied;
+        },
+        enhancedChartOptions() {
+            return {
+                ...this.chartOptions,
+                onClick: this.handle_click_events,
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
+            };
         },
         rated_song_bezeichner() {
             return _.map(this.songs, (elem) =>
@@ -78,7 +91,7 @@ export default {
             const rated_songs = _.map(labels, (elem) => this.rated_song_data_list[elem]);
 
             return {
-                labels: labels,
+                labels: _.map(labels, (label, i) => `${label} (${rated_songs[i]})`),
                 datasets: [
                     {
                         backgroundColor: pastelColors,
@@ -86,6 +99,16 @@ export default {
                     },
                 ],
             };
+        },
+    },
+    methods: {
+        handle_click_events(event, chartElements) {
+            if (!chartElements || !chartElements.length) return;
+            const bezeichner = _.keys(this.rated_song_data_list)[chartElements[0].index];
+            this.$router.push({
+                name: 'Gesangbuchlieder',
+                query: { selected_bewertung: bezeichner === 'unbewertet' ? '' : bezeichner },
+            });
         },
     },
 };

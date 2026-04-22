@@ -75,7 +75,10 @@ export default {
             return _.map(this.song_category_label, (elem) => song_data[elem]);
         },
         song_chart_data() {
-            let labels = this.song_category_label;
+            let labels = _.map(
+                this.song_category_label,
+                (label, i) => `${label} (${this.song_data_list[i]})`,
+            );
             const vibrantPastelPalette = [
                 '#1ba3c6',
                 '#2cb5c0',

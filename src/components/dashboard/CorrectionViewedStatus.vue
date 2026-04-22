@@ -19,7 +19,7 @@
             <Doughnut
                 ref="correction_viewed_chart"
                 :data="correction_viewed_data"
-                :options="chartOptions"
+                :options="enhancedChartOptions"
             />
         </div>
     </div>
@@ -63,6 +63,15 @@ export default {
                 song.bewertung_kleiner_kreis?.bezeichner?.toLowerCase()?.includes('rein'),
             );
         },
+        enhancedChartOptions() {
+            return {
+                ...this.chartOptions,
+                onClick: this.handle_click_events,
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
+            };
+        },
         correction_viewed_data() {
             const correctionViewed = _.filter(
                 this.filteredSongs,
@@ -72,7 +81,10 @@ export default {
             const notCorrectionViewed = this.filteredSongs.length - correctionViewed;
 
             return {
-                labels: ['Korrektur gelesen', 'Nicht gelesen'],
+                labels: [
+                    `Korrektur gelesen (${correctionViewed})`,
+                    `Nicht gelesen (${notCorrectionViewed})`,
+                ],
                 datasets: [
                     {
                         backgroundColor: ['#4caf50', '#ff9800'],
@@ -85,6 +97,19 @@ export default {
     methods: {
         toggleFilter() {
             this.filterReinOnly = !this.filterReinOnly;
+        },
+        handle_click_events(_event, chartElements) {
+            if (!chartElements || !chartElements.length) return;
+            const query = {};
+            if (chartElements[0].index === 0) {
+                query.filter_by_korrekturlesung1 = 'true';
+            } else {
+                query.filter_by_not_korrekturlesung1 = 'true';
+            }
+            if (this.filterReinOnly) {
+                query.selected_bewertung = 'Rein';
+            }
+            this.$router.push({ name: 'Gesangbuchlieder', query });
         },
     },
 };
