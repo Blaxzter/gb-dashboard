@@ -72,6 +72,12 @@ const routes = [
                 component: () =>
                     import(/* webpackChunkName: "home" */ '@/views/CorrectionView.vue'),
             },
+            {
+                path: 'autoren-mailing',
+                name: 'AutorenMailing',
+                component: () =>
+                    import(/* webpackChunkName: "home" */ '@/views/AutorenMailingView.vue'),
+            },
         ],
     },
     {
