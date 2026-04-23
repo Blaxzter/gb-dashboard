@@ -565,6 +565,38 @@ export const useAppStore = defineStore('app', {
             });
         },
 
+        async updateGesangbuchliedTitel(gesangbuchliedId, titel) {
+            const controller = new AbortController();
+            this.currentRequests.push(controller);
+
+            try {
+                const response = await axios.patch(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${gesangbuchliedId}`,
+                    { titel },
+                    { signal: controller.signal },
+                );
+
+                const index = this.gesangbuchlied.findIndex((g) => g.id === gesangbuchliedId);
+                if (index !== -1) {
+                    const lied = this.gesangbuchlied[index];
+                    lied.titel = titel;
+                    lied.gesangbuch_titel = `${
+                        lied.liednummer2000 ? '(' + lied.liednummer2000 + ') ' : ''
+                    }${titel}`;
+                }
+
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                return response.data;
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                }
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                throw error;
+            }
+        },
+
         async updateTextStrophes(textId, strophes, korrekturgelesen = null) {
             const controller = new AbortController();
             this.currentRequests.push(controller);

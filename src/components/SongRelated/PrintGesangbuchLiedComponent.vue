@@ -1,7 +1,7 @@
 <template>
     <div ref="container" class="print-song-container">
         <!-- Content to measure (everything except media) -->
-        <div ref="contentToMeasure" style="opacity: 0; position: absolute; width: 100%;" v-if="calculatedMediaHeight === 0">
+        <div v-if="calculatedMediaHeight === 0" ref="contentToMeasure" style="opacity: 0; position: absolute; width: 100%;">
             <!-- Title and Categories Row -->
             <div class="title-categories-row">
                 <!-- Title -->

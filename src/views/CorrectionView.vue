@@ -32,12 +32,52 @@ const selected_aenderung = ref(null);
 const kategorie = ref(null);
 const filter_by_suggestions = ref(false);
 const filter_by_remarks = ref(false);
+const filter_by_korrekturlesung1 = ref(false);
+const filter_by_not_korrekturlesung1 = ref(false);
+const filter_by_text_geaendert = ref(false);
+const filter_by_melodie_geaendert = ref(false);
 const selected_author = ref(null);
 const check_autor_copyright = ref(null);
 
 // Snackbar state
 const snackbar = ref(false);
 const snackbar_message = ref('');
+
+// Title editing state
+const titleEditEnabled = ref({});
+const titleEditValue = ref({});
+const titleSaving = ref({});
+const titleError = ref({});
+
+const startTitleEdit = (lied) => {
+    titleEditValue.value[lied.id] = lied.titel || '';
+    titleError.value[lied.id] = null;
+    titleEditEnabled.value[lied.id] = true;
+};
+
+const cancelTitleEdit = (liedId) => {
+    titleEditEnabled.value[liedId] = false;
+    titleError.value[liedId] = null;
+};
+
+const saveTitle = async (lied) => {
+    const newTitle = (titleEditValue.value[lied.id] || '').trim();
+    if (!newTitle || newTitle === lied.titel) {
+        titleEditEnabled.value[lied.id] = false;
+        return;
+    }
+    titleSaving.value[lied.id] = true;
+    titleError.value[lied.id] = null;
+    try {
+        await store.updateGesangbuchliedTitel(lied.id, newTitle);
+        titleEditEnabled.value[lied.id] = false;
+    } catch (e) {
+        console.error('Error saving title:', e);
+        titleError.value[lied.id] = 'Fehler beim Speichern des Titels.';
+    } finally {
+        titleSaving.value[lied.id] = false;
+    }
+};
 
 const route = useRoute();
 
@@ -63,6 +103,10 @@ const applyFilterFromLink = () => {
         kategorie.value = null;
         filter_by_suggestions.value = false;
         filter_by_remarks.value = false;
+        filter_by_korrekturlesung1.value = false;
+        filter_by_not_korrekturlesung1.value = false;
+        filter_by_text_geaendert.value = false;
+        filter_by_melodie_geaendert.value = false;
         selected_author.value = null;
         check_autor_copyright.value = null;
 
@@ -87,6 +131,18 @@ const applyFilterFromLink = () => {
         }
         if (appliedFilter.filter_by_remarks !== undefined) {
             filter_by_remarks.value = appliedFilter.filter_by_remarks;
+        }
+        if (appliedFilter.filter_by_korrekturlesung1 !== undefined) {
+            filter_by_korrekturlesung1.value = appliedFilter.filter_by_korrekturlesung1;
+        }
+        if (appliedFilter.filter_by_not_korrekturlesung1 !== undefined) {
+            filter_by_not_korrekturlesung1.value = appliedFilter.filter_by_not_korrekturlesung1;
+        }
+        if (appliedFilter.filter_by_text_geaendert !== undefined) {
+            filter_by_text_geaendert.value = appliedFilter.filter_by_text_geaendert;
+        }
+        if (appliedFilter.filter_by_melodie_geaendert !== undefined) {
+            filter_by_melodie_geaendert.value = appliedFilter.filter_by_melodie_geaendert;
         }
         if (appliedFilter.selected_author !== undefined) {
             selected_author.value = appliedFilter.selected_author;
@@ -164,6 +220,32 @@ const filtered_gesangbuchlieder = computed(() => {
                 _.some(elem?.text?.strophenEinzeln, (obj) => {
                     return _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung);
                 }),
+        );
+    }
+
+    if (filter_by_korrekturlesung1.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.text?.korrekturlesung1 === true,
+        );
+    } else if (filter_by_not_korrekturlesung1.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.text?.korrekturlesung1 !== true,
+        );
+    }
+
+    if (filter_by_text_geaendert.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.textGeaendert === true,
+        );
+    }
+
+    if (filter_by_melodie_geaendert.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.melodieGeaendert === true,
         );
     }
 
@@ -291,6 +373,34 @@ const get_color = (category) => {
             variant="flat"
             >Hat Bemerkungen</v-chip
         >
+        <v-chip
+            v-if="filter_by_korrekturlesung1"
+            prepend-icon="mdi-check-circle"
+            color="success"
+            variant="flat"
+            >Mit Korrekturlesung</v-chip
+        >
+        <v-chip
+            v-if="filter_by_not_korrekturlesung1"
+            prepend-icon="mdi-close-circle"
+            color="warning"
+            variant="flat"
+            >Ohne Korrekturlesung</v-chip
+        >
+        <v-chip
+            v-if="filter_by_text_geaendert"
+            prepend-icon="mdi-text-box-edit"
+            color="primary"
+            variant="flat"
+            >Text geändert</v-chip
+        >
+        <v-chip
+            v-if="filter_by_melodie_geaendert"
+            prepend-icon="mdi-music-box"
+            color="primary"
+            variant="flat"
+            >Melodie geändert</v-chip
+        >
         <template v-if="selected_author">
             <v-chip
                 v-for="_author in authors"
@@ -386,6 +496,23 @@ const get_color = (category) => {
                     <splitpanes :dbl-click-splitter="false">
                         <pane min-size="20">
                             <div class="position-relative h-100" style="min-height: 70vh">
+                                <v-tooltip
+                                    v-if="lied.melodieGeaendert"
+                                    text="Melodie wurde gegenüber Gesangbuch 2000 geändert"
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-chip
+                                            v-bind="props"
+                                            color="primary"
+                                            size="small"
+                                            prepend-icon="mdi-music-box"
+                                            class="melo-changed-chip"
+                                        >
+                                            Melodie geändert
+                                        </v-chip>
+                                    </template>
+                                </v-tooltip>
                                 <MediaComponent
                                     v-if="
                                         lied.gesangbuchlied_satz_mit_melodie_und_text?.[0] ||
@@ -402,7 +529,66 @@ const get_color = (category) => {
                         <pane min-size="20">
                             <div class="pl-10 pt-10">
                                 <div class="d-flex align-center justify-space-between ga-2 mb-3">
-                                    <h2 class="mb-0">{{ lied.titel }}</h2>
+                                    <div
+                                        v-if="!titleEditEnabled[lied.id]"
+                                        class="d-flex align-center ga-2 flex-grow-1"
+                                        style="min-width: 0"
+                                    >
+                                        <h2 class="mb-0 text-truncate">{{ lied.titel }}</h2>
+                                        <v-tooltip
+                                            v-if="
+                                                userStore.is_kleiner_kreis &&
+                                                userStore.is_kleiner_kreis_ansicht
+                                            "
+                                            text="Titel bearbeiten"
+                                            location="bottom"
+                                        >
+                                            <template #activator="{ props }">
+                                                <v-btn
+                                                    icon="mdi-pencil"
+                                                    size="x-small"
+                                                    variant="text"
+                                                    color="grey"
+                                                    v-bind="props"
+                                                    @click="startTitleEdit(lied)"
+                                                />
+                                            </template>
+                                        </v-tooltip>
+                                    </div>
+                                    <div
+                                        v-else
+                                        class="d-flex align-center ga-2 flex-grow-1"
+                                        style="min-width: 0"
+                                    >
+                                        <v-text-field
+                                            v-model="titleEditValue[lied.id]"
+                                            density="compact"
+                                            hide-details
+                                            variant="outlined"
+                                            :error-messages="titleError[lied.id]"
+                                            :disabled="titleSaving[lied.id]"
+                                            autofocus
+                                            @keyup.enter="saveTitle(lied)"
+                                            @keyup.esc="cancelTitleEdit(lied.id)"
+                                        />
+                                        <v-btn
+                                            icon="mdi-content-save"
+                                            size="small"
+                                            variant="text"
+                                            color="primary"
+                                            :loading="titleSaving[lied.id]"
+                                            :disabled="titleSaving[lied.id]"
+                                            @click="saveTitle(lied)"
+                                        />
+                                        <v-btn
+                                            icon="mdi-close"
+                                            size="small"
+                                            variant="text"
+                                            color="grey"
+                                            :disabled="titleSaving[lied.id]"
+                                            @click="cancelTitleEdit(lied.id)"
+                                        />
+                                    </div>
                                     <div class="d-flex ga-2">
                                         <v-tooltip
                                             text="Silbensymbole und Leerzeichen anzeigen"
@@ -447,6 +633,23 @@ const get_color = (category) => {
                                             </template>
                                         </v-tooltip>
                                     </div>
+                                </div>
+                                <div v-if="lied.textGeaendert" class="mb-3">
+                                    <v-tooltip
+                                        text="Text wurde gegenüber Gesangbuch 2000 geändert"
+                                        location="bottom"
+                                    >
+                                        <template #activator="{ props }">
+                                            <v-chip
+                                                v-bind="props"
+                                                color="primary"
+                                                size="small"
+                                                prepend-icon="mdi-text-box-edit"
+                                            >
+                                                Text geändert
+                                            </v-chip>
+                                        </template>
+                                    </v-tooltip>
                                 </div>
                                 <div class="pe-1">
                                     <StrophenList
@@ -495,6 +698,13 @@ const get_color = (category) => {
 </template>
 
 <style>
+.melo-changed-chip {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+}
+
 .splitter-icon {
     position: absolute;
     top: 50%;

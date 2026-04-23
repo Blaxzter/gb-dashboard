@@ -288,21 +288,6 @@ export default {
                 : this.internalShowSpacesAsDots;
         },
     },
-    mounted() {
-        this.show_strophen = _.map(this.text?.strophenEinzeln, (obj) => ({
-            ...obj,
-            show: this.showExtraStrophenData,
-        }));
-
-        // Initialize edited strophen as deep copy
-        this.editedStrophen = _.cloneDeep(this.show_strophen);
-
-        // Initialize korrekturlesung1 from text object
-        this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
-
-        // Load settings from localStorage
-        this.loadSettings();
-    },
     watch: {
         text: {
             handler(newText) {
@@ -323,6 +308,21 @@ export default {
                 this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
             }
         },
+    },
+    mounted() {
+        this.show_strophen = _.map(this.text?.strophenEinzeln, (obj) => ({
+            ...obj,
+            show: this.showExtraStrophenData,
+        }));
+
+        // Initialize edited strophen as deep copy
+        this.editedStrophen = _.cloneDeep(this.show_strophen);
+
+        // Initialize korrekturlesung1 from text object
+        this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
+
+        // Load settings from localStorage
+        this.loadSettings();
     },
     methods: {
         toggleSyllableEditMode() {

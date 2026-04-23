@@ -11,6 +11,8 @@ const search = ref('');
 const hide_checked = ref(true);
 const only_living = ref(true);
 const only_with_rein = ref(true);
+const show_text = ref(true);
+const show_melodie = ref(true);
 const sort_by = ref('nachname_asc');
 const expanded = ref({});
 
@@ -54,61 +56,139 @@ const isChecked = (autor_id) => checked_ids.value.includes(autor_id);
 
 const isRein = (bezeichner) => !!bezeichner && bezeichner.toLowerCase().includes('rein');
 
-const authors_grouped = computed(() => {
+const deriveBezeichner = (lieder) => {
+    const reinLied = lieder.find((l) => isRein(l.bewertung_kleiner_kreis?.bezeichner));
+    if (reinLied) return reinLied.bewertung_kleiner_kreis.bezeichner;
+    const ratedLied = lieder.find((l) => l.bewertung_kleiner_kreis?.bezeichner);
+    if (ratedLied) return ratedLied.bewertung_kleiner_kreis.bezeichner;
+    return '';
+};
+
+const authors_grouped_raw = computed(() => {
     const lieder = store.gesangbuchlieder;
 
-    // Build a map autor_id -> contributions
-    const contribByAuthor = {};
+    // For each author: map of textId -> {entity, lieder} and melodieId -> {entity, lieder}
+    const dataByAuthor = {};
 
     lieder.forEach((lied) => {
-        const textAuthorIds = new Set(
-            (lied.text?.authors || []).map((a) => a.autor_id).filter((v) => v != null),
-        );
-        const melodieAuthorIds = new Set(
-            (lied.melodie?.authors || []).map((a) => a.autor_id).filter((v) => v != null),
-        );
-        const allAuthorIds = new Set([...textAuthorIds, ...melodieAuthorIds]);
+        const textAuthors = lied.text?.authors || [];
+        const melodieAuthors = lied.melodie?.authors || [];
 
-        allAuthorIds.forEach((autor_id) => {
-            const asText = textAuthorIds.has(autor_id);
-            const asMelodie = melodieAuthorIds.has(autor_id);
-            const role = asText && asMelodie ? 'Text & Melodie' : asText ? 'Text' : 'Melodie';
+        const seenTextAuthors = new Set();
+        textAuthors.forEach((a) => {
+            const id = a.autor_id;
+            if (id == null || seenTextAuthors.has(id)) return;
+            seenTextAuthors.add(id);
+            const textId = lied.text?.id;
+            if (textId == null) return;
+            if (!dataByAuthor[id]) dataByAuthor[id] = { textsMap: {}, melodiesMap: {} };
+            if (!dataByAuthor[id].textsMap[textId]) {
+                dataByAuthor[id].textsMap[textId] = {
+                    type: 'Text',
+                    entity_id: textId,
+                    entity: lied.text,
+                    lieder: [],
+                };
+            }
+            dataByAuthor[id].textsMap[textId].lieder.push(lied);
+        });
 
-            if (!contribByAuthor[autor_id]) contribByAuthor[autor_id] = [];
-            contribByAuthor[autor_id].push({
-                lied,
-                role,
-                bezeichner: lied.bewertung_kleiner_kreis?.bezeichner || '',
-            });
+        const seenMelodieAuthors = new Set();
+        melodieAuthors.forEach((a) => {
+            const id = a.autor_id;
+            if (id == null || seenMelodieAuthors.has(id)) return;
+            seenMelodieAuthors.add(id);
+            const melodieId = lied.melodie?.id;
+            if (melodieId == null) return;
+            if (!dataByAuthor[id]) dataByAuthor[id] = { textsMap: {}, melodiesMap: {} };
+            if (!dataByAuthor[id].melodiesMap[melodieId]) {
+                dataByAuthor[id].melodiesMap[melodieId] = {
+                    type: 'Melodie',
+                    entity_id: melodieId,
+                    entity: lied.melodie,
+                    lieder: [],
+                };
+            }
+            dataByAuthor[id].melodiesMap[melodieId].lieder.push(lied);
         });
     });
 
     const byAutorId = _.keyBy(store.authors, 'id');
 
-    return Object.keys(contribByAuthor)
-        .map((autor_id_str) => {
+    return Object.entries(dataByAuthor)
+        .map(([autor_id_str, data]) => {
             const autor_id = Number(autor_id_str);
             const author = byAutorId[autor_id];
             if (!author) return null;
 
-            const contributions = _.sortBy(contribByAuthor[autor_id], (c) => c.lied.titel || '');
-            const rein = contributions.filter((c) => isRein(c.bezeichner));
-            const nicht_rein = contributions.filter(
-                (c) => c.bezeichner && !isRein(c.bezeichner),
-            );
-            const unbewertet = contributions.filter((c) => !c.bezeichner);
+            const enrich = (c) => ({
+                ...c,
+                title: c.entity?.titel || c.lieder[0]?.titel || '',
+                bezeichner: deriveBezeichner(c.lieder),
+            });
+
+            const all = [
+                ...Object.values(data.textsMap).map(enrich),
+                ...Object.values(data.melodiesMap).map(enrich),
+            ];
+            const sorted = _.sortBy(all, [(c) => c.type, (c) => c.title.toLowerCase()]);
 
             return {
                 autor_id,
                 author,
                 verstorben: !!author.sterbejahr,
-                contributions,
+                contributions: sorted,
+            };
+        })
+        .filter(Boolean);
+});
+
+const authors_grouped = computed(() => {
+    return authors_grouped_raw.value
+        .map((g) => {
+            const filtered = g.contributions.filter((c) => {
+                if (c.type === 'Text' && !show_text.value) return false;
+                if (c.type === 'Melodie' && !show_melodie.value) return false;
+                return true;
+            });
+
+            const projectByStatus = (predicate, bezeichnerOf) =>
+                filtered
+                    .map((c) => {
+                        const matchedLieder = c.lieder.filter(predicate);
+                        if (matchedLieder.length === 0) return null;
+                        return {
+                            ...c,
+                            lieder: matchedLieder,
+                            bezeichner: bezeichnerOf(matchedLieder),
+                        };
+                    })
+                    .filter(Boolean);
+
+            const rein = projectByStatus(
+                (l) => isRein(l.bewertung_kleiner_kreis?.bezeichner),
+                (lieder) => lieder[0]?.bewertung_kleiner_kreis?.bezeichner || '',
+            );
+            const nicht_rein = projectByStatus(
+                (l) =>
+                    l.bewertung_kleiner_kreis?.bezeichner &&
+                    !isRein(l.bewertung_kleiner_kreis.bezeichner),
+                (lieder) => lieder[0]?.bewertung_kleiner_kreis?.bezeichner || '',
+            );
+            const unbewertet = projectByStatus(
+                (l) => !l.bewertung_kleiner_kreis?.bezeichner,
+                () => '',
+            );
+
+            return {
+                ...g,
+                contributions: filtered,
                 rein,
                 nicht_rein,
                 unbewertet,
             };
         })
-        .filter(Boolean);
+        .filter((g) => g.contributions.length > 0);
 });
 
 const filtered_authors = computed(() => {
@@ -161,17 +241,28 @@ const stats = computed(() => {
     return { total, done, open };
 });
 
+const formatLiederList = (lieder) => {
+    if (!lieder || lieder.length === 0) return '';
+    return `verwendet in (${lieder.length}): ${lieder.map((l) => `„${l.titel}"`).join(', ')}`;
+};
+
 const buildMailText = (group) => {
     const name = `${group.author.vorname || ''} ${group.author.nachname || ''}`.trim();
     const lines = [];
     lines.push(`Autor: ${name}${group.verstorben ? ' †' : ''}`);
     lines.push('');
 
+    const formatContrib = (c, i) => {
+        const lieder_str =
+            c.lieder.length > 1 || c.lieder[0]?.titel !== c.title
+                ? ` — ${formatLiederList(c.lieder)}`
+                : '';
+        return `  ${i + 1}. [${c.type}] „${c.title}"${lieder_str}`;
+    };
+
     if (group.rein.length > 0) {
         lines.push(`Aufgenommen ins Gesangbuch 2026 (${group.rein.length}):`);
-        group.rein.forEach((c, i) => {
-            lines.push(`  ${i + 1}. „${c.lied.titel}" — ${c.role}`);
-        });
+        group.rein.forEach((c, i) => lines.push(formatContrib(c, i)));
         lines.push('');
     } else {
         lines.push('Aufgenommen ins Gesangbuch 2026: keine');
@@ -181,16 +272,18 @@ const buildMailText = (group) => {
     if (group.nicht_rein.length > 0) {
         lines.push(`Nicht aufgenommen (${group.nicht_rein.length}):`);
         group.nicht_rein.forEach((c, i) => {
-            lines.push(`  ${i + 1}. „${c.lied.titel}" — ${c.role} (${c.bezeichner})`);
+            const lieder_str =
+                c.lieder.length > 1 || c.lieder[0]?.titel !== c.title
+                    ? ` — ${formatLiederList(c.lieder)}`
+                    : '';
+            lines.push(`  ${i + 1}. [${c.type}] „${c.title}" (${c.bezeichner})${lieder_str}`);
         });
         lines.push('');
     }
 
     if (group.unbewertet.length > 0) {
         lines.push(`Noch unbewertet (${group.unbewertet.length}):`);
-        group.unbewertet.forEach((c, i) => {
-            lines.push(`  ${i + 1}. „${c.lied.titel}" — ${c.role}`);
-        });
+        group.unbewertet.forEach((c, i) => lines.push(formatContrib(c, i)));
         lines.push('');
     }
 
@@ -275,6 +368,21 @@ const copyLinkAll = (group) => {
                 <v-checkbox
                     v-model="only_with_rein"
                     label="Nur mit Rein-Liedern"
+                    hide-details
+                    density="comfortable"
+                />
+                <v-divider vertical class="mx-2" />
+                <v-checkbox
+                    v-model="show_text"
+                    label="Text"
+                    color="primary"
+                    hide-details
+                    density="comfortable"
+                />
+                <v-checkbox
+                    v-model="show_melodie"
+                    label="Melodie"
+                    color="primary"
                     hide-details
                     density="comfortable"
                 />
@@ -383,21 +491,47 @@ v-if="group.author.geburtsjahr || group.author.sterbejahr"
                 <v-table density="compact" class="mb-4">
                     <thead>
                         <tr>
-                            <th style="width: 30%">Titel</th>
-                            <th style="width: 20%">Rolle</th>
-                            <th style="width: 20%">Bewertung</th>
+                            <th style="width: 12%">Typ</th>
+                            <th style="width: 38%">Titel</th>
+                            <th style="width: 35%">Verwendet in</th>
+                            <th style="width: 15%">Bewertung</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template v-if="group.rein.length > 0">
                             <tr>
-                                <td colspan="3" class="font-weight-bold bg-green-lighten-5">
+                                <td colspan="4" class="font-weight-bold bg-green-lighten-5">
                                     Aufgenommen ({{ group.rein.length }})
                                 </td>
                             </tr>
-                            <tr v-for="c in group.rein" :key="'r' + c.lied.id">
-                                <td>{{ c.lied.titel }}</td>
-                                <td>{{ c.role }}</td>
+                            <tr v-for="c in group.rein" :key="'r' + c.type + c.entity_id">
+                                <td>
+                                    <v-chip
+                                        size="x-small"
+                                        :color="c.type === 'Text' ? 'indigo' : 'deep-purple'"
+                                        variant="tonal"
+                                        :prepend-icon="
+                                            c.type === 'Text' ? 'mdi-text-box' : 'mdi-music'
+                                        "
+                                    >
+                                        {{ c.type }}
+                                    </v-chip>
+                                </td>
+                                <td>{{ c.title }}</td>
+                                <td class="text-caption">
+                                    <span class="font-weight-medium me-1"
+                                        >({{ c.lieder.length }})</span
+                                    >
+                                    <span
+                                        v-for="(l, idx) in c.lieder"
+                                        :key="l.id"
+                                        class="text-medium-emphasis"
+                                    >
+                                        „{{ l.titel }}"<span v-if="idx < c.lieder.length - 1"
+                                            >,
+                                        </span>
+                                    </span>
+                                </td>
                                 <td>
                                     <v-chip size="x-small" color="success" variant="tonal">
                                         {{ c.bezeichner }}
@@ -407,13 +541,38 @@ v-if="group.author.geburtsjahr || group.author.sterbejahr"
                         </template>
                         <template v-if="group.nicht_rein.length > 0">
                             <tr>
-                                <td colspan="3" class="font-weight-bold bg-red-lighten-5">
+                                <td colspan="4" class="font-weight-bold bg-red-lighten-5">
                                     Nicht aufgenommen ({{ group.nicht_rein.length }})
                                 </td>
                             </tr>
-                            <tr v-for="c in group.nicht_rein" :key="'n' + c.lied.id">
-                                <td>{{ c.lied.titel }}</td>
-                                <td>{{ c.role }}</td>
+                            <tr v-for="c in group.nicht_rein" :key="'n' + c.type + c.entity_id">
+                                <td>
+                                    <v-chip
+                                        size="x-small"
+                                        :color="c.type === 'Text' ? 'indigo' : 'deep-purple'"
+                                        variant="tonal"
+                                        :prepend-icon="
+                                            c.type === 'Text' ? 'mdi-text-box' : 'mdi-music'
+                                        "
+                                    >
+                                        {{ c.type }}
+                                    </v-chip>
+                                </td>
+                                <td>{{ c.title }}</td>
+                                <td class="text-caption">
+                                    <span class="font-weight-medium me-1"
+                                        >({{ c.lieder.length }})</span
+                                    >
+                                    <span
+                                        v-for="(l, idx) in c.lieder"
+                                        :key="l.id"
+                                        class="text-medium-emphasis"
+                                    >
+                                        „{{ l.titel }}"<span v-if="idx < c.lieder.length - 1"
+                                            >,
+                                        </span>
+                                    </span>
+                                </td>
                                 <td>
                                     <v-chip size="x-small" color="error" variant="tonal">
                                         {{ c.bezeichner }}
@@ -423,13 +582,38 @@ v-if="group.author.geburtsjahr || group.author.sterbejahr"
                         </template>
                         <template v-if="group.unbewertet.length > 0">
                             <tr>
-                                <td colspan="3" class="font-weight-bold bg-grey-lighten-4">
+                                <td colspan="4" class="font-weight-bold bg-grey-lighten-4">
                                     Noch unbewertet ({{ group.unbewertet.length }})
                                 </td>
                             </tr>
-                            <tr v-for="c in group.unbewertet" :key="'u' + c.lied.id">
-                                <td>{{ c.lied.titel }}</td>
-                                <td>{{ c.role }}</td>
+                            <tr v-for="c in group.unbewertet" :key="'u' + c.type + c.entity_id">
+                                <td>
+                                    <v-chip
+                                        size="x-small"
+                                        :color="c.type === 'Text' ? 'indigo' : 'deep-purple'"
+                                        variant="tonal"
+                                        :prepend-icon="
+                                            c.type === 'Text' ? 'mdi-text-box' : 'mdi-music'
+                                        "
+                                    >
+                                        {{ c.type }}
+                                    </v-chip>
+                                </td>
+                                <td>{{ c.title }}</td>
+                                <td class="text-caption">
+                                    <span class="font-weight-medium me-1"
+                                        >({{ c.lieder.length }})</span
+                                    >
+                                    <span
+                                        v-for="(l, idx) in c.lieder"
+                                        :key="l.id"
+                                        class="text-medium-emphasis"
+                                    >
+                                        „{{ l.titel }}"<span v-if="idx < c.lieder.length - 1"
+                                            >,
+                                        </span>
+                                    </span>
+                                </td>
                                 <td class="text-medium-emphasis">—</td>
                             </tr>
                         </template>

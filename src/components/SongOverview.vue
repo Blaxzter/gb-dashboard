@@ -232,6 +232,26 @@
                                         </v-btn>
                                     </template>
                                 </v-tooltip>
+                                <v-tooltip
+                                    text="Nur Gesangbuchlieder mit geändertem Text (gegenüber Gesangbuch 2000) anzeigen."
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-btn v-bind="props" value="text_geaendert">
+                                            <v-icon color="primary">mdi-text-box-edit</v-icon>
+                                        </v-btn>
+                                    </template>
+                                </v-tooltip>
+                                <v-tooltip
+                                    text="Nur Gesangbuchlieder mit geänderter Melodie (gegenüber Gesangbuch 2000) anzeigen."
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-btn v-bind="props" value="melodie_geaendert">
+                                            <v-icon color="primary">mdi-music-box</v-icon>
+                                        </v-btn>
+                                    </template>
+                                </v-tooltip>
                             </v-btn-toggle>
                         </div>
                         <!-- Drop down with multi select  -->
@@ -575,6 +595,20 @@ export default {
                 );
             }
 
+            if (this.filter_by_text_geaendert) {
+                filtered_gesangbuchlied = _.filter(
+                    filtered_gesangbuchlied,
+                    (elem) => elem.textGeaendert === true,
+                );
+            }
+
+            if (this.filter_by_melodie_geaendert) {
+                filtered_gesangbuchlied = _.filter(
+                    filtered_gesangbuchlied,
+                    (elem) => elem.melodieGeaendert === true,
+                );
+            }
+
             filtered_gesangbuchlied = _.filter(
                 filtered_gesangbuchlied,
                 (elem) =>
@@ -641,6 +675,12 @@ export default {
         },
         filter_by_not_korrekturlesung1() {
             return this.filter.includes('not_korrekturlesung1');
+        },
+        filter_by_text_geaendert() {
+            return this.filter.includes('text_geaendert');
+        },
+        filter_by_melodie_geaendert() {
+            return this.filter.includes('melodie_geaendert');
         },
         admin() {
             return this.userStore.is_kleiner_kreis;
@@ -709,6 +749,14 @@ export default {
             this.filter = _.union(this.filter, ['not_korrekturlesung1']);
             filterFromQuery = true;
         }
+        if (q.filter_by_text_geaendert === 'true') {
+            this.filter = _.union(this.filter, ['text_geaendert']);
+            filterFromQuery = true;
+        }
+        if (q.filter_by_melodie_geaendert === 'true') {
+            this.filter = _.union(this.filter, ['melodie_geaendert']);
+            filterFromQuery = true;
+        }
 
         if (filterFromQuery) {
             this.filter_expanded = ['filter_expanded'];
@@ -761,6 +809,10 @@ export default {
                 appliedFilter.filter_by_korrekturlesung1 = this.filter_by_korrekturlesung1;
             if (this.filter_by_not_korrekturlesung1)
                 appliedFilter.filter_by_not_korrekturlesung1 = this.filter_by_not_korrekturlesung1;
+            if (this.filter_by_text_geaendert)
+                appliedFilter.filter_by_text_geaendert = this.filter_by_text_geaendert;
+            if (this.filter_by_melodie_geaendert)
+                appliedFilter.filter_by_melodie_geaendert = this.filter_by_melodie_geaendert;
             if (this.kategorie) appliedFilter.kategorie = this.kategorie;
             if (this.filter_by_suggestions)
                 appliedFilter.filter_by_suggestions = this.filter_by_suggestions;
