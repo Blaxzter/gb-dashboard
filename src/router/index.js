@@ -45,6 +45,12 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/SongOverviewView.vue'),
             },
             {
+                path: 'lied/:id',
+                name: 'LiedDetail',
+                component: () =>
+                    import(/* webpackChunkName: "home" */ '@/views/SongDetailView.vue'),
+            },
+            {
                 path: 'fokusmodus',
                 name: 'Fokusmodus',
                 component: () => import(/* webpackChunkName: "home" */ '@/views/SingModeView.vue'),

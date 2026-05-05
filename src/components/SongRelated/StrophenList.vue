@@ -165,6 +165,59 @@
                     </div>
                 </div>
             </v-expand-transition>
+            <div
+                v-if="
+                    !showTextOnly &&
+                    isAdmin &&
+                    isAdminView &&
+                    strophe.kiReview &&
+                    strophe.kiReview.length > 0
+                "
+                class="ki-review-section ms-5 me-5 mb-3"
+            >
+                <div
+                    v-for="(review, reviewIndex) in strophe.kiReview"
+                    :key="reviewIndex"
+                    class="ki-review-entry pt-2"
+                >
+                    <div class="d-flex align-start ga-3">
+                        <v-icon
+                            icon="mdi-robot-outline"
+                            size="tiny"
+                            color="info"
+                            class="mt-3"
+                        />
+                        <div
+                            class="flex-grow-1 pt-2"
+                            style="font-size: 0.9rem; white-space: pre-wrap"
+                        >
+                            {{ review.reviewErgebnis }}
+                        </div>
+                        <v-select
+                            v-if="review.reviewErgebnis"
+                            v-model="review.bewertungDurchMensch"
+                            :items="bewertungOptions"
+                            label="Bewertung"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            style="max-width: 200px; min-width: 160px"
+                            @update:model-value="onKiReviewChanged"
+                        />
+                    </div>
+                    <div v-if="review.reviewErgebnis" class="ms-8 mt-2">
+                        <v-text-field
+                            v-model="review.anmerkungDurchMensch"
+                            label="Anmerkung"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            @blur="onKiReviewChanged"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- Syllable Edit Mode -->
         <div v-else>
@@ -175,6 +228,18 @@
                 :show-spaces-as-dots="effectiveShowSpacesAsDots"
                 @update-strophen="updateStrophe(index, $event)"
             />
+        </div>
+    </div>
+
+    <!-- Song-level Anmerkung shown beneath the last verse -->
+    <div
+        v-if="text?.anmerkung && !showTextOnly"
+        :style="{ 'max-width': !includeTitle ? '' : '500px' }"
+        class="mx-auto pt-3 px-5 d-flex"
+    >
+        <div style="font-size: 0.9rem; white-space: pre-wrap">
+            <v-icon icon="mdi-message" size="tiny" class="me-3" />
+            {{ text.anmerkung }}
         </div>
     </div>
 
@@ -268,6 +333,11 @@ export default {
         isSaving: false,
         saveError: null,
         korrekturlesung1: false,
+        bewertungOptions: [
+            { title: 'Akzeptiert', value: 'accepted' },
+            { title: 'Abgelehnt', value: 'rejected' },
+            { title: 'Diskussion', value: 'discussion' },
+        ],
     }),
     computed: {
         // Computed property to determine if the text is a song
@@ -368,14 +438,29 @@ export default {
                 };
 
                 // Save the updated strophen to the main text object
-                this.store.updateTextStrophes(
-                    this.text.id,
-                    this.show_strophen.map((strophe) => ({
-                        strophe: strophe.strophe,
-                        aenderungsvorschlag: strophe.aenderungsvorschlag,
-                        anmerkung: strophe.anmerkung,
-                    })),
-                );
+                this.store.updateTextStrophes(this.text.id, this.buildStrophenPayload());
+            }
+        },
+
+        buildStrophenPayload() {
+            return this.show_strophen.map((strophe) => {
+                const payload = {
+                    strophe: strophe.strophe,
+                    aenderungsvorschlag: strophe.aenderungsvorschlag,
+                    anmerkung: strophe.anmerkung,
+                };
+                if (strophe.kiReview) {
+                    payload.kiReview = strophe.kiReview;
+                }
+                return payload;
+            });
+        },
+
+        async onKiReviewChanged() {
+            try {
+                await this.store.updateTextStrophes(this.text.id, this.buildStrophenPayload());
+            } catch (error) {
+                console.error('Error saving KI review:', error);
             }
         },
 
@@ -459,12 +544,18 @@ export default {
                 // Save to Directus backend via store
                 await this.store.updateTextStrophes(
                     this.text.id,
-                    this.editedStrophen.map((strophe, index) => ({
-                        strophe: strophe.strophe,
-                        // Preserve original values for these fields
-                        aenderungsvorschlag: this.show_strophen[index].aenderungsvorschlag,
-                        anmerkung: this.show_strophen[index].anmerkung,
-                    })),
+                    this.editedStrophen.map((strophe, index) => {
+                        const payload = {
+                            strophe: strophe.strophe,
+                            // Preserve original values for these fields
+                            aenderungsvorschlag: this.show_strophen[index].aenderungsvorschlag,
+                            anmerkung: this.show_strophen[index].anmerkung,
+                        };
+                        if (this.show_strophen[index].kiReview) {
+                            payload.kiReview = this.show_strophen[index].kiReview;
+                        }
+                        return payload;
+                    }),
                     this.korrekturlesung1,
                 );
 

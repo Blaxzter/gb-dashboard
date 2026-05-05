@@ -362,7 +362,7 @@
         </template>
     </v-data-table>
 
-    <v-dialog v-model="song_dialog" width="700" @close="modalClose">
+    <v-dialog v-model="song_dialog" width="90vw" max-width="1100" @close="modalClose">
         <GesangbuchLiedComponent
             :selected-song="selected_song"
             @close="song_dialog = false"
