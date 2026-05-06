@@ -300,6 +300,15 @@ const toggleEditMode = (liedId) => {
     editModeEnabled.value[liedId] = !editModeEnabled.value[liedId];
 };
 
+// Global KI review visibility (persisted in localStorage, shared with StrophenList)
+const savedKiReview = localStorage.getItem('strophen-show-ki-review');
+const showKiReview = ref(savedKiReview !== null ? JSON.parse(savedKiReview) : true);
+
+const toggleKiReview = () => {
+    showKiReview.value = !showKiReview.value;
+    localStorage.setItem('strophen-show-ki-review', JSON.stringify(showKiReview.value));
+};
+
 // Song dialog stuff
 const song_dialog = ref(false);
 const selected_song = ref(null);
@@ -632,6 +641,25 @@ const get_color = (category) => {
                                                 />
                                             </template>
                                         </v-tooltip>
+                                        <v-tooltip
+                                            v-if="
+                                                userStore.is_kleiner_kreis &&
+                                                userStore.is_kleiner_kreis_ansicht
+                                            "
+                                            text="KI-Anmerkungen ein-/ausblenden"
+                                            location="bottom"
+                                        >
+                                            <template #activator="{ props }">
+                                                <v-btn
+                                                    icon="mdi-robot-outline"
+                                                    size="small"
+                                                    variant="text"
+                                                    :color="showKiReview ? 'primary' : 'grey'"
+                                                    v-bind="props"
+                                                    @click="toggleKiReview"
+                                                />
+                                            </template>
+                                        </v-tooltip>
                                     </div>
                                 </div>
                                 <div v-if="lied.textGeaendert" class="mb-3">
@@ -661,6 +689,7 @@ const get_color = (category) => {
                                             syllableViewEnabled[lied.id] || false
                                         "
                                         :show-spaces-as-dots="syllableViewEnabled[lied.id] || false"
+                                        :show-ki-review="showKiReview"
                                         :edit-mode="editModeEnabled[lied.id] || false"
                                         @toggle-edit-mode="toggleEditMode(lied.id)"
                                         @edit-completed="editModeEnabled[lied.id] = false"
