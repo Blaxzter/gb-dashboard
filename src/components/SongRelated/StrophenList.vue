@@ -231,18 +231,6 @@
         </div>
     </div>
 
-    <!-- Song-level Anmerkung shown beneath the last verse -->
-    <div
-        v-if="text?.anmerkung && !showTextOnly"
-        :style="{ 'max-width': !includeTitle ? '' : '500px' }"
-        class="mx-auto pt-3 px-5 d-flex"
-    >
-        <div style="font-size: 0.9rem; white-space: pre-wrap">
-            <v-icon icon="mdi-message" size="tiny" class="me-3" />
-            {{ text.anmerkung }}
-        </div>
-    </div>
-
     <!-- Save/Cancel buttons for Edit Mode -->
     <div v-if="editMode" class="d-flex flex-column align-center ga-2 mt-4 mb-2">
         <v-alert
