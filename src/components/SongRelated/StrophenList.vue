@@ -26,6 +26,18 @@
                     />
                 </template>
             </v-tooltip>
+            <v-tooltip text="KI-Anmerkungen ein-/ausblenden" location="bottom">
+                <template #activator="{ props }">
+                    <v-btn
+                        icon="mdi-robot-outline"
+                        size="small"
+                        variant="text"
+                        :color="effectiveShowKiReview ? 'primary' : 'grey'"
+                        v-bind="props"
+                        @click="toggleKiReview"
+                    />
+                </template>
+            </v-tooltip>
         </div>
         <v-expand-transition>
             <div v-if="syllableEditMode" class="ms-4 d-flex ga-2">
@@ -170,6 +182,7 @@
                     !showTextOnly &&
                     isAdmin &&
                     isAdminView &&
+                    effectiveShowKiReview &&
                     strophe.kiReview &&
                     strophe.kiReview.length > 0
                 "
@@ -304,6 +317,10 @@ export default {
             type: Boolean,
             default: null,
         },
+        showKiReview: {
+            type: Boolean,
+            default: null,
+        },
         editMode: {
             type: Boolean,
             default: false,
@@ -317,6 +334,7 @@ export default {
         syllableEditMode: false,
         internalShowSyllableSymbols: false,
         internalShowSpacesAsDots: false,
+        internalShowKiReview: true,
         editedStrophen: [],
         isSaving: false,
         saveError: null,
@@ -344,6 +362,9 @@ export default {
             return this.showSpacesAsDots !== null
                 ? this.showSpacesAsDots
                 : this.internalShowSpacesAsDots;
+        },
+        effectiveShowKiReview() {
+            return this.showKiReview !== null ? this.showKiReview : this.internalShowKiReview;
         },
     },
     watch: {
@@ -398,6 +419,11 @@ export default {
 
         toggleSpacesAsDots() {
             this.internalShowSpacesAsDots = !this.internalShowSpacesAsDots;
+            this.saveSettings();
+        },
+
+        toggleKiReview() {
+            this.internalShowKiReview = !this.internalShowKiReview;
             this.saveSettings();
         },
 
@@ -498,6 +524,10 @@ export default {
                 'strophen-show-spaces-as-dots',
                 JSON.stringify(this.internalShowSpacesAsDots),
             );
+            localStorage.setItem(
+                'strophen-show-ki-review',
+                JSON.stringify(this.internalShowKiReview),
+            );
         },
 
         saveSettings() {
@@ -509,11 +539,16 @@ export default {
                 'strophen-show-spaces-as-dots',
                 JSON.stringify(this.internalShowSpacesAsDots),
             );
+            localStorage.setItem(
+                'strophen-show-ki-review',
+                JSON.stringify(this.internalShowKiReview),
+            );
         },
 
         loadSettings() {
             const savedSyllableSymbols = localStorage.getItem('strophen-show-syllable-symbols');
             const savedSpacesAsDots = localStorage.getItem('strophen-show-spaces-as-dots');
+            const savedKiReview = localStorage.getItem('strophen-show-ki-review');
 
             if (savedSyllableSymbols !== null) {
                 this.internalShowSyllableSymbols = JSON.parse(savedSyllableSymbols);
@@ -521,6 +556,10 @@ export default {
 
             if (savedSpacesAsDots !== null) {
                 this.internalShowSpacesAsDots = JSON.parse(savedSpacesAsDots);
+            }
+
+            if (savedKiReview !== null) {
+                this.internalShowKiReview = JSON.parse(savedKiReview);
             }
         },
 
