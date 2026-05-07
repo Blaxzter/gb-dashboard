@@ -9,7 +9,9 @@
         class="mx-auto"
     >
         <div class="d-flex py-3 px-5">
-            <div class="pb-0 me-3" style="white-space: nowrap">{{ index + 1 }}.</div>
+            <div class="pb-0 me-3" style="white-space: nowrap">
+                {{ stropheNumber !== null ? stropheNumber : index + 1 }}.
+            </div>
             <div class="pb-0 syllable-edit-area">
                 <div
                     v-for="(line, lineIndex) in strophe.lines"
@@ -70,6 +72,10 @@ export default {
         showSpacesAsDots: {
             type: Boolean,
             default: false,
+        },
+        stropheNumber: {
+            type: Number,
+            default: null,
         },
     },
     emits: ['update-strophen'],

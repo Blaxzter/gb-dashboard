@@ -239,6 +239,7 @@
                 :include-title="false"
                 :show-syllable-symbols="effectiveShowSyllableSymbols"
                 :show-spaces-as-dots="effectiveShowSpacesAsDots"
+                :strophe-number="index + 1"
                 @update-strophen="updateStrophe(index, $event)"
             />
         </div>
