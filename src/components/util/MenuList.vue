@@ -125,6 +125,13 @@ export default {
                 marginButton: true,
                 public: false,
             },
+            {
+                name: 'Notentext-Export',
+                route: '/notentext-export',
+                icon: 'mdi-file-music',
+                marginButton: true,
+                public: false,
+            },
         ],
     }),
     computed: {

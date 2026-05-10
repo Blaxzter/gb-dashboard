@@ -84,6 +84,12 @@ const routes = [
                 component: () =>
                     import(/* webpackChunkName: "home" */ '@/views/AutorenMailingView.vue'),
             },
+            {
+                path: 'notentext-export',
+                name: 'NotentextExport',
+                component: () =>
+                    import(/* webpackChunkName: "noten-export" */ '@/views/NotenExportView.vue'),
+            },
         ],
     },
     {
