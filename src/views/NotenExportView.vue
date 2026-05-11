@@ -159,6 +159,8 @@ function buildCsv(rows) {
         'status',
         'bewertung',
         'notentext_file_id',
+        'notentext_seite2_file_id',
+        'seiten',
         'pdf_filename',
         'export_status',
         'fehler',
@@ -361,17 +363,22 @@ function getSvgDimensions(svgEl) {
     return { width: 595, height: 842 }; // A4 fallback in pt
 }
 
-async function svgToPdfBlob(svgEl) {
-    const { width, height } = getSvgDimensions(svgEl);
-    const orientation = width > height ? 'landscape' : 'portrait';
+async function svgsToPdfBlob(svgEls) {
+    if (!svgEls.length) throw new Error('Keine SVGs zum Konvertieren');
+    const dims0 = getSvgDimensions(svgEls[0]);
     const pdf = new jsPDF({
         unit: 'pt',
-        format: [width, height],
-        orientation,
+        format: [dims0.width, dims0.height],
+        orientation: dims0.width > dims0.height ? 'landscape' : 'portrait',
         compress: true,
     });
     // svg2pdf.js attaches itself to jsPDF prototype as `.svg(...)`
-    await pdf.svg(svgEl, { x: 0, y: 0, width, height });
+    await pdf.svg(svgEls[0], { x: 0, y: 0, width: dims0.width, height: dims0.height });
+    for (let i = 1; i < svgEls.length; i++) {
+        const d = getSvgDimensions(svgEls[i]);
+        pdf.addPage([d.width, d.height], d.width > d.height ? 'landscape' : 'portrait');
+        await pdf.svg(svgEls[i], { x: 0, y: 0, width: d.width, height: d.height });
+    }
     return pdf.output('blob');
 }
 
@@ -409,6 +416,9 @@ async function runExport() {
         progress.value.current = lied.titel || `#${lied.id}`;
         const filenameBase = `${lied.liednummer2026 || lied.liednummer2000 || lied.id}_${safeFilename(lied.titel)}`;
         const pdfFilename = `${filenameBase}.pdf`;
+        const pageFileIds = [lied.notentext];
+        if (lied.notentext_seite2) pageFileIds.push(lied.notentext_seite2);
+
         const row = {
             id: lied.id,
             liednummer2000: lied.liednummer2000 || '',
@@ -417,34 +427,41 @@ async function runExport() {
             status: lied.status || '',
             bewertung: lied.bewertung_kleiner_kreis?.bezeichner || '',
             notentext_file_id: lied.notentext,
+            notentext_seite2_file_id: lied.notentext_seite2 || '',
+            seiten: pageFileIds.length,
             pdf_filename: pdfFilename,
             export_status: 'ok',
             fehler: '',
         };
 
+        const hosts = [];
         try {
-            const svgText = await fetchSvgText(lied.notentext);
-            const { svg } = bakeSvg(svgText);
-            // svg must be in a document attached to DOM for some measurement code paths in svg2pdf
-            const host = document.createElement('div');
-            host.style.cssText =
-                'position:absolute;left:-99999px;top:-99999px;visibility:hidden;';
-            host.appendChild(svg);
-            document.body.appendChild(host);
-            try {
+            const svgs = [];
+            for (const fileId of pageFileIds) {
+                const svgText = await fetchSvgText(fileId);
+                const { svg } = bakeSvg(svgText);
+                const host = document.createElement('div');
+                host.style.cssText =
+                    'position:absolute;left:-99999px;top:-99999px;visibility:hidden;';
+                host.appendChild(svg);
+                document.body.appendChild(host);
+                hosts.push(host);
                 if (trim_whitespace.value) {
                     trimSvgToContent(svg, trim_padding.value);
                 }
-                const blob = await svgToPdfBlob(svg);
-                pdfFolder.file(pdfFilename, blob);
-                exportedIds.push(lied.id);
-            } finally {
-                document.body.removeChild(host);
+                svgs.push(svg);
             }
+            const blob = await svgsToPdfBlob(svgs);
+            pdfFolder.file(pdfFilename, blob);
+            exportedIds.push(lied.id);
         } catch (e) {
             console.error('Export-Fehler', lied.id, e);
             row.export_status = 'fehler';
             row.fehler = (e && e.message) || String(e);
+        } finally {
+            hosts.forEach((h) => {
+                if (h.parentNode) h.parentNode.removeChild(h);
+            });
         }
 
         csvRows.push(row);
@@ -464,6 +481,8 @@ async function runExport() {
                     status: lied.status || '',
                     bewertung: lied.bewertung_kleiner_kreis?.bezeichner || '',
                     notentext_file_id: '',
+                    notentext_seite2_file_id: '',
+                    seiten: 0,
                     pdf_filename: '',
                     export_status: 'kein_notentext',
                     fehler: '',
@@ -734,6 +753,16 @@ function formatDate(iso) {
                                 prepend-icon="mdi-close"
                             >
                                 fehlt
+                            </v-chip>
+                            <v-chip
+                                v-if="lied.notentext_seite2"
+                                size="x-small"
+                                color="info"
+                                variant="tonal"
+                                prepend-icon="mdi-numeric-2-box"
+                                class="ms-1"
+                            >
+                                2 Seiten
                             </v-chip>
                         </td>
                         <td>
