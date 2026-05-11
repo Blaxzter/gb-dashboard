@@ -132,6 +132,13 @@ export default {
                 marginButton: true,
                 public: false,
             },
+            {
+                name: 'Notentext-Hochladen',
+                route: '/notentext-hochladen',
+                icon: 'mdi-cloud-upload',
+                marginButton: true,
+                public: false,
+            },
         ],
     }),
     computed: {

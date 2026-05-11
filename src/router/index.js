@@ -90,6 +90,14 @@ const routes = [
                 component: () =>
                     import(/* webpackChunkName: "noten-export" */ '@/views/NotenExportView.vue'),
             },
+            {
+                path: 'notentext-hochladen',
+                name: 'NotentextHochladen',
+                component: () =>
+                    import(
+                        /* webpackChunkName: "noten-upload" */ '@/views/NotentextUploadView.vue'
+                    ),
+            },
         ],
     },
     {
