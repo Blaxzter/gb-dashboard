@@ -80,6 +80,12 @@
                 :gesangbuchlied-satz-mit-melodie-und-text="
                     selectedSong?.gesangbuchlied_satz_mit_melodie_und_text
                 "
+                :notentext-files="
+                    [
+                        selectedSong?.notentext_file,
+                        selectedSong?.notentext_seite2_file,
+                    ].filter(Boolean)
+                "
                 @visible_file="visible_file = $event"
             />
 

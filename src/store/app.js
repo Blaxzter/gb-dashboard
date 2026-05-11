@@ -388,6 +388,10 @@ export const useAppStore = defineStore('app', {
                     gesangbuchlied_files_by_gesangbuchlied_id[obj.id],
                     (elem) => file_grouped[elem.directus_files_id],
                 ),
+                notentext_file: obj.notentext ? file_grouped[obj.notentext] : null,
+                notentext_seite2_file: obj.notentext_seite2
+                    ? file_grouped[obj.notentext_seite2]
+                    : null,
 
                 // if undefined then 0, if auftrag exist and any has status not 'done' then 1 otherwise 2
                 text_work_order: textById[obj.textId]?.auftrag

@@ -253,6 +253,22 @@
                                     </template>
                                 </v-tooltip>
                             </v-btn-toggle>
+
+                            <v-tooltip :text="notentext_filter_label" location="bottom">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        variant="outlined"
+                                        :color="notentext_filter ? 'primary' : undefined"
+                                        class="ms-2"
+                                        @click="cycleNotentextFilter"
+                                    >
+                                        <v-icon :color="notentext_filter ? 'primary' : undefined">
+                                            {{ notentext_filter_icon }}
+                                        </v-icon>
+                                    </v-btn>
+                                </template>
+                            </v-tooltip>
                         </div>
                         <!-- Drop down with multi select  -->
                         <v-select
@@ -416,6 +432,7 @@ export default {
         userStore: useUserStore(),
         check_autor_copyright: null,
         sortBy: [],
+        notentext_filter: null, // null | 'has' | 'no'
     }),
     computed: {
         possible_columns() {
@@ -609,6 +626,18 @@ export default {
                 );
             }
 
+            if (this.notentext_filter === 'has') {
+                filtered_gesangbuchlied = _.filter(
+                    filtered_gesangbuchlied,
+                    (elem) => !!elem.notentext,
+                );
+            } else if (this.notentext_filter === 'no') {
+                filtered_gesangbuchlied = _.filter(
+                    filtered_gesangbuchlied,
+                    (elem) => !elem.notentext,
+                );
+            }
+
             filtered_gesangbuchlied = _.filter(
                 filtered_gesangbuchlied,
                 (elem) =>
@@ -681,6 +710,18 @@ export default {
         },
         filter_by_melodie_geaendert() {
             return this.filter.includes('melodie_geaendert');
+        },
+        notentext_filter_icon() {
+            if (this.notentext_filter === 'has') return 'mdi-file-music';
+            if (this.notentext_filter === 'no') return 'mdi-file-music-outline';
+            return 'mdi-file-music';
+        },
+        notentext_filter_label() {
+            if (this.notentext_filter === 'has')
+                return 'Notentext: nur mit (klicken: nur ohne)';
+            if (this.notentext_filter === 'no')
+                return 'Notentext: nur ohne (klicken: egal)';
+            return 'Notentext: egal (klicken: nur mit)';
         },
         admin() {
             return this.userStore.is_kleiner_kreis;
@@ -798,6 +839,15 @@ export default {
             this.selected_author = null;
             this.strophenSearch = null;
             this.check_autor_copyright = null;
+            this.notentext_filter = null;
+        },
+        cycleNotentextFilter() {
+            this.notentext_filter =
+                this.notentext_filter === null
+                    ? 'has'
+                    : this.notentext_filter === 'has'
+                      ? 'no'
+                      : null;
         },
         copyFilterIntoLink() {
             const appliedFilter = {};

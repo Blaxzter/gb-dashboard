@@ -12,6 +12,8 @@
             v-for="(file, i) in carousel_files"
             :key="i"
             :src="file.type.includes('image') ? getImgUrl(file.id) : null"
+            :style="file.type.includes('image') ? 'cursor: pointer' : ''"
+            @click="file.type.includes('image') ? fullscreen_pdf($event, file) : null"
         >
             <MediaComponent v-if="file" :file="file" @fullscreen_pdf="fullscreen_pdf" />
         </v-carousel-item>
@@ -25,6 +27,31 @@
         <div>
             {{ carousel_files[pdf_carousel_model]?.filename_download }}
         </div>
+
+        <v-menu
+            v-if="active_is_notentext"
+            open-on-hover
+            location="bottom"
+            :close-on-content-click="false"
+        >
+            <template #activator="{ props }">
+                <v-icon
+                    v-bind="props"
+                    color="info"
+                    size="small"
+                    class="ms-2"
+                    icon="mdi-information-outline"
+                />
+            </template>
+            <v-card max-width="380" class="pa-3">
+                <div class="text-subtitle-2 mb-1">Notentext-Vorschau</div>
+                <div class="text-caption">
+                    Schriften (Finale Maestro / Optima LT) werden nur korrekt angezeigt,
+                    wenn sie auf diesem Gerät installiert sind. Sonst greift ein
+                    Fallback.
+                </div>
+            </v-card>
+        </v-menu>
 
         <div class="flex-grow-1" />
 
@@ -52,15 +79,69 @@
         </v-btn>
     </div>
 
-    <v-dialog v-model="noten_dialog">
-        <div class="position-relative" style="overflow: scroll">
+    <v-dialog v-model="noten_dialog" :fullscreen="is_image_selected">
+        <div
+            class="position-relative"
+            :style="is_image_selected ? 'height: 100vh; overflow: hidden' : 'overflow: scroll'"
+        >
             <v-btn
                 icon="mdi-close"
                 class="position-fixed ma-10"
                 style="z-index: 10000; right: 0"
                 @click="noten_dialog = false"
             ></v-btn>
-            <vue-pdf-embed v-if="selected_file" :source="getPdfUrl(selected_file.id)" />
+            <vue-pdf-embed
+                v-if="selected_file && selected_file.type === 'application/pdf'"
+                :source="getPdfUrl(selected_file.id)"
+            />
+            <div
+                v-else-if="is_image_selected"
+                class="bg-white"
+                style="height: 100vh; position: relative"
+            >
+                <div
+                    v-if="selected_is_notentext"
+                    style="
+                        position: fixed;
+                        top: 16px;
+                        left: 16px;
+                        right: 80px;
+                        z-index: 9999;
+                    "
+                >
+                    <v-alert
+                        v-if="notentext_info_open"
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                        icon="mdi-information-outline"
+                        closable
+                        @click:close="setNotentextInfoOpen(false)"
+                    >
+                        Notentext-Vorschau: Schriften (Finale Maestro / Optima LT)
+                        werden nur korrekt angezeigt, wenn sie auf diesem Gerät
+                        installiert sind. Sonst greift ein Fallback.
+                    </v-alert>
+                    <v-btn
+                        v-else
+                        icon="mdi-information-outline"
+                        color="info"
+                        size="small"
+                        variant="tonal"
+                        @click="setNotentextInfoOpen(true)"
+                    />
+                </div>
+                <div
+                    class="d-flex justify-center align-center"
+                    style="height: 100%; padding: 16px"
+                >
+                    <img
+                        :src="getImgUrl(selected_file.id)"
+                        :alt="selected_file.filename_download || ''"
+                        style="width: 100%; height: 100%; object-fit: contain"
+                    />
+                </div>
+            </div>
         </div>
     </v-dialog>
 </template>
@@ -82,6 +163,10 @@ export default {
             type: Array,
             required: true,
         },
+        notentextFiles: {
+            type: Array,
+            default: () => [],
+        },
         print: {
             type: Boolean,
             default: false,
@@ -92,28 +177,36 @@ export default {
         selected_file: null,
         noten_dialog: false,
         pdf_carousel_model: 0,
+        notentext_info_open: localStorage.getItem('notentext_info_open') !== 'false',
     }),
     computed: {
         carousel_files() {
-            let uniqBy = _.uniqBy(
-                _.concat(
-                    _.map(this.gesangbuchliedSatzMitMelodieUndText, (obj) => {
-                        return {
-                            ...obj,
-                            from_melodie: false,
-                        };
-                    }),
-                    _.map(this.melodie?.files, (obj) => {
-                        return {
-                            ...obj,
-                            from_melodie: true,
-                        };
-                    }),
-                ),
-                'id',
-            );
-            console.log(uniqBy);
-            return uniqBy;
+            const notentext = _.map(_.compact(this.notentextFiles), (obj) => ({
+                ...obj,
+                from_melodie: false,
+                from_notentext: true,
+            }));
+            const satz = _.map(this.gesangbuchliedSatzMitMelodieUndText, (obj) => ({
+                ...obj,
+                from_melodie: false,
+                from_notentext: false,
+            }));
+            const melodieFiles = _.map(this.melodie?.files, (obj) => ({
+                ...obj,
+                from_melodie: true,
+                from_notentext: false,
+            }));
+            // notentext first, then satz, then melodie files
+            return _.uniqBy(_.concat(notentext, satz, melodieFiles), 'id');
+        },
+        is_image_selected() {
+            return !!this.selected_file?.type?.includes('image');
+        },
+        active_is_notentext() {
+            return !!this.carousel_files[this.pdf_carousel_model]?.from_notentext;
+        },
+        selected_is_notentext() {
+            return !!this.selected_file?.from_notentext;
         },
         filtered_audio_files() {
             return this.melodie?.files.filter(
@@ -127,12 +220,19 @@ export default {
             console.log(this.pdf_carousel_model, this.carousel_files[this.pdf_carousel_model]);
             this.$emit('visible_file', this.carousel_files[this.pdf_carousel_model]);
         },
+        carousel_files() {
+            this.colorDelimiters();
+        },
     },
     mounted() {
         this.colorDelimiters();
         this.$emit('visible_file', this.carousel_files[this.pdf_carousel_model]);
     },
     methods: {
+        setNotentextInfoOpen(open) {
+            this.notentext_info_open = open;
+            localStorage.setItem('notentext_info_open', open ? 'true' : 'false');
+        },
         getPdfUrl(file_id) {
             return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;
         },
@@ -174,14 +274,18 @@ export default {
                 );
 
                 delimiters.forEach((delimiter, index) => {
-                    // Apply color based on the index (position) of the delimiter
-                    if (this.carousel_files[index]['from_melodie']) {
-                        delimiter.style.color = '#4CAF50'; // First delimiter
-                        // also style the ::before of the nested i child in span v-btn__content
-                        delimiter.querySelector('i').classList.add('melodie-delimiter-color');
+                    const file = this.carousel_files[index];
+                    const icon = delimiter.querySelector('i');
+                    if (!file || !icon) return;
+                    if (file.from_notentext) {
+                        delimiter.style.color = '#ff9800';
+                        icon.classList.add('notentext-delimiter-color');
+                    } else if (file.from_melodie) {
+                        delimiter.style.color = '#4CAF50';
+                        icon.classList.add('melodie-delimiter-color');
                     } else {
-                        delimiter.style.color = '#9595ff'; // Middle delimiters
-                        delimiter.querySelector('i').classList.add('song-delimiter-color');
+                        delimiter.style.color = '#9595ff';
+                        icon.classList.add('song-delimiter-color');
                     }
                 });
             });
@@ -196,5 +300,8 @@ export default {
 }
 .song-delimiter-color::before {
     color: #9595ff !important;
+}
+.notentext-delimiter-color::before {
+    color: #ff9800 !important;
 }
 </style>
