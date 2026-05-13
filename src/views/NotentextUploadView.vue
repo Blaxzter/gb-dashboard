@@ -2,12 +2,18 @@
 import { ref, computed, watch } from 'vue';
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
+import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
 
 const store = useAppStore();
+
+ensureAllFonts().catch((e) => {
+    console.error('Schriften konnten nicht vorgeladen werden', e);
+});
 
 const AUTO_MATCH_THRESHOLD = 0.75;
 
 const queue = ref([]); // [{ uid, file, name, page, liedId, suggestions, status, conflictChoice, errorMessage, fileId }]
+const bake_on_upload = ref(true);
 const dropbox_collapsed = ref(false);
 const drag_over = ref(false);
 const file_input = ref(null);
@@ -247,10 +253,26 @@ function liedAutocompleteItems() {
     }));
 }
 
-async function uploadFile(file, displayName) {
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsText(file);
+    });
+}
+
+async function bakeFileToBlob(file) {
+    const original = await readFileAsText(file);
+    const { svgString, bakedCount, totalTexts } = await bakeSvgString(original);
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    return { blob, bakedCount, totalTexts };
+}
+
+async function uploadBlob(blob, filename, displayName) {
     const formData = new FormData();
     formData.append('title', displayName);
-    formData.append('file', file, file.name);
+    formData.append('file', blob, filename);
     const resp = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData);
     return resp.data.data;
 }
@@ -288,7 +310,15 @@ async function processItem(item) {
     item.status = 'uploading';
     item.errorMessage = '';
     try {
-        const uploaded = await uploadFile(item.file, item.name);
+        let uploaded;
+        if (bake_on_upload.value) {
+            const { blob, bakedCount, totalTexts } = await bakeFileToBlob(item.file);
+            item.bakedCount = bakedCount;
+            item.totalTexts = totalTexts;
+            uploaded = await uploadBlob(blob, item.file.name, item.name);
+        } else {
+            uploaded = await uploadBlob(item.file, item.file.name, item.name);
+        }
         item.uploadedFileId = uploaded.id;
         await patchLiedField(item.liedId, item.page, uploaded.id);
         // sync local store
@@ -721,6 +751,22 @@ async function shareSummary() {
             </v-btn>
         </template>
         <v-spacer />
+        <v-tooltip
+            text="Wenn aktiviert: Schriften (Finale Maestro / Optima LT) werden vor dem Upload zu Pfaden gewandelt. Empfohlen — das hochgeladene SVG sieht überall identisch aus, unabhängig davon, ob die Schriften installiert sind."
+            location="top"
+            max-width="320"
+        >
+            <template #activator="{ props }">
+                <v-checkbox
+                    v-bind="props"
+                    v-model="bake_on_upload"
+                    label="Schriften zu Pfaden backen"
+                    hide-details
+                    density="comfortable"
+                    :disabled="uploading_all"
+                />
+            </template>
+        </v-tooltip>
         <v-btn
             color="primary"
             :disabled="!can_upload_any"

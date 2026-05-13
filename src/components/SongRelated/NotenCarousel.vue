@@ -28,31 +28,6 @@
             {{ carousel_files[pdf_carousel_model]?.filename_download }}
         </div>
 
-        <v-menu
-            v-if="active_is_notentext"
-            open-on-hover
-            location="bottom"
-            :close-on-content-click="false"
-        >
-            <template #activator="{ props }">
-                <v-icon
-                    v-bind="props"
-                    color="info"
-                    size="small"
-                    class="ms-2"
-                    icon="mdi-information-outline"
-                />
-            </template>
-            <v-card max-width="380" class="pa-3">
-                <div class="text-subtitle-2 mb-1">Notentext-Vorschau</div>
-                <div class="text-caption">
-                    Schriften (Finale Maestro / Optima LT) werden nur korrekt angezeigt,
-                    wenn sie auf diesem Gerät installiert sind. Sonst greift ein
-                    Fallback.
-                </div>
-            </v-card>
-        </v-menu>
-
         <div class="flex-grow-1" />
 
         <!-- Download button -->
@@ -96,51 +71,14 @@
             />
             <div
                 v-else-if="is_image_selected"
-                class="bg-white"
-                style="height: 100vh; position: relative"
+                class="bg-white d-flex justify-center align-center"
+                style="height: 100vh; padding: 16px"
             >
-                <div
-                    v-if="selected_is_notentext"
-                    style="
-                        position: fixed;
-                        top: 16px;
-                        left: 16px;
-                        right: 80px;
-                        z-index: 9999;
-                    "
-                >
-                    <v-alert
-                        v-if="notentext_info_open"
-                        type="info"
-                        variant="tonal"
-                        density="compact"
-                        icon="mdi-information-outline"
-                        closable
-                        @click:close="setNotentextInfoOpen(false)"
-                    >
-                        Notentext-Vorschau: Schriften (Finale Maestro / Optima LT)
-                        werden nur korrekt angezeigt, wenn sie auf diesem Gerät
-                        installiert sind. Sonst greift ein Fallback.
-                    </v-alert>
-                    <v-btn
-                        v-else
-                        icon="mdi-information-outline"
-                        color="info"
-                        size="small"
-                        variant="tonal"
-                        @click="setNotentextInfoOpen(true)"
-                    />
-                </div>
-                <div
-                    class="d-flex justify-center align-center"
-                    style="height: 100%; padding: 16px"
-                >
-                    <img
-                        :src="getImgUrl(selected_file.id)"
-                        :alt="selected_file.filename_download || ''"
-                        style="width: 100%; height: 100%; object-fit: contain"
-                    />
-                </div>
+                <img
+                    :src="getImgUrl(selected_file.id)"
+                    :alt="selected_file.filename_download || ''"
+                    style="width: 100%; height: 100%; object-fit: contain"
+                />
             </div>
         </div>
     </v-dialog>
@@ -177,7 +115,6 @@ export default {
         selected_file: null,
         noten_dialog: false,
         pdf_carousel_model: 0,
-        notentext_info_open: localStorage.getItem('notentext_info_open') !== 'false',
     }),
     computed: {
         carousel_files() {
@@ -202,12 +139,6 @@ export default {
         is_image_selected() {
             return !!this.selected_file?.type?.includes('image');
         },
-        active_is_notentext() {
-            return !!this.carousel_files[this.pdf_carousel_model]?.from_notentext;
-        },
-        selected_is_notentext() {
-            return !!this.selected_file?.from_notentext;
-        },
         filtered_audio_files() {
             return this.melodie?.files.filter(
                 (file) =>
@@ -229,10 +160,6 @@ export default {
         this.$emit('visible_file', this.carousel_files[this.pdf_carousel_model]);
     },
     methods: {
-        setNotentextInfoOpen(open) {
-            this.notentext_info_open = open;
-            localStorage.setItem('notentext_info_open', open ? 'true' : 'false');
-        },
         getPdfUrl(file_id) {
             return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;
         },
