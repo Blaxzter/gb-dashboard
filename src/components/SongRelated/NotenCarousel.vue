@@ -73,6 +73,27 @@
 
         <div class="flex-grow-1" />
 
+        <!-- Bake & Download (only for SVG) -->
+        <v-tooltip
+            v-if="is_svg_file(carousel_files[pdf_carousel_model])"
+            text="Schriften zu Pfaden backen und SVG herunterladen"
+            location="top"
+        >
+            <template #activator="{ props }">
+                <v-btn
+                    v-bind="props"
+                    icon
+                    class="ml-3"
+                    variant="text"
+                    size="tiny"
+                    :loading="baking"
+                    @click="bake_and_download(carousel_files[pdf_carousel_model])"
+                >
+                    <v-icon>mdi-cookie-cog-outline</v-icon>
+                </v-btn>
+            </template>
+        </v-tooltip>
+
         <!-- Download button -->
         <v-btn
             icon
@@ -131,6 +152,7 @@
 import VuePdfEmbed from 'vue-pdf-embed';
 import _ from 'lodash';
 import MediaComponent from '@/components/SongRelated/MediaComponent.vue';
+import { bakeSvgString } from '@/assets/js/svgBaker.js';
 
 export default {
     name: 'NotenCarousel',
@@ -166,6 +188,7 @@ export default {
         is_panning: false,
         pan_moved: false,
         pan_start: null,
+        baking: false,
     }),
     computed: {
         carousel_files() {
@@ -257,6 +280,36 @@ export default {
                 return;
             }
             this.fullscreen_pdf(event, file);
+        },
+        is_svg_file(file) {
+            if (!file) return false;
+            if (file.type === 'image/svg+xml') return true;
+            return /\.svg$/i.test(file.filename_download || '');
+        },
+        async bake_and_download(file) {
+            if (!file || this.baking) return;
+            this.baking = true;
+            try {
+                const resp = await fetch(this.getImgUrl(file.id));
+                if (!resp.ok) throw new Error(`Download fehlgeschlagen (${resp.status})`);
+                const originalSvg = await resp.text();
+                const { svgString } = await bakeSvgString(originalSvg);
+                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                const href = URL.createObjectURL(blob);
+                const baseName = (file.filename_download || 'noten.svg').replace(/\.svg$/i, '');
+                const a = document.createElement('a');
+                a.download = `${baseName}_baked.svg`;
+                a.href = href;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(href);
+            } catch (err) {
+                console.error('SVG-Bake fehlgeschlagen', err);
+            } finally {
+                this.baking = false;
+            }
         },
         download_file(file) {
             console.log(file);
