@@ -5,26 +5,48 @@ import optimaItalicUrl from '@/assets/font/lte524010.ttf?url';
 import optimaBoldItalicUrl from '@/assets/font/lte543790.ttf?url';
 import { bakeSvgString } from './svgBaker.js';
 
-const FONT_VARIANTS = [
-    { family: /finale|maestro/i, weight: 'normal', italic: false, url: finaleMaestroUrl, format: 'opentype' },
-    { family: /optima/i, weight: 'normal', italic: false, url: optimaRomanUrl, format: 'truetype' },
-    { family: /optima/i, weight: 'bold', italic: false, url: optimaBoldUrl, format: 'truetype' },
-    { family: /optima/i, weight: 'normal', italic: true, url: optimaItalicUrl, format: 'truetype' },
-    { family: /optima/i, weight: 'bold', italic: true, url: optimaBoldItalicUrl, format: 'truetype' },
-];
-
-const ALWAYS_AVAILABLE_FAMILIES = [
-    'Finale Maestro',
-    'FinaleMaestro',
-    'Maestro',
-    'Optima LT',
-    'Optima LT Std',
-    'OptimaLTStd',
-    'Optima',
+// Each bundled font registered under every plausible family name Finale may
+// have used (e.g. `'Optima LT'`, `'Optima LT Std'`, etc.) so the SVG's
+// font-family lookup hits us regardless of how the file declares the family.
+const FONT_BUNDLE = [
+    {
+        url: finaleMaestroUrl,
+        format: 'opentype',
+        weight: 'normal',
+        italic: false,
+        families: ['Finale Maestro', 'FinaleMaestro', 'Maestro'],
+    },
+    {
+        url: optimaRomanUrl,
+        format: 'truetype',
+        weight: 'normal',
+        italic: false,
+        families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+    },
+    {
+        url: optimaBoldUrl,
+        format: 'truetype',
+        weight: 'bold',
+        italic: false,
+        families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+    },
+    {
+        url: optimaItalicUrl,
+        format: 'truetype',
+        weight: 'normal',
+        italic: true,
+        families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+    },
+    {
+        url: optimaBoldItalicUrl,
+        format: 'truetype',
+        weight: 'bold',
+        italic: true,
+        families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+    },
 ];
 
 const dataUrlCache = new Map();
-
 async function fontDataUrl(url, format) {
     if (dataUrlCache.has(url)) return dataUrlCache.get(url);
     const resp = await fetch(url);
@@ -42,153 +64,46 @@ async function fontDataUrl(url, format) {
     return dataUrl;
 }
 
-function collectFontFamilies(svg) {
-    const names = new Set();
-    const visit = (el) => {
-        if (el.nodeType !== 1) return;
-        const ff = el.getAttribute && el.getAttribute('font-family');
-        if (ff) names.add(ff.trim().replace(/^["']|["']$/g, ''));
-        const styleAttr = el.getAttribute && el.getAttribute('style');
-        if (styleAttr) {
-            const m = styleAttr.match(/font-family\s*:\s*([^;]+)/i);
-            if (m) names.add(m[1].trim().replace(/^["']|["']$/g, ''));
+let fontFaceCssPromise = null;
+async function buildFontFaceCss() {
+    if (fontFaceCssPromise) return fontFaceCssPromise;
+    fontFaceCssPromise = (async () => {
+        const rules = [];
+        for (const variant of FONT_BUNDLE) {
+            const src = await fontDataUrl(variant.url, variant.format);
+            for (const family of variant.families) {
+                rules.push(
+                    `@font-face { font-family: "${family}"; ` +
+                        `font-weight: ${variant.weight}; ` +
+                        `font-style: ${variant.italic ? 'italic' : 'normal'}; ` +
+                        `src: url(${src}) format("${variant.format}"); ` +
+                        `font-display: block; }`,
+                );
+            }
         }
-        el.childNodes && el.childNodes.forEach(visit);
-    };
-    visit(svg);
-    return Array.from(names);
+        return rules.join('\n');
+    })();
+    return fontFaceCssPromise;
 }
 
-// Common local install names per font family, tried before the bundled OTF
-// data URL. This makes the dialog render the original SVG using whatever
-// the user has installed on their machine (matching the standalone browser
-// view), and only fall back to our bundled font if it's missing.
-const LOCAL_FONT_NAMES = {
-    finale: ['Finale Maestro', 'FinaleMaestro', 'Maestro'],
-    optima: ['Optima LT Std', 'OptimaLTStd', 'Optima LT', 'Optima'],
-    optima_bold: ['Optima LT Std Bold', 'Optima Bold', 'Optima LT Bold'],
-    optima_italic: ['Optima LT Std Italic', 'Optima Italic', 'Optima LT Italic'],
-    optima_bold_italic: [
-        'Optima LT Std Bold Italic',
-        'Optima Bold Italic',
-        'Optima LT Bold Italic',
-    ],
-};
-
-function localNamesFor(variant) {
-    const isFinale = variant.family.test('finale');
-    if (isFinale) return LOCAL_FONT_NAMES.finale;
-    const bold = variant.weight === 'bold';
-    const italic = !!variant.italic;
-    if (bold && italic) return LOCAL_FONT_NAMES.optima_bold_italic;
-    if (bold) return LOCAL_FONT_NAMES.optima_bold;
-    if (italic) return LOCAL_FONT_NAMES.optima_italic;
-    return LOCAL_FONT_NAMES.optima;
-}
-
-async function buildFontFaceCss(familyNames) {
-    const rules = [];
-    const seen = new Set();
-    const candidates = new Set([...familyNames, ...ALWAYS_AVAILABLE_FAMILIES]);
-    for (const family of candidates) {
-        for (const v of FONT_VARIANTS) {
-            if (!v.family.test(family)) continue;
-            const key = `${family}|${v.weight}|${v.italic}|${v.url}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            const src = await fontDataUrl(v.url, v.format);
-            const localSrcs = localNamesFor(v)
-                .map((n) => `local("${n}")`)
-                .join(', ');
-            rules.push(
-                `@font-face { font-family: "${family.replace(/"/g, '\\"')}"; ` +
-                    `font-weight: ${v.weight}; font-style: ${v.italic ? 'italic' : 'normal'}; ` +
-                    `src: ${localSrcs}, url(${src}) format("${v.format}"); ` +
-                    `font-display: block; }`,
-            );
-        }
-    }
-    return rules.join('\n');
-}
-
-function stripSvgFonts(svg) {
-    const SVG_FONT_TAGS = ['font', 'font-face', 'font-face-src', 'font-face-uri', 'font-face-name', 'font-face-format', 'missing-glyph', 'glyph', 'hkern', 'vkern'];
-    SVG_FONT_TAGS.forEach((tag) => {
-        const nodes = svg.getElementsByTagName(tag);
-        for (let i = nodes.length - 1; i >= 0; i--) {
-            const n = nodes[i];
-            if (n.parentNode) n.parentNode.removeChild(n);
-        }
-    });
+// No-op: kept as a stable export so callers don't have to change.
+export function ensureCompareFonts() {
+    return Promise.resolve();
 }
 
 /**
- * Finale exports its SVGs with `style="position:absolute; top:0; left:0;"` on the
- * root <svg>. That layout instruction is meant for Finale's own viewer; when we
- * inline the SVG into the dialog it breaks out of normal flow and stacks both
- * panes on top of each other. Strip positional properties from the root style.
- */
-function normalizeRootSvgStyle(svg) {
-    const style = svg.getAttribute('style');
-    if (!style) return;
-    const filtered = style
-        .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s && !/^(position|top|left|right|bottom)\s*:/i.test(s))
-        .join('; ');
-    if (filtered) {
-        svg.setAttribute('style', filtered);
-    } else {
-        svg.removeAttribute('style');
-    }
-}
-
-let documentFontsPromise = null;
-export async function ensureCompareFonts() {
-    if (typeof document === 'undefined' || !document.fonts) return;
-    if (!documentFontsPromise) {
-        documentFontsPromise = (async () => {
-            for (const v of FONT_VARIANTS) {
-                const src = await fontDataUrl(v.url, v.format);
-                const localSrcs = localNamesFor(v)
-                    .map((n) => `local("${n}")`)
-                    .join(', ');
-                for (const family of ALWAYS_AVAILABLE_FAMILIES) {
-                    if (!v.family.test(family)) continue;
-                    try {
-                        const face = new FontFace(
-                            family,
-                            `${localSrcs}, url(${src})`,
-                            {
-                                weight: v.weight,
-                                style: v.italic ? 'italic' : 'normal',
-                                display: 'block',
-                            },
-                        );
-                        await face.load();
-                        document.fonts.add(face);
-                    } catch (e) {
-                        /* best-effort */
-                    }
-                }
-            }
-            try {
-                await document.fonts.ready;
-            } catch (e) {
-                /* noop */
-            }
-        })();
-    }
-    return documentFontsPromise;
-}
-
-/**
- * Prepare the original (unbaked) SVG for inline DOM rendering:
- *  - strip DOCTYPE (W3C DTD lookup can stall the parser)
- *  - strip SVG-1.1 <font>/<glyph> elements (deprecated, can shadow @font-face)
- *  - normalize the root style (Finale's position:absolute would break layout)
- *  - inject @font-face declarations for all known font name variants so the SVG
- *    renders correctly regardless of which families the file references.
+ * Prepare the original SVG for rendering via <img src=blob:...>.
+ *
+ * A SVG inside <img> renders in an isolated context and can NOT see the host
+ * document's @font-face / FontFace registry — so we inject a <style> block
+ * INSIDE the SVG itself with @font-face declarations pointing at our bundled
+ * Finale Maestro / Optima LT files (as data: URLs). This is the exact same
+ * font the baker uses (opentype.js operates on the same files), so the
+ * "Original" pane uses the same font the bake will produce paths from, which
+ * is the comparison the user actually cares about.
+ *
+ * Note: we intentionally DON'T strip the SVG-1.1 <font>/<glyph> block — some
+ * browsers (Safari) still use it, and our @font-face takes precedence.
  */
 export async function prepareOriginalSvgForDom(svgString) {
     const stripped = svgString.replace(/<!DOCTYPE[^>]*>/i, '');
@@ -196,11 +111,8 @@ export async function prepareOriginalSvgForDom(svgString) {
     const doc = parser.parseFromString(stripped, 'image/svg+xml');
     if (doc.querySelector('parsererror')) throw new Error('SVG konnte nicht geparst werden');
     const svg = doc.documentElement;
-    stripSvgFonts(svg);
-    normalizeRootSvgStyle(svg);
 
-    const families = collectFontFamilies(svg);
-    const css = await buildFontFaceCss(families);
+    const css = await buildFontFaceCss();
     if (css) {
         const ns = 'http://www.w3.org/2000/svg';
         const style = doc.createElementNS(ns, 'style');
@@ -211,18 +123,9 @@ export async function prepareOriginalSvgForDom(svgString) {
     return new XMLSerializer().serializeToString(svg);
 }
 
-/**
- * Prepare the baked SVG for inline DOM rendering. Same root-style normalization
- * as the original — the baker preserves Finale's inline position:absolute style.
- */
+// The baked SVG already contains paths (no font resolution needed) — pass through.
 export function prepareBakedSvgForDom(svgString) {
-    const stripped = svgString.replace(/<!DOCTYPE[^>]*>/i, '');
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(stripped, 'image/svg+xml');
-    if (doc.querySelector('parsererror')) throw new Error('SVG konnte nicht geparst werden');
-    const svg = doc.documentElement;
-    normalizeRootSvgStyle(svg);
-    return new XMLSerializer().serializeToString(svg);
+    return svgString;
 }
 
 export function bakeSeverity(bakedCount, totalTexts) {

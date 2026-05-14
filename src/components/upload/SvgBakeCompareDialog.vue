@@ -27,9 +27,25 @@ const slider_position = ref(50);
 const ab_view = ref('baked'); // 'original' | 'baked'
 const zoom = ref(1);
 
-const original_svg = ref('');
-const baked_svg = ref('');
+const original_svg = ref(''); // raw SVG string (for download)
+const baked_svg = ref(''); // raw SVG string (for download)
+const original_url = ref(''); // blob URL used as <img> source
+const baked_url = ref(''); // blob URL used as <img> source
 const bake_stats = ref(null);
+
+let createdUrls = [];
+function disposeUrls() {
+    createdUrls.forEach((u) => URL.revokeObjectURL(u));
+    createdUrls = [];
+    original_url.value = '';
+    baked_url.value = '';
+}
+function svgToBlobUrl(svgString) {
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    createdUrls.push(url);
+    return url;
+}
 
 // Refs to scroll containers — used to sync pan/scroll between the two panes
 // in side-by-side mode.
@@ -129,10 +145,11 @@ async function runComparison() {
     if (!props.file) return;
     loading.value = true;
     error_message.value = '';
+    disposeUrls();
     original_svg.value = '';
     baked_svg.value = '';
     try {
-        await Promise.all([ensureAllFonts(), ensureCompareFonts()]);
+        await ensureAllFonts();
         const text = await props.file.text();
         const baked = await bakeSvgString(text);
         lastBakedSvg = baked.svgString;
@@ -143,6 +160,8 @@ async function runComparison() {
         };
         original_svg.value = await prepareOriginalSvgForDom(text);
         baked_svg.value = prepareBakedSvgForDom(baked.svgString);
+        original_url.value = svgToBlobUrl(original_svg.value);
+        baked_url.value = svgToBlobUrl(baked_svg.value);
     } catch (e) {
         console.error(e);
         error_message.value = e?.message || String(e);
@@ -175,6 +194,7 @@ watch(
     ([open, file]) => {
         if (open && file) runComparison();
         if (!open) {
+            disposeUrls();
             original_svg.value = '';
             baked_svg.value = '';
         }
@@ -182,6 +202,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+    disposeUrls();
     if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', onDialogKeydown);
     }
@@ -350,7 +371,13 @@ function setZoom(z) {
                                                 height: `${zoom * 100}%`,
                                             }"
                                         >
-                                            <div class="zoom-svg" v-html="original_svg" />
+                                            <img
+                                                v-if="original_url"
+                                                :src="original_url"
+                                                class="zoom-img"
+                                                alt="Original"
+                                                draggable="false"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -378,7 +405,13 @@ function setZoom(z) {
                                                 height: `${zoom * 100}%`,
                                             }"
                                         >
-                                            <div class="zoom-svg" v-html="baked_svg" />
+                                            <img
+                                                v-if="baked_url"
+                                                :src="baked_url"
+                                                class="zoom-img"
+                                                alt="Gebacken"
+                                                draggable="false"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -415,16 +448,22 @@ function setZoom(z) {
                                                 class="compare-slider__stack"
                                                 :class="{ 'is-dragging': slider_dragging }"
                                             >
-                                                <div
-                                                    class="compare-slider__svg"
-                                                    v-html="baked_svg"
+                                                <img
+                                                    v-if="baked_url"
+                                                    :src="baked_url"
+                                                    class="compare-slider__img"
+                                                    alt="Gebacken"
+                                                    draggable="false"
                                                 />
-                                                <div
-                                                    class="compare-slider__svg compare-slider__svg--overlay"
+                                                <img
+                                                    v-if="original_url"
+                                                    :src="original_url"
+                                                    class="compare-slider__img compare-slider__img--overlay"
                                                     :style="{
                                                         clipPath: `inset(0 ${100 - slider_position}% 0 0)`,
                                                     }"
-                                                    v-html="original_svg"
+                                                    alt="Original"
+                                                    draggable="false"
                                                 />
                                                 <div
                                                     class="compare-slider__handle"
@@ -477,15 +516,19 @@ function setZoom(z) {
                                                 height: `${zoom * 100}%`,
                                             }"
                                         >
-                                            <div
-                                                v-show="ab_view === 'baked'"
-                                                class="zoom-svg zoom-svg--ab"
-                                                v-html="baked_svg"
+                                            <img
+                                                v-show="ab_view === 'baked' && baked_url"
+                                                :src="baked_url"
+                                                class="zoom-img zoom-img--ab"
+                                                alt="Gebacken"
+                                                draggable="false"
                                             />
-                                            <div
-                                                v-show="ab_view === 'original'"
-                                                class="zoom-svg zoom-svg--ab"
-                                                v-html="original_svg"
+                                            <img
+                                                v-show="ab_view === 'original' && original_url"
+                                                :src="original_url"
+                                                class="zoom-img zoom-img--ab"
+                                                alt="Original"
+                                                draggable="false"
                                             />
                                         </div>
                                     </div>
@@ -578,6 +621,7 @@ function setZoom(z) {
     cursor: grabbing;
 }
 .zoom-wrapper {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -589,23 +633,18 @@ function setZoom(z) {
     padding: 8px;
     box-sizing: border-box;
 }
-.zoom-svg {
-    width: 100%;
-    height: 100%;
-    user-select: none;
-    -webkit-user-drag: none;
-    line-height: 0;
-}
-.zoom-svg--ab {
-    position: relative;
-}
-.zoom-svg :deep(svg) {
+.zoom-img {
     display: block;
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    max-height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
     pointer-events: none;
+}
+.zoom-img--ab {
+    position: absolute;
+    inset: 0;
 }
 
 .compare-slider {
@@ -621,18 +660,17 @@ function setZoom(z) {
     height: 100%;
     line-height: 0;
 }
-.compare-slider__svg {
+.compare-slider__img {
     position: absolute;
     inset: 0;
-    line-height: 0;
-}
-.compare-slider__svg :deep(svg) {
-    display: block;
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
     pointer-events: none;
 }
-.compare-slider__svg--overlay {
+.compare-slider__img--overlay {
     pointer-events: none;
 }
 .compare-slider__handle {
