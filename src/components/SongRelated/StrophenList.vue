@@ -192,43 +192,64 @@
                     v-for="(review, reviewIndex) in strophe.kiReview"
                     :key="reviewIndex"
                     class="ki-review-entry pt-2"
+                    :class="{ 'ki-review-rejected': review.bewertungDurchMensch === 'rejected' }"
                 >
-                    <div class="d-flex align-start ga-3">
-                        <v-icon
-                            icon="mdi-robot-outline"
-                            size="tiny"
-                            color="info"
-                            class="mt-3"
+                    <!-- Compact view for rejected reviews -->
+                    <div
+                        v-if="review.bewertungDurchMensch === 'rejected'"
+                        class="d-flex align-center ga-2 ki-review-rejected-compact"
+                    >
+                        <v-btn
+                            icon="mdi-close-circle"
+                            size="x-small"
+                            variant="text"
+                            color="error"
+                            title="Ablehnung rückgängig machen"
+                            @click="revertRejection(review)"
                         />
-                        <div
-                            class="flex-grow-1 pt-2"
-                            style="font-size: 0.9rem; white-space: pre-wrap"
-                        >
-                            {{ review.reviewErgebnis }}
+                        <div class="ki-review-rejected-text">
+                            {{ firstLine(review.reviewErgebnis) }}
                         </div>
-                        <v-select
-                            v-if="review.reviewErgebnis"
-                            v-model="review.bewertungDurchMensch"
-                            :items="bewertungOptions"
-                            label="Bewertung"
-                            density="compact"
-                            variant="outlined"
-                            hide-details
-                            clearable
-                            style="max-width: 200px; min-width: 160px"
-                            @update:model-value="onKiReviewChanged"
-                        />
                     </div>
-                    <div v-if="review.reviewErgebnis" class="ms-8 mt-2">
-                        <v-text-field
-                            v-model="review.anmerkungDurchMensch"
-                            label="Anmerkung"
-                            density="compact"
-                            variant="outlined"
-                            hide-details
-                            @blur="onKiReviewChanged"
-                        />
-                    </div>
+                    <!-- Full view -->
+                    <template v-else>
+                        <div class="d-flex align-start ga-3">
+                            <v-icon
+                                icon="mdi-robot-outline"
+                                size="tiny"
+                                color="info"
+                                class="mt-3"
+                            />
+                            <div
+                                class="flex-grow-1 pt-2"
+                                style="font-size: 0.9rem; white-space: pre-wrap"
+                            >
+                                {{ review.reviewErgebnis }}
+                            </div>
+                            <v-select
+                                v-if="review.reviewErgebnis"
+                                v-model="review.bewertungDurchMensch"
+                                :items="bewertungOptions"
+                                label="Bewertung"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                clearable
+                                style="max-width: 200px; min-width: 160px"
+                                @update:model-value="onKiReviewChanged"
+                            />
+                        </div>
+                        <div v-if="review.reviewErgebnis" class="ms-8 mt-2">
+                            <v-text-field
+                                v-model="review.anmerkungDurchMensch"
+                                label="Anmerkung"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                @blur="onKiReviewChanged"
+                            />
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
@@ -479,6 +500,17 @@ export default {
             }
         },
 
+        firstLine(text) {
+            if (!text) return '';
+            const line = text.split('\n')[0].trim();
+            return line.length > 120 ? line.slice(0, 117) + '…' : line;
+        },
+
+        revertRejection(review) {
+            review.bewertungDurchMensch = null;
+            this.onKiReviewChanged();
+        },
+
         copyToClipboard(text) {
             // Replace ¬ symbols with - symbols
             let textToCopy = text.replace(/¬/g, '-');
@@ -634,5 +666,28 @@ export default {
 .copy-button:hover {
     transform: scale(1.1);
     transition: transform 0.2s ease-in-out;
+}
+
+.ki-review-rejected {
+    opacity: 0.55;
+    filter: grayscale(1);
+    transition:
+        opacity 0.2s ease-in-out,
+        filter 0.2s ease-in-out;
+}
+
+.ki-review-rejected:hover {
+    opacity: 1;
+    filter: grayscale(0);
+}
+
+.ki-review-rejected-text {
+    font-size: 0.8rem;
+    color: rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 </style>

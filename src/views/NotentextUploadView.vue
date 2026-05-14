@@ -3,8 +3,51 @@ import { ref, computed, watch } from 'vue';
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
 import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
+import { scanSvgBake } from '@/assets/js/svgCompare.js';
+import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
 
 const store = useAppStore();
+
+const compare_dialog = ref(false);
+const compare_file = ref(null);
+const compare_title = ref('');
+
+function openCompareDialog(item) {
+    compare_file.value = item.file;
+    compare_title.value = item.name;
+    compare_dialog.value = true;
+}
+
+let scan_busy = false;
+async function runScanWorker() {
+    if (scan_busy) return;
+    scan_busy = true;
+    try {
+        while (true) {
+            const next = queue.value.find((q) => q.scan?.status === 'pending');
+            if (!next) break;
+            next.scan = { ...next.scan, status: 'scanning' };
+            try {
+                const result = await scanSvgBake(next.file);
+                next.scan = {
+                    status: 'done',
+                    severity: result.severity,
+                    bakedCount: result.bakedCount,
+                    totalTexts: result.totalTexts,
+                    coverage: result.coverage,
+                };
+            } catch (e) {
+                console.warn('Bake-Scan fehlgeschlagen', e);
+                next.scan = {
+                    status: 'error',
+                    error: e?.message || String(e),
+                };
+            }
+        }
+    } finally {
+        scan_busy = false;
+    }
+}
 
 ensureAllFonts().catch((e) => {
     console.error('Schriften konnten nicht vorgeladen werden', e);
@@ -145,12 +188,14 @@ async function addFiles(files) {
             conflictChoice: null,
             errorMessage: '',
             uploadedFileId: null,
+            scan: { status: 'pending' },
         };
         queue.value.push(item);
         if (autoMatch) refreshItemStatus(item);
     }
     sortQueue();
     if (queue.value.length > 0) dropbox_collapsed.value = true;
+    runScanWorker();
 }
 
 function refreshItemStatus(item) {
@@ -359,9 +404,26 @@ const stats = computed(() => {
     const conflict = queue.value.filter((q) => q.status === 'conflict').length;
     const unmatched = queue.value.filter((q) => q.status === 'unmatched').length;
     const matched = queue.value.filter((q) => q.status === 'matched').length;
+    const bake_warn = queue.value.filter((q) => q.scan?.severity?.level === 'warn').length;
+    const bake_fail = queue.value.filter((q) => q.scan?.severity?.level === 'fail').length;
+    const bake_scanning = queue.value.filter(
+        (q) => q.scan?.status === 'pending' || q.scan?.status === 'scanning',
+    ).length;
     const ready = matched;
-    return { total, done, skipped, error, conflict, unmatched, ready };
+    return {
+        total,
+        done,
+        skipped,
+        error,
+        conflict,
+        unmatched,
+        ready,
+        bake_warn,
+        bake_fail,
+        bake_scanning,
+    };
 });
+
 
 const queue_lied_counts = computed(() => {
     const counts = {};
@@ -504,6 +566,30 @@ async function shareSummary() {
         <v-chip v-if="stats.conflict" color="error" variant="tonal">Konflikte: {{ stats.conflict }}</v-chip>
         <v-chip v-if="stats.unmatched" color="warning" variant="tonal">Ohne Match: {{ stats.unmatched }}</v-chip>
         <v-chip v-if="stats.error" color="error" variant="tonal">Fehler: {{ stats.error }}</v-chip>
+        <v-chip
+            v-if="stats.bake_scanning"
+            color="info"
+            variant="tonal"
+            prepend-icon="mdi-progress-clock"
+        >
+            Prüfe Bake: {{ stats.bake_scanning }}
+        </v-chip>
+        <v-chip
+            v-if="stats.bake_warn"
+            color="warning"
+            variant="tonal"
+            prepend-icon="mdi-alert-outline"
+        >
+            Texte teilweise gebacken: {{ stats.bake_warn }}
+        </v-chip>
+        <v-chip
+            v-if="stats.bake_fail"
+            color="error"
+            variant="tonal"
+            prepend-icon="mdi-alert"
+        >
+            Bake-Fehler: {{ stats.bake_fail }}
+        </v-chip>
     </div>
 
     <v-card class="mb-3">
@@ -651,6 +737,59 @@ async function shareSummary() {
                         Teil {{ groupPosition(item).index }} von
                         {{ groupPosition(item).total }}
                     </v-chip>
+
+                    <v-chip
+                        v-if="item.scan?.status === 'pending' || item.scan?.status === 'scanning'"
+                        size="x-small"
+                        variant="tonal"
+                        color="info"
+                        prepend-icon="mdi-progress-clock"
+                    >
+                        Prüfe Bake…
+                    </v-chip>
+                    <v-tooltip
+                        v-else-if="item.scan?.status === 'done'"
+                        :text="`${item.scan.bakedCount} von ${item.scan.totalTexts} Texten erfolgreich gebacken. Klicken für Detailvergleich.`"
+                        location="top"
+                        max-width="320"
+                    >
+                        <template #activator="{ props }">
+                            <v-chip
+                                v-bind="props"
+                                size="x-small"
+                                variant="tonal"
+                                :color="item.scan.severity.color"
+                                :prepend-icon="
+                                    item.scan.severity.level === 'ok'
+                                        ? 'mdi-check-circle-outline'
+                                        : item.scan.severity.level === 'warn'
+                                            ? 'mdi-alert-outline'
+                                            : 'mdi-alert'
+                                "
+                                class="cursor-pointer"
+                                @click="openCompareDialog(item)"
+                            >
+                                Bake: {{ item.scan.bakedCount }} / {{ item.scan.totalTexts }}
+                            </v-chip>
+                        </template>
+                    </v-tooltip>
+                    <v-tooltip
+                        v-else-if="item.scan?.status === 'error'"
+                        :text="item.scan.error || 'Bake-Prüfung fehlgeschlagen'"
+                        location="top"
+                    >
+                        <template #activator="{ props }">
+                            <v-chip
+                                v-bind="props"
+                                size="x-small"
+                                variant="tonal"
+                                color="grey"
+                                prepend-icon="mdi-help-circle-outline"
+                            >
+                                Bake-Prüfung ?
+                            </v-chip>
+                        </template>
+                    </v-tooltip>
                 </div>
 
                 <div class="d-flex align-center ga-2 flex-wrap">
@@ -709,6 +848,18 @@ async function shareSummary() {
             </div>
 
             <template #append>
+                <v-tooltip text="Bake-Vergleich: Original vs. gebackene Version mit Pixel-Diff" location="top">
+                    <template #activator="{ props }">
+                        <v-btn
+                            v-bind="props"
+                            icon="mdi-vector-difference-ab"
+                            variant="text"
+                            size="small"
+                            :disabled="item.status === 'uploading'"
+                            @click="openCompareDialog(item)"
+                        />
+                    </template>
+                </v-tooltip>
                 <v-btn
                     v-if="item.status === 'done'"
                     icon="mdi-open-in-new"
@@ -813,6 +964,12 @@ async function shareSummary() {
             </v-card-actions>
         </v-card>
     </v-dialog>
+
+    <SvgBakeCompareDialog
+        v-model="compare_dialog"
+        :file="compare_file"
+        :title="compare_title"
+    />
 
     <v-snackbar v-model="snackbar" :timeout="2500">
         {{ snackbar_message }}

@@ -10,7 +10,7 @@ import {
     gesangbuch_kategorie_name_to_icon,
     status_mapping,
 } from '@/assets/js/utils.js';
-import MediaComponent from '@/components/SongRelated/MediaComponent.vue';
+import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 
 import { Splitpanes, Pane } from 'splitpanes';
@@ -38,6 +38,7 @@ const filter_by_text_geaendert = ref(false);
 const filter_by_melodie_geaendert = ref(false);
 const selected_author = ref(null);
 const check_autor_copyright = ref(null);
+const notentext_filter = ref(null); // null | 'has' | 'no'
 
 // Snackbar state
 const snackbar = ref(false);
@@ -109,6 +110,7 @@ const applyFilterFromLink = () => {
         filter_by_melodie_geaendert.value = false;
         selected_author.value = null;
         check_autor_copyright.value = null;
+        notentext_filter.value = null;
 
         // Apply each filter if it exists in the decoded object
         if (appliedFilter.strophenSearch !== undefined) {
@@ -149,6 +151,9 @@ const applyFilterFromLink = () => {
         }
         if (appliedFilter.check_autor_copyright !== undefined) {
             check_autor_copyright.value = appliedFilter.check_autor_copyright;
+        }
+        if (appliedFilter.notentext_filter !== undefined) {
+            notentext_filter.value = appliedFilter.notentext_filter;
         }
 
         snackbar_message.value = 'Filter wurden erfolgreich angewendet';
@@ -277,6 +282,18 @@ const filtered_gesangbuchlieder = computed(() => {
         filtered_gesangbuchlied = _.filter(
             filtered_gesangbuchlied,
             (elem) => elem.autor_oder_copyright_checken === check_autor_copyright.value,
+        );
+    }
+
+    if (notentext_filter.value === 'has') {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => !!elem.notentext,
+        );
+    } else if (notentext_filter.value === 'no') {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => !elem.notentext,
         );
     }
 
@@ -522,16 +539,18 @@ const get_color = (category) => {
                                         </v-chip>
                                     </template>
                                 </v-tooltip>
-                                <MediaComponent
-                                    v-if="
-                                        lied.gesangbuchlied_satz_mit_melodie_und_text?.[0] ||
-                                        lied.melodie?.files?.[0]
+                                <NotenCarousel
+                                    height="70vh"
+                                    :melodie="lied.melodie"
+                                    :gesangbuchlied-satz-mit-melodie-und-text="
+                                        lied.gesangbuchlied_satz_mit_melodie_und_text
                                     "
-                                    :file="
-                                        lied.gesangbuchlied_satz_mit_melodie_und_text?.[0] ||
-                                        lied.melodie?.files?.[0]
+                                    :notentext-files="
+                                        [
+                                            lied.notentext_file,
+                                            lied.notentext_seite2_file,
+                                        ].filter(Boolean)
                                     "
-                                    :screen-mode="'sing-mode'"
                                 />
                             </div>
                         </pane>

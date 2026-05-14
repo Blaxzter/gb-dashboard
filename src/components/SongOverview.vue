@@ -870,6 +870,8 @@ export default {
             if (this.selected_author) appliedFilter.selected_author = this.selected_author;
             if (this.check_autor_copyright !== null)
                 appliedFilter.check_autor_copyright = this.check_autor_copyright;
+            if (this.notentext_filter !== null)
+                appliedFilter.notentext_filter = this.notentext_filter;
 
             if (Object.keys(appliedFilter).length === 0) {
                 this.snackbar_message = 'Wähle zuerst einen filter an.';

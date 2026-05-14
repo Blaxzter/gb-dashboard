@@ -6,16 +6,59 @@
         :show-arrows="carousel_files?.length <= 1 ? false : 'hover'"
         hide-delimiter-background
         :hide-delimiters="carousel_files?.length <= 1"
-        height="300"
+        :height="height"
     >
         <v-carousel-item
             v-for="(file, i) in carousel_files"
             :key="i"
-            :src="file.type.includes('image') ? getImgUrl(file.id) : null"
-            :style="file.type.includes('image') ? 'cursor: pointer' : ''"
-            @click="file.type.includes('image') ? fullscreen_pdf($event, file) : null"
         >
-            <MediaComponent v-if="file" :file="file" @fullscreen_pdf="fullscreen_pdf" />
+            <div v-if="file.type.includes('image')" class="zoom-outer">
+                <div
+                    class="zoom-scroll"
+                    :class="{ 'is-zoomed': image_zoom > 1, 'is-panning': is_panning }"
+                    @mousedown="onPanStart"
+                    @mousemove="onPanMove"
+                    @mouseup="onPanEnd"
+                    @mouseleave="onPanEnd"
+                    @click="onImageClick($event, file)"
+                >
+                    <div
+                        class="zoom-image-wrapper"
+                        :style="{
+                            width: `${image_zoom * 100}%`,
+                            height: `${image_zoom * 100}%`,
+                        }"
+                    >
+                        <img
+                            :src="getImgUrl(file.id)"
+                            :alt="file.filename_download || ''"
+                            class="zoom-image"
+                            draggable="false"
+                        />
+                    </div>
+                </div>
+                <div class="zoom-controls" @click.stop @mousedown.stop>
+                    <v-btn
+                        icon
+                        size="x-small"
+                        variant="elevated"
+                        :disabled="image_zoom <= 1"
+                        @click.stop="zoomOut"
+                    >
+                        <v-icon>mdi-magnify-minus-outline</v-icon>
+                    </v-btn>
+                    <v-btn
+                        icon
+                        size="x-small"
+                        variant="elevated"
+                        :disabled="image_zoom >= 4"
+                        @click.stop="zoomIn"
+                    >
+                        <v-icon>mdi-magnify-plus-outline</v-icon>
+                    </v-btn>
+                </div>
+            </div>
+            <MediaComponent v-else-if="file" :file="file" @fullscreen_pdf="fullscreen_pdf" />
         </v-carousel-item>
     </v-carousel>
     <div
@@ -109,12 +152,20 @@ export default {
             type: Boolean,
             default: false,
         },
+        height: {
+            type: [Number, String],
+            default: 300,
+        },
     },
     emits: ['visible_file'],
     data: () => ({
         selected_file: null,
         noten_dialog: false,
         pdf_carousel_model: 0,
+        image_zoom: 1,
+        is_panning: false,
+        pan_moved: false,
+        pan_start: null,
     }),
     computed: {
         carousel_files() {
@@ -149,6 +200,7 @@ export default {
     watch: {
         pdf_carousel_model() {
             console.log(this.pdf_carousel_model, this.carousel_files[this.pdf_carousel_model]);
+            this.image_zoom = 1;
             this.$emit('visible_file', this.carousel_files[this.pdf_carousel_model]);
         },
         carousel_files() {
@@ -169,6 +221,42 @@ export default {
         fullscreen_pdf(event, file) {
             this.selected_file = file;
             this.noten_dialog = true;
+        },
+        zoomIn() {
+            this.image_zoom = Math.min(this.image_zoom + 0.25, 4);
+        },
+        zoomOut() {
+            this.image_zoom = Math.max(this.image_zoom - 0.25, 1);
+        },
+        onPanStart(e) {
+            if (this.image_zoom <= 1) return;
+            this.is_panning = true;
+            this.pan_moved = false;
+            this.pan_start = {
+                x: e.clientX,
+                y: e.clientY,
+                scrollLeft: e.currentTarget.scrollLeft,
+                scrollTop: e.currentTarget.scrollTop,
+            };
+            e.preventDefault();
+        },
+        onPanMove(e) {
+            if (!this.is_panning) return;
+            const dx = e.clientX - this.pan_start.x;
+            const dy = e.clientY - this.pan_start.y;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this.pan_moved = true;
+            e.currentTarget.scrollLeft = this.pan_start.scrollLeft - dx;
+            e.currentTarget.scrollTop = this.pan_start.scrollTop - dy;
+        },
+        onPanEnd() {
+            this.is_panning = false;
+        },
+        onImageClick(event, file) {
+            if (this.pan_moved) {
+                this.pan_moved = false;
+                return;
+            }
+            this.fullscreen_pdf(event, file);
         },
         download_file(file) {
             console.log(file);
@@ -230,5 +318,48 @@ export default {
 }
 .notentext-delimiter-color::before {
     color: #ff9800 !important;
+}
+.zoom-outer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.zoom-scroll {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    cursor: pointer;
+}
+.zoom-scroll.is-zoomed {
+    cursor: grab;
+}
+.zoom-scroll.is-panning {
+    cursor: grabbing;
+}
+.zoom-image-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100%;
+    min-height: 100%;
+    transition:
+        width 0.15s ease,
+        height 0.15s ease;
+}
+.zoom-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.zoom-controls {
+    position: absolute;
+    bottom: 50px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 5;
 }
 </style>

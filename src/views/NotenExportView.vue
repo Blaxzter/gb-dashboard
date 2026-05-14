@@ -97,26 +97,72 @@ function csvEscape(value) {
     return s;
 }
 
+const CSV_HEADERS = [
+    'liednummer2026',
+    'strophen',
+    'text_autoren',
+    'melodie_autoren',
+    'pdf-path_1',
+    'pdf-path_2',
+];
+
 function buildCsv(rows) {
-    const headers = [
-        'id',
-        'liednummer2000',
-        'liednummer2026',
-        'titel',
-        'status',
-        'bewertung',
-        'notentext_file_id',
-        'notentext_seite2_file_id',
-        'seiten',
-        'pdf_filename',
-        'export_status',
-        'fehler',
-    ];
-    const lines = [headers.join(',')];
+    const lines = [CSV_HEADERS.join(',')];
     rows.forEach((r) => {
-        lines.push(headers.map((h) => csvEscape(r[h])).join(','));
+        lines.push(CSV_HEADERS.map((h) => csvEscape(r[h])).join(','));
     });
     return '﻿' + lines.join('\n');
+}
+
+function formatYearRange(geburtsjahr, sterbejahr) {
+    if (!geburtsjahr && !sterbejahr) return '';
+    return `${geburtsjahr || ''}–${sterbejahr || ''}`;
+}
+
+function formatAuthorEntry(author) {
+    if (!author) return '';
+    const parts = [];
+    if (author.autorPrefix) parts.push(author.autorPrefix);
+    const name = [author.vorname, author.nachname].filter(Boolean).join(' ');
+    if (name) parts.push(name);
+    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
+    if (years) parts.push(years);
+    if (author.autorSuffix) parts.push(author.autorSuffix);
+
+    const u = author.ursprungsAutorObj;
+    if (u && typeof u === 'object') {
+        const uName = [u.vorname, u.nachname].filter(Boolean).join(' ');
+        if (uName) parts.push(uName);
+        const uYears = formatYearRange(u.geburtsjahr, u.sterbejahr);
+        if (uYears) parts.push(uYears);
+    }
+    return parts.join(' ');
+}
+
+function formatAuthors(authors, ...copyrights) {
+    const authorStrings = (authors || []).map(formatAuthorEntry).filter(Boolean);
+    const copyrightStrings = copyrights
+        .filter((c) => c && String(c).trim())
+        .map((c) => `© ${String(c).trim()}`);
+    return [authorStrings.join(', '), ...copyrightStrings].filter(Boolean).join('\n');
+}
+
+function formatStrophen(strophenEinzeln) {
+    if (!Array.isArray(strophenEinzeln) || strophenEinzeln.length <= 1) return '';
+    return strophenEinzeln
+        .slice(1)
+        .map((s) => (s?.strophe || '').replaceAll('¬', '').replace(/\r?\n/g, ' '))
+        .join(' ')
+        .replace(/[\p{Zs}\s]+/gu, ' ')
+        .trim();
+}
+
+function resolveLiednummer2026(lied, liednummer2026ById) {
+    if (lied.liednummer2026) return lied.liednummer2026;
+    const dlf = lied.deutscheLiedfassung;
+    const dlfId = dlf && typeof dlf === 'object' ? dlf.id : dlf;
+    if (dlfId != null && liednummer2026ById[dlfId]) return liednummer2026ById[dlfId];
+    return '';
 }
 
 function readStyleProp(styleStr, prop) {
@@ -257,6 +303,13 @@ async function runExport() {
     exporting.value = true;
     progress.value = { done: 0, total: candidates.length, current: '' };
 
+    const liednummer2026ById = {};
+    all_lieder.value.forEach((l) => {
+        if (l && l.id != null && l.liednummer2026) {
+            liednummer2026ById[l.id] = l.liednummer2026;
+        }
+    });
+
     const zip = new JSZip();
     const pdfFolder = zip.folder('pdf');
     const csvRows = [];
@@ -264,24 +317,23 @@ async function runExport() {
 
     for (const lied of candidates) {
         progress.value.current = lied.titel || `#${lied.id}`;
-        const filenameBase = `${lied.liednummer2026 || lied.liednummer2000 || lied.id}_${safeFilename(lied.titel)}`;
+        const liednummer2026 = resolveLiednummer2026(lied, liednummer2026ById);
+        const filenameBase = `${liednummer2026 || lied.liednummer2000 || lied.id}_${safeFilename(lied.titel)}`;
         const pdfFilename = `${filenameBase}.pdf`;
         const pageFileIds = [lied.notentext];
         if (lied.notentext_seite2) pageFileIds.push(lied.notentext_seite2);
 
         const row = {
-            id: lied.id,
-            liednummer2000: lied.liednummer2000 || '',
-            liednummer2026: lied.liednummer2026 || '',
-            titel: lied.titel || '',
-            status: lied.status || '',
-            bewertung: lied.bewertung_kleiner_kreis?.bezeichner || '',
-            notentext_file_id: lied.notentext,
-            notentext_seite2_file_id: lied.notentext_seite2 || '',
-            seiten: pageFileIds.length,
-            pdf_filename: pdfFilename,
-            export_status: 'ok',
-            fehler: '',
+            liednummer2026,
+            strophen: formatStrophen(lied.text?.strophenEinzeln),
+            text_autoren: formatAuthors(lied.text?.authors, lied.text?.copyright),
+            melodie_autoren: formatAuthors(
+                lied.melodie?.authors,
+                lied.melodie?.copyright,
+                lied.copyright,
+            ),
+            'pdf-path_1': pdfFilename,
+            'pdf-path_2': lied.notentext_seite2 ? pdfFilename : '',
         };
 
         const hosts = [];
@@ -304,40 +356,16 @@ async function runExport() {
             const blob = await svgsToPdfBlob(svgs);
             pdfFolder.file(pdfFilename, blob);
             exportedIds.push(lied.id);
+            csvRows.push(row);
         } catch (e) {
             console.error('Export-Fehler', lied.id, e);
-            row.export_status = 'fehler';
-            row.fehler = (e && e.message) || String(e);
         } finally {
             hosts.forEach((h) => {
                 if (h.parentNode) h.parentNode.removeChild(h);
             });
         }
 
-        csvRows.push(row);
         progress.value.done += 1;
-    }
-
-    // Add not-exported (empty notentext) summary rows for full filter set if user chose 'all'
-    if (filter_status.value !== 'set') {
-        filtered_lieder.value
-            .filter((l) => !l.notentext)
-            .forEach((lied) => {
-                csvRows.push({
-                    id: lied.id,
-                    liednummer2000: lied.liednummer2000 || '',
-                    liednummer2026: lied.liednummer2026 || '',
-                    titel: lied.titel || '',
-                    status: lied.status || '',
-                    bewertung: lied.bewertung_kleiner_kreis?.bezeichner || '',
-                    notentext_file_id: '',
-                    notentext_seite2_file_id: '',
-                    seiten: 0,
-                    pdf_filename: '',
-                    export_status: 'kein_notentext',
-                    fehler: '',
-                });
-            });
     }
 
     zip.file('export.csv', buildCsv(csvRows));
