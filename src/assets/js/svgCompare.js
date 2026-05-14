@@ -6,8 +6,10 @@ import optimaBoldItalicUrl from '@/assets/font/lte543790.ttf?url';
 import { bakeSvgString } from './svgBaker.js';
 
 // Each bundled font registered under every plausible family name Finale may
-// have used (e.g. `'Optima LT'`, `'Optima LT Std'`, etc.) so the SVG's
-// font-family lookup hits us regardless of how the file declares the family.
+// have used. `localNames` are tried FIRST: if the user has the real font
+// installed (typical for someone working with Finale), the browser uses that
+// — matching exactly what "open the .svg in a new tab" shows. Our bundled
+// file is only used when nothing local matches.
 const FONT_BUNDLE = [
     {
         url: finaleMaestroUrl,
@@ -15,6 +17,7 @@ const FONT_BUNDLE = [
         weight: 'normal',
         italic: false,
         families: ['Finale Maestro', 'FinaleMaestro', 'Maestro'],
+        localNames: ['Finale Maestro', 'FinaleMaestro', 'Maestro'],
     },
     {
         url: optimaRomanUrl,
@@ -22,6 +25,14 @@ const FONT_BUNDLE = [
         weight: 'normal',
         italic: false,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+        localNames: [
+            'Optima LT Roman',
+            'Optima LT',
+            'OptimaLT',
+            'Optima LT Std',
+            'Optima Regular',
+            'Optima',
+        ],
     },
     {
         url: optimaBoldUrl,
@@ -29,6 +40,12 @@ const FONT_BUNDLE = [
         weight: 'bold',
         italic: false,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+        localNames: [
+            'Optima LT Bold',
+            'OptimaLT-Bold',
+            'Optima LT Std Bold',
+            'Optima Bold',
+        ],
     },
     {
         url: optimaItalicUrl,
@@ -36,6 +53,12 @@ const FONT_BUNDLE = [
         weight: 'normal',
         italic: true,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+        localNames: [
+            'Optima LT Italic',
+            'OptimaLT-Italic',
+            'Optima LT Std Italic',
+            'Optima Italic',
+        ],
     },
     {
         url: optimaBoldItalicUrl,
@@ -43,6 +66,12 @@ const FONT_BUNDLE = [
         weight: 'bold',
         italic: true,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
+        localNames: [
+            'Optima LT Bold Italic',
+            'OptimaLT-BoldItalic',
+            'Optima LT Std Bold Italic',
+            'Optima Bold Italic',
+        ],
     },
 ];
 
@@ -71,12 +100,18 @@ async function buildFontFaceCss() {
         const rules = [];
         for (const variant of FONT_BUNDLE) {
             const src = await fontDataUrl(variant.url, variant.format);
+            const localSrcs = (variant.localNames || [])
+                .map((n) => `local("${n}")`)
+                .join(', ');
+            const srcDecl = localSrcs
+                ? `${localSrcs}, url(${src}) format("${variant.format}")`
+                : `url(${src}) format("${variant.format}")`;
             for (const family of variant.families) {
                 rules.push(
                     `@font-face { font-family: "${family}"; ` +
                         `font-weight: ${variant.weight}; ` +
                         `font-style: ${variant.italic ? 'italic' : 'normal'}; ` +
-                        `src: url(${src}) format("${variant.format}"); ` +
+                        `src: ${srcDecl}; ` +
                         `font-display: block; }`,
                 );
             }
