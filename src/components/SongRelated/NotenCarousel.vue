@@ -76,7 +76,7 @@
         <!-- Bake & Download (only for SVG) -->
         <v-tooltip
             v-if="is_svg_file(carousel_files[pdf_carousel_model])"
-            text="Schriften zu Pfaden backen und SVG herunterladen"
+            text="Schriften zu Pfaden backen und als PDF herunterladen"
             location="top"
         >
             <template #activator="{ props }">
@@ -153,6 +153,8 @@ import VuePdfEmbed from 'vue-pdf-embed';
 import _ from 'lodash';
 import MediaComponent from '@/components/SongRelated/MediaComponent.vue';
 import { bakeSvgString } from '@/assets/js/svgBaker.js';
+import { jsPDF } from 'jspdf';
+import 'svg2pdf.js';
 
 export default {
     name: 'NotenCarousel',
@@ -289,16 +291,41 @@ export default {
         async bake_and_download(file) {
             if (!file || this.baking) return;
             this.baking = true;
+            let host = null;
             try {
                 const resp = await fetch(this.getImgUrl(file.id));
                 if (!resp.ok) throw new Error(`Download fehlgeschlagen (${resp.status})`);
                 const originalSvg = await resp.text();
                 const { svgString } = await bakeSvgString(originalSvg);
-                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(svgString, 'image/svg+xml');
+                if (doc.querySelector('parsererror')) {
+                    throw new Error('SVG konnte nicht geparst werden');
+                }
+                const svgEl = doc.documentElement;
+
+                // svg2pdf needs the SVG to be in the DOM (for getBBox, font metrics, etc.)
+                host = document.createElement('div');
+                host.style.cssText =
+                    'position:absolute;left:-99999px;top:-99999px;visibility:hidden;';
+                host.appendChild(svgEl);
+                document.body.appendChild(host);
+
+                const { width, height } = this.get_svg_dimensions(svgEl);
+                const pdf = new jsPDF({
+                    unit: 'pt',
+                    format: [width, height],
+                    orientation: width > height ? 'landscape' : 'portrait',
+                    compress: true,
+                });
+                await pdf.svg(svgEl, { x: 0, y: 0, width, height });
+
+                const blob = pdf.output('blob');
                 const href = URL.createObjectURL(blob);
                 const baseName = (file.filename_download || 'noten.svg').replace(/\.svg$/i, '');
                 const a = document.createElement('a');
-                a.download = `${baseName}_baked.svg`;
+                a.download = `${baseName}_baked.pdf`;
                 a.href = href;
                 a.target = '_blank';
                 document.body.appendChild(a);
@@ -308,8 +335,24 @@ export default {
             } catch (err) {
                 console.error('SVG-Bake fehlgeschlagen', err);
             } finally {
+                if (host && host.parentNode) host.parentNode.removeChild(host);
                 this.baking = false;
             }
+        },
+        get_svg_dimensions(svgEl) {
+            const w = parseFloat(svgEl.getAttribute('width'));
+            const h = parseFloat(svgEl.getAttribute('height'));
+            if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+                return { width: w, height: h };
+            }
+            const vb = svgEl.getAttribute('viewBox');
+            if (vb) {
+                const parts = vb.split(/[\s,]+/).map(parseFloat);
+                if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+                    return { width: parts[2], height: parts[3] };
+                }
+            }
+            return { width: 595, height: 842 };
         },
         download_file(file) {
             console.log(file);
