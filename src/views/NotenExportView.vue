@@ -86,6 +86,95 @@ const exportable_count = computed(
     () => filtered_lieder.value.filter((l) => !!l.notentext).length,
 );
 
+const selected_ids = ref(new Set());
+const last_clicked_id = ref(null);
+
+const exportable_filtered_ids = computed(
+    () => filtered_lieder.value.filter((l) => !!l.notentext).map((l) => l.id),
+);
+
+const selected_count = computed(
+    () => exportable_filtered_ids.value.filter((id) => selected_ids.value.has(id)).length,
+);
+
+const all_filtered_selected = computed(
+    () =>
+        exportable_filtered_ids.value.length > 0 &&
+        selected_count.value === exportable_filtered_ids.value.length,
+);
+
+const some_filtered_selected = computed(
+    () => selected_count.value > 0 && !all_filtered_selected.value,
+);
+
+function isSelected(id) {
+    return selected_ids.value.has(id);
+}
+
+function toggleSelected(id) {
+    const next = new Set(selected_ids.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selected_ids.value = next;
+}
+
+function onRowCheckboxClick(id, event) {
+    const lied = all_lieder.value.find((l) => l.id === id);
+    if (!lied || !lied.notentext) return;
+
+    const visibleIds = filtered_lieder.value
+        .filter((l) => !!l.notentext)
+        .map((l) => l.id);
+
+    if (
+        event.shiftKey &&
+        last_clicked_id.value != null &&
+        last_clicked_id.value !== id &&
+        visibleIds.includes(last_clicked_id.value)
+    ) {
+        // Range select between last clicked and current within currently-visible rows.
+        // The target state is the inverse of the clicked row's current state.
+        const a = visibleIds.indexOf(last_clicked_id.value);
+        const b = visibleIds.indexOf(id);
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        const targetState = !selected_ids.value.has(id);
+        const next = new Set(selected_ids.value);
+        for (let i = lo; i <= hi; i++) {
+            if (targetState) next.add(visibleIds[i]);
+            else next.delete(visibleIds[i]);
+        }
+        selected_ids.value = next;
+        // Avoid the browser's shift-click text selection.
+        window.getSelection?.()?.removeAllRanges?.();
+    } else {
+        toggleSelected(id);
+    }
+    last_clicked_id.value = id;
+}
+
+function toggleSelectAll() {
+    const next = new Set(selected_ids.value);
+    if (all_filtered_selected.value) {
+        exportable_filtered_ids.value.forEach((id) => next.delete(id));
+    } else {
+        exportable_filtered_ids.value.forEach((id) => next.add(id));
+    }
+    selected_ids.value = next;
+}
+
+let selection_initialized = false;
+watch(
+    () => all_lieder.value.length,
+    () => {
+        if (selection_initialized) return;
+        const exportable = all_lieder.value.filter((l) => !!l.notentext).map((l) => l.id);
+        if (exportable.length === 0) return;
+        selected_ids.value = new Set(exportable);
+        selection_initialized = true;
+    },
+    { immediate: true },
+);
+
 function safeFilename(s) {
     return (s || 'lied').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').slice(0, 80);
 }
@@ -294,9 +383,11 @@ async function fetchSvgText(fileId) {
 
 async function runExport() {
     error_msg.value = '';
-    const candidates = filtered_lieder.value.filter((l) => !!l.notentext);
+    const candidates = filtered_lieder.value.filter(
+        (l) => !!l.notentext && selected_ids.value.has(l.id),
+    );
     if (candidates.length === 0) {
-        error_msg.value = 'Keine Lieder mit notentext im aktuellen Filter.';
+        error_msg.value = 'Keine Lieder ausgewählt.';
         return;
     }
 
@@ -509,18 +600,19 @@ function formatDate(iso) {
                 <div>
                     <div class="text-subtitle-2">Im Filter: {{ filtered_lieder.length }}</div>
                     <div class="text-caption text-medium-emphasis">
-                        Davon exportierbar (mit notentext): {{ exportable_count }}
+                        Davon exportierbar (mit notentext): {{ exportable_count }} —
+                        ausgewählt: {{ selected_count }}
                     </div>
                 </div>
                 <v-spacer />
                 <v-btn
                     color="primary"
                     :loading="exporting"
-                    :disabled="exporting || exportable_count === 0"
+                    :disabled="exporting || selected_count === 0"
                     prepend-icon="mdi-download"
                     @click="runExport"
                 >
-                    {{ exportable_count }} PDF(s) + CSV als ZIP exportieren
+                    {{ selected_count }} PDF(s) + CSV als ZIP exportieren
                 </v-btn>
             </div>
             <v-alert v-if="error_msg" class="mt-3" type="error" variant="tonal" density="compact">
@@ -603,6 +695,16 @@ function formatDate(iso) {
             <v-table density="compact" hover>
                 <thead>
                     <tr>
+                        <th style="width: 56px">
+                            <v-checkbox
+                                :model-value="all_filtered_selected"
+                                :indeterminate="some_filtered_selected"
+                                :disabled="exportable_filtered_ids.length === 0"
+                                hide-details
+                                density="compact"
+                                @update:model-value="toggleSelectAll"
+                            />
+                        </th>
                         <th style="width: 80px">Nr.</th>
                         <th>Titel</th>
                         <th style="width: 140px">notentext</th>
@@ -611,6 +713,21 @@ function formatDate(iso) {
                 </thead>
                 <tbody>
                     <tr v-for="lied in filtered_lieder" :key="lied.id">
+                        <td
+                            class="select-cell"
+                            :class="{ 'select-cell--disabled': !lied.notentext }"
+                            @click="onRowCheckboxClick(lied.id, $event)"
+                            @mousedown.prevent
+                        >
+                            <v-checkbox
+                                :model-value="isSelected(lied.id)"
+                                :disabled="!lied.notentext"
+                                readonly
+                                hide-details
+                                density="compact"
+                                tabindex="-1"
+                            />
+                        </td>
                         <td>{{ lied.liednummer2026 || lied.liednummer2000 || '–' }}</td>
                         <td>{{ lied.titel }}</td>
                         <td>
@@ -656,7 +773,7 @@ function formatDate(iso) {
                         </td>
                     </tr>
                     <tr v-if="filtered_lieder.length === 0">
-                        <td colspan="4" class="text-center text-medium-emphasis py-4">
+                        <td colspan="5" class="text-center text-medium-emphasis py-4">
                             Keine Lieder im aktuellen Filter.
                         </td>
                     </tr>
@@ -665,6 +782,10 @@ function formatDate(iso) {
         </v-card-text>
     </v-card>
 
+    <div class="text-caption text-medium-emphasis mt-1">
+        Tipp: Shift + Klick wählt einen Bereich aus.
+    </div>
+
     <v-snackbar v-model="snackbar" :timeout="3500">
         {{ snackbar_message }}
         <template #actions>
@@ -672,3 +793,13 @@ function formatDate(iso) {
         </template>
     </v-snackbar>
 </template>
+
+<style scoped>
+.select-cell {
+    cursor: pointer;
+    user-select: none;
+}
+.select-cell--disabled {
+    cursor: not-allowed;
+}
+</style>
