@@ -392,6 +392,9 @@ export const useAppStore = defineStore('app', {
                 notentext_seite2_file: obj.notentext_seite2
                     ? file_grouped[obj.notentext_seite2]
                     : null,
+                notentext_mxml_file: obj.notentext_mxml
+                    ? file_grouped[obj.notentext_mxml]
+                    : null,
 
                 // if undefined then 0, if auftrag exist and any has status not 'done' then 1 otherwise 2
                 text_work_order: textById[obj.textId]?.auftrag
