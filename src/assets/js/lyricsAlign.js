@@ -31,6 +31,13 @@ function isStructuralPunctuation(text) {
     return /^[-‐‑‒–—_.\s]+$/.test(t);
 }
 
+// Verse repeat markers like "1", "2.", "3)" sit at the start of a stanza and
+// are not sung text — Finale doesn't anchor them to a notehead, so we must not
+// try to "center" them either. Real lyric text is never a bare number.
+function isVerseMarker(text) {
+    return /^\s*\d+\s*[.:)]?\s*$/.test(text);
+}
+
 // Trailing/leading punctuation we strip when computing where a syllable's
 // optical center is. "Stadt," should center "Stadt" under the note — the
 // comma hangs off to the right. Same for "Licht.", "all:", "Stall!" etc.
@@ -147,6 +154,7 @@ export async function analyzeLyrics(svgString) {
                 coreAdvance,
                 centerX: x + fullAdvance / 2,
                 isPunctuation: isStructuralPunctuation(text),
+                isVerseMarker: isVerseMarker(text),
             });
         }
     }
@@ -168,10 +176,10 @@ export async function analyzeLyrics(svgString) {
     }
 
     for (const l of lyrics) {
-        // Punctuation (mostly hyphens between syllables) keeps its Finale
-        // position untouched — Finale lays these out between notes, not on top
-        // of them.
-        if (l.isPunctuation) {
+        // Punctuation (mostly hyphens between syllables) and verse markers
+        // ("1.", "2.") keep their Finale position untouched — Finale lays
+        // these out between/beside notes, not on top of them.
+        if (l.isPunctuation || l.isVerseMarker) {
             l.noteId = null;
             l.expectedX = l.x;
             l.deviation = 0;
@@ -234,6 +242,7 @@ export async function analyzeLyrics(svgString) {
         deviation: l.deviation,
         misaligned: l.misaligned,
         isPunctuation: l.isPunctuation,
+        isVerseMarker: l.isVerseMarker,
     }));
     const cleanNotes = notes.map((n) => ({
         id: n.id,
