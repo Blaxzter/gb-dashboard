@@ -4,6 +4,7 @@ import optimaBoldUrl from '@/assets/font/lte500210.ttf?url';
 import optimaItalicUrl from '@/assets/font/lte524010.ttf?url';
 import optimaBoldItalicUrl from '@/assets/font/lte543790.ttf?url';
 import { bakeSvgString } from './svgBaker.js';
+import { analyzeLyrics } from './lyricsAlign.js';
 
 // Each bundled font registered under every plausible family name Finale may
 // have used. `localNames` are tried FIRST: if the user has the real font
@@ -185,10 +186,25 @@ export async function scanSvgBake(file) {
     const text = await file.text();
     const baked = await bakeSvgString(text);
     const coverage = baked.totalTexts > 0 ? baked.bakedCount / baked.totalTexts : 1;
+
+    let alignment = null;
+    try {
+        const a = await analyzeLyrics(text);
+        alignment = {
+            misalignedCount: a.misalignedCount,
+            totalLyrics: a.totalLyrics,
+            lyrics: a.lyrics,
+            notes: a.notes,
+        };
+    } catch (e) {
+        console.warn('Lyrics-Alignment-Analyse fehlgeschlagen', e);
+    }
+
     return {
         bakedCount: baked.bakedCount,
         totalTexts: baked.totalTexts,
         coverage,
         severity: bakeSeverity(baked.bakedCount, baked.totalTexts),
+        alignment,
     };
 }

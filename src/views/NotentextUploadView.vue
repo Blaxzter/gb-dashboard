@@ -5,12 +5,18 @@ import { useAppStore } from '@/store/app.js';
 import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
 import { scanSvgBake } from '@/assets/js/svgCompare.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
+import LyricsAlignDialog from '@/components/upload/LyricsAlignDialog.vue';
 
 const store = useAppStore();
 
 const compare_dialog = ref(false);
 const compare_file = ref(null);
 const compare_title = ref('');
+
+const align_dialog = ref(false);
+const align_file = ref(null);
+const align_title = ref('');
+const align_item = ref(null);
 
 const preview_dialog = ref(false);
 const preview_url = ref(null);
@@ -27,6 +33,24 @@ function openCompareDialog(item) {
     compare_file.value = item.file;
     compare_title.value = item.name;
     compare_dialog.value = true;
+}
+
+function openAlignDialog(item) {
+    align_file.value = item.file;
+    align_title.value = item.name;
+    align_item.value = item;
+    align_dialog.value = true;
+}
+
+async function onAlignmentApplied({ svgString }) {
+    const item = align_item.value;
+    if (!item) return;
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const newName = item.file?.name || 'corrected.svg';
+    item.file = new File([blob], newName, { type: 'image/svg+xml' });
+    // Trigger re-scan so the chip updates
+    if (item.scan) item.scan = { status: 'pending' };
+    runScanWorker();
 }
 
 let scan_busy = false;
@@ -48,6 +72,7 @@ async function runScanWorker() {
                     bakedCount: result.bakedCount,
                     totalTexts: result.totalTexts,
                     coverage: result.coverage,
+                    alignment: result.alignment,
                 };
             } catch (e) {
                 console.warn('Bake-Scan fehlgeschlagen', e);
@@ -1153,6 +1178,27 @@ async function shareSummary() {
                                 </v-chip>
                             </template>
                         </v-tooltip>
+
+                        <v-tooltip
+                            v-if="item.scan?.status === 'done' && item.scan.alignment?.misalignedCount > 0"
+                            :text="`${item.scan.alignment.misalignedCount} Silben sitzen nicht zentriert unter ihrer Note. Klicken zum Korrigieren.`"
+                            location="top"
+                            max-width="320"
+                        >
+                            <template #activator="{ props }">
+                                <v-chip
+                                    v-bind="props"
+                                    size="x-small"
+                                    variant="tonal"
+                                    color="warning"
+                                    prepend-icon="mdi-vector-arrange-below"
+                                    class="cursor-pointer"
+                                    @click="openAlignDialog(item)"
+                                >
+                                    {{ item.scan.alignment.misalignedCount }} verschoben
+                                </v-chip>
+                            </template>
+                        </v-tooltip>
                     </div>
 
                     <div
@@ -1339,6 +1385,13 @@ async function shareSummary() {
         v-model="compare_dialog"
         :file="compare_file"
         :title="compare_title"
+    />
+
+    <LyricsAlignDialog
+        v-model="align_dialog"
+        :file="align_file"
+        :title="align_title"
+        @apply="onAlignmentApplied"
     />
 
     <v-dialog v-model="preview_dialog" max-width="1200" scrollable>
