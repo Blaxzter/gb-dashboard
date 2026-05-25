@@ -12,6 +12,7 @@ const store = useAppStore();
 const compare_dialog = ref(false);
 const compare_file = ref(null);
 const compare_title = ref('');
+const compare_existing_url = ref('');
 
 const align_dialog = ref(false);
 const align_file = ref(null);
@@ -32,7 +33,26 @@ function openPreviewDialog(item) {
 function openCompareDialog(item) {
     compare_file.value = item.file;
     compare_title.value = item.name;
+    compare_existing_url.value = existingFileUrlFor(item);
     compare_dialog.value = true;
+}
+
+// Resolves the URL of the already-uploaded notentext file on the matched Lied,
+// for the field this item would write into (Seite 1 / Seite 2 / MXL). Empty
+// string when the Lied has no file for that slot yet — no conflict, nothing
+// to compare against.
+function existingFileIdFor(item) {
+    if (!item || !item.liedId) return null;
+    const lied = lookupLied(item.liedId);
+    if (!lied) return null;
+    const { field } = fieldFor(item);
+    return lied[field] || null;
+}
+
+function existingFileUrlFor(item) {
+    if (!item || item.kind !== 'svg') return '';
+    const id = existingFileIdFor(item);
+    return id ? `${import.meta.env.VITE_BACKEND_URL}/assets/${id}` : '';
 }
 
 function openAlignDialog(item) {
@@ -1215,6 +1235,16 @@ async function shareSummary() {
                             </template>
                         </span>
                         <v-btn
+                            v-if="item.kind === 'svg' && existingFileUrlFor(item)"
+                            size="x-small"
+                            variant="tonal"
+                            color="primary"
+                            prepend-icon="mdi-vector-difference-ab"
+                            @click="openCompareDialog(item)"
+                        >
+                            Mit hochgeladener Version vergleichen
+                        </v-btn>
+                        <v-btn
                             size="x-small"
                             color="error"
                             variant="tonal"
@@ -1385,6 +1415,7 @@ async function shareSummary() {
         v-model="compare_dialog"
         :file="compare_file"
         :title="compare_title"
+        :existing-url="compare_existing_url"
     />
 
     <LyricsAlignDialog

@@ -12,6 +12,9 @@ const props = defineProps({
     modelValue: { type: Boolean, default: false },
     file: { type: Object, default: null },
     title: { type: String, default: '' },
+    // When set, the dialog adds a "Bereits hochgeladen" comparison target —
+    // the baked new file is diffed against the SVG currently saved on the Lied.
+    existingUrl: { type: String, default: '' },
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -24,14 +27,25 @@ const loading = ref(false);
 const error_message = ref('');
 const mode = ref('side'); // 'side' | 'slider' | 'ab'
 const slider_position = ref(50);
-const ab_view = ref('baked'); // 'original' | 'baked'
+const ab_view = ref('baked'); // 'original' | 'baked' | 'existing'
 const zoom = ref(1);
+
+// Two comparison targets:
+//   'bake'     — Original (with font) vs Baked (paths)
+//   'existing' — Baked (new upload) vs Bereits hochgeladen (saved on the Lied)
+// Defaults to 'existing' when an existingUrl is provided; otherwise 'bake'.
+const target = ref(props.existingUrl ? 'existing' : 'bake');
 
 const original_svg = ref(''); // raw SVG string (for download)
 const baked_svg = ref(''); // raw SVG string (for download)
+const existing_svg = ref(''); // raw SVG string of currently-uploaded file
 const original_url = ref(''); // blob URL used as <img> source
 const baked_url = ref(''); // blob URL used as <img> source
+const existing_url = ref(''); // blob URL used as <img> source for existing
 const bake_stats = ref(null);
+const existing_error = ref('');
+// null | { equal: boolean, reason: string }
+const equality = ref(null);
 
 let createdUrls = [];
 function disposeUrls() {
@@ -39,6 +53,7 @@ function disposeUrls() {
     createdUrls = [];
     original_url.value = '';
     baked_url.value = '';
+    existing_url.value = '';
 }
 function svgToBlobUrl(svgString) {
     const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
@@ -141,13 +156,43 @@ function onSliderEnd() {
     window.removeEventListener('mouseup', onSliderEnd);
 }
 
+// Normalize SVG text for an "are these the same drawing?" comparison.
+// Strips XML/DOCTYPE prologue and collapses inter-tag whitespace so that
+// pure formatting differences (line endings, indentation) don't count.
+function normalizeSvgForEquality(svg) {
+    if (!svg) return '';
+    return svg
+        .replace(/<\?xml[^?]*\?>/gi, '')
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/>\s+</g, '><')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function computeEquality(bakedSvg, existingSvg) {
+    if (!bakedSvg || !existingSvg) return null;
+    if (bakedSvg === existingSvg) {
+        return { equal: true, reason: 'Byte-identisch' };
+    }
+    const a = normalizeSvgForEquality(bakedSvg);
+    const b = normalizeSvgForEquality(existingSvg);
+    if (a === b) {
+        return { equal: true, reason: 'Strukturell identisch (nur Formatierung unterscheidet sich)' };
+    }
+    return { equal: false, reason: 'Inhalte unterscheiden sich' };
+}
+
 async function runComparison() {
     if (!props.file) return;
     loading.value = true;
     error_message.value = '';
+    existing_error.value = '';
+    equality.value = null;
     disposeUrls();
     original_svg.value = '';
     baked_svg.value = '';
+    existing_svg.value = '';
     try {
         await ensureAllFonts();
         const text = await props.file.text();
@@ -162,16 +207,26 @@ async function runComparison() {
         baked_svg.value = prepareBakedSvgForDom(baked.svgString);
         original_url.value = svgToBlobUrl(original_svg.value);
         baked_url.value = svgToBlobUrl(baked_svg.value);
+
+        if (props.existingUrl) {
+            try {
+                const resp = await fetch(props.existingUrl);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const existingText = await resp.text();
+                existing_svg.value = existingText;
+                existing_url.value = svgToBlobUrl(existingText);
+                equality.value = computeEquality(baked.svgString, existingText);
+            } catch (e) {
+                console.warn('Bereits hochgeladene Datei konnte nicht geladen werden', e);
+                existing_error.value = e?.message || String(e);
+            }
+        }
     } catch (e) {
         console.error(e);
         error_message.value = e?.message || String(e);
     } finally {
         loading.value = false;
     }
-}
-
-function toggleAbView() {
-    ab_view.value = ab_view.value === 'baked' ? 'original' : 'baked';
 }
 
 function onDialogKeydown(e) {
@@ -190,13 +245,23 @@ if (typeof window !== 'undefined') {
 }
 
 watch(
-    () => [props.modelValue, props.file],
+    () => [props.modelValue, props.file, props.existingUrl],
     ([open, file]) => {
-        if (open && file) runComparison();
+        if (open && file) {
+            // Reset the target if the existing-URL availability changed since
+            // the dialog was last closed.
+            target.value = props.existingUrl ? 'existing' : 'bake';
+            if (ab_view.value === 'existing' && !props.existingUrl) {
+                ab_view.value = 'baked';
+            }
+            runComparison();
+        }
         if (!open) {
             disposeUrls();
             original_svg.value = '';
             baked_svg.value = '';
+            existing_svg.value = '';
+            equality.value = null;
         }
     },
 );
@@ -224,6 +289,68 @@ function downloadBakedSvg() {
 
 function setZoom(z) {
     zoom.value = Math.max(0.25, Math.min(4, z));
+}
+
+// Pane sources / labels depending on `target`:
+//   'bake'     — left = Original (font),   right = Gebacken (paths)
+//   'existing' — left = Gebacken (neu),    right = Bereits hochgeladen
+const left_label = computed(() =>
+    target.value === 'existing' ? 'Gebackene Version (neu)' : 'Original (mit Schrift)',
+);
+const right_label = computed(() =>
+    target.value === 'existing' ? 'Bereits hochgeladen' : 'Gebackene Version (Pfade)',
+);
+const left_url = computed(() =>
+    target.value === 'existing' ? baked_url.value : original_url.value,
+);
+const right_url = computed(() =>
+    target.value === 'existing' ? existing_url.value : baked_url.value,
+);
+
+// A/B mode resolves the currently-shown image:
+//   bake-target: ab_view ∈ {original, baked}
+//   existing-target: ab_view ∈ {baked, existing} (we reuse 'baked' as the
+//   "new" side and 'existing' as the saved version).
+const ab_label = computed(() => {
+    if (target.value === 'existing') {
+        return ab_view.value === 'existing' ? 'Bereits hochgeladen' : 'Gebackene Version (neu)';
+    }
+    return ab_view.value === 'original' ? 'Original (mit Schrift)' : 'Gebackene Version (Pfade)';
+});
+const ab_url = computed(() => {
+    if (target.value === 'existing') {
+        return ab_view.value === 'existing' ? existing_url.value : baked_url.value;
+    }
+    return ab_view.value === 'original' ? original_url.value : baked_url.value;
+});
+const ab_options = computed(() => {
+    if (target.value === 'existing') {
+        return [
+            { value: 'baked', label: 'Neu (Gebacken)' },
+            { value: 'existing', label: 'Bereits hochgeladen' },
+        ];
+    }
+    return [
+        { value: 'original', label: 'Original' },
+        { value: 'baked', label: 'Gebacken' },
+    ];
+});
+
+watch(target, (t) => {
+    // Keep A/B view valid when the target switches.
+    if (t === 'existing') {
+        if (ab_view.value === 'original') ab_view.value = 'baked';
+    } else {
+        if (ab_view.value === 'existing') ab_view.value = 'baked';
+    }
+});
+
+function toggleAbView() {
+    if (target.value === 'existing') {
+        ab_view.value = ab_view.value === 'existing' ? 'baked' : 'existing';
+    } else {
+        ab_view.value = ab_view.value === 'baked' ? 'original' : 'baked';
+    }
 }
 </script>
 
@@ -272,9 +399,50 @@ function setZoom(z) {
                                 — {{ bake_stats.severity.label }}
                             </span>
                         </v-chip>
+                        <v-chip
+                            v-if="existingUrl && equality"
+                            :color="equality.equal ? 'success' : 'warning'"
+                            variant="tonal"
+                            size="small"
+                            :prepend-icon="
+                                equality.equal
+                                    ? 'mdi-equal'
+                                    : 'mdi-not-equal-variant'
+                            "
+                        >
+                            {{ equality.equal ? 'Identisch zur hochgeladenen Datei' : 'Unterscheidet sich von der hochgeladenen Datei' }}
+                            <span class="ms-1 text-caption">— {{ equality.reason }}</span>
+                        </v-chip>
+                        <v-chip
+                            v-if="existingUrl && existing_error"
+                            color="error"
+                            variant="tonal"
+                            size="small"
+                            prepend-icon="mdi-alert"
+                        >
+                            Bereits hochgeladene Datei konnte nicht geladen werden: {{ existing_error }}
+                        </v-chip>
                         <span class="text-caption text-medium-emphasis">
                             Beide SVGs werden nativ vom Browser gerendert — keine Pixel-Konvertierung.
                         </span>
+                    </div>
+
+                    <div v-if="existingUrl" class="d-flex align-center ga-3 flex-wrap mb-2">
+                        <span class="text-caption text-medium-emphasis">Vergleich:</span>
+                        <v-btn-toggle
+                            v-model="target"
+                            mandatory
+                            density="compact"
+                            color="primary"
+                            variant="outlined"
+                        >
+                            <v-btn value="existing" size="small" prepend-icon="mdi-cloud-check-outline">
+                                Neu (Gebacken) vs. Bereits hochgeladen
+                            </v-btn>
+                            <v-btn value="bake" size="small" prepend-icon="mdi-format-text-variant-outline">
+                                Original vs. Gebacken
+                            </v-btn>
+                        </v-btn-toggle>
                     </div>
 
                     <div class="d-flex align-center ga-3 flex-wrap mb-2">
@@ -332,8 +500,14 @@ function setZoom(z) {
                                 color="primary"
                                 variant="outlined"
                             >
-                                <v-btn value="original" size="small">Original</v-btn>
-                                <v-btn value="baked" size="small">Gebacken</v-btn>
+                                <v-btn
+                                    v-for="opt in ab_options"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                    size="small"
+                                >
+                                    {{ opt.label }}
+                                </v-btn>
                             </v-btn-toggle>
                             <v-btn
                                 size="small"
@@ -349,7 +523,7 @@ function setZoom(z) {
                     <div class="compare-stage" :class="`mode-${mode}`">
                         <template v-if="mode === 'side'">
                             <div class="compare-pane">
-                                <div class="compare-pane__label">Original (mit Schrift)</div>
+                                <div class="compare-pane__label">{{ left_label }}</div>
                                 <div class="zoom-outer">
                                     <div
                                         ref="scroll_left"
@@ -372,10 +546,10 @@ function setZoom(z) {
                                             }"
                                         >
                                             <img
-                                                v-if="original_url"
-                                                :src="original_url"
+                                                v-if="left_url"
+                                                :src="left_url"
                                                 class="zoom-img"
-                                                alt="Original"
+                                                :alt="left_label"
                                                 draggable="false"
                                             />
                                         </div>
@@ -383,7 +557,7 @@ function setZoom(z) {
                                 </div>
                             </div>
                             <div class="compare-pane">
-                                <div class="compare-pane__label">Gebackene Version (Pfade)</div>
+                                <div class="compare-pane__label">{{ right_label }}</div>
                                 <div class="zoom-outer">
                                     <div
                                         ref="scroll_right"
@@ -406,10 +580,10 @@ function setZoom(z) {
                                             }"
                                         >
                                             <img
-                                                v-if="baked_url"
-                                                :src="baked_url"
+                                                v-if="right_url"
+                                                :src="right_url"
                                                 class="zoom-img"
-                                                alt="Gebacken"
+                                                :alt="right_label"
                                                 draggable="false"
                                             />
                                         </div>
@@ -421,8 +595,8 @@ function setZoom(z) {
                         <template v-else-if="mode === 'slider'">
                             <div class="compare-slider">
                                 <div class="compare-slider__labels">
-                                    <span class="compare-slider__label">Original</span>
-                                    <span class="compare-slider__label">Gebacken</span>
+                                    <span class="compare-slider__label">{{ left_label }}</span>
+                                    <span class="compare-slider__label">{{ right_label }}</span>
                                 </div>
                                 <div class="zoom-outer compare-slider__outer">
                                     <div
@@ -449,20 +623,20 @@ function setZoom(z) {
                                                 :class="{ 'is-dragging': slider_dragging }"
                                             >
                                                 <img
-                                                    v-if="baked_url"
-                                                    :src="baked_url"
+                                                    v-if="right_url"
+                                                    :src="right_url"
                                                     class="compare-slider__img"
-                                                    alt="Gebacken"
+                                                    :alt="right_label"
                                                     draggable="false"
                                                 />
                                                 <img
-                                                    v-if="original_url"
-                                                    :src="original_url"
+                                                    v-if="left_url"
+                                                    :src="left_url"
                                                     class="compare-slider__img compare-slider__img--overlay"
                                                     :style="{
                                                         clipPath: `inset(0 ${100 - slider_position}% 0 0)`,
                                                     }"
-                                                    alt="Original"
+                                                    :alt="left_label"
                                                     draggable="false"
                                                 />
                                                 <div
@@ -494,9 +668,7 @@ function setZoom(z) {
 
                         <template v-else>
                             <div class="compare-pane compare-pane--full">
-                                <div class="compare-pane__label">
-                                    {{ ab_view === 'original' ? 'Original (mit Schrift)' : 'Gebackene Version (Pfade)' }}
-                                </div>
+                                <div class="compare-pane__label">{{ ab_label }}</div>
                                 <div class="zoom-outer">
                                     <div
                                         class="zoom-scroll"
@@ -517,17 +689,10 @@ function setZoom(z) {
                                             }"
                                         >
                                             <img
-                                                v-show="ab_view === 'baked' && baked_url"
-                                                :src="baked_url"
+                                                v-if="ab_url"
+                                                :src="ab_url"
                                                 class="zoom-img zoom-img--ab"
-                                                alt="Gebacken"
-                                                draggable="false"
-                                            />
-                                            <img
-                                                v-show="ab_view === 'original' && original_url"
-                                                :src="original_url"
-                                                class="zoom-img zoom-img--ab"
-                                                alt="Original"
+                                                :alt="ab_label"
                                                 draggable="false"
                                             />
                                         </div>
