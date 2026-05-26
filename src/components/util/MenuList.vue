@@ -138,17 +138,31 @@ export default {
                 icon: 'mdi-cloud-upload',
                 marginButton: true,
                 public: false,
+                requiredRoles: (import.meta.env.VITE_NOTENTEXT_ROLES || '')
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
             },
         ],
     }),
     computed: {
         filtered_list() {
             return this.links.filter((item) => {
-                return item.public ? true : this.isKleinerKreis;
+                const visibleByKreis = item.public
+                    ? true
+                    : this.isKleinerKreis && this.isKleinerKreisAnsicht;
+                if (!visibleByKreis) return false;
+                if (item.requiredRoles && item.requiredRoles.length > 0) {
+                    return this.userStore.has_role(item.requiredRoles);
+                }
+                return true;
             });
         },
         isKleinerKreis() {
             return this.userStore.is_kleiner_kreis;
+        },
+        isKleinerKreisAnsicht() {
+            return this.userStore.is_kleiner_kreis_ansicht;
         },
     },
     methods: {

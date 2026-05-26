@@ -17,6 +17,11 @@ const useUserStore = defineStore('user', {
         is_logged_in: (state) => state.user !== null,
         is_kleiner_kreis: (state) => state.kleiner_kreis,
         is_kleiner_kreis_ansicht: (state) => state.kleiner_kreis_ansicht,
+        has_role: (state) => (roleNames) => {
+            const required = Array.isArray(roleNames) ? roleNames : [roleNames];
+            if (required.length === 0) return true;
+            return required.includes(state.user?.role);
+        },
     },
     actions: {
         toggle_kleiner_kreis_ansicht() {
@@ -65,11 +70,23 @@ const useUserStore = defineStore('user', {
                     }
 
                     this.set_user_data(authData, response.data.data, remember_me);
+                    return this.fetchMe();
+                })
+                .then(() => {
                     appstore.loadData();
                 })
                 .catch((error) => {
                     throw error;
                 });
+        },
+        async fetchMe() {
+            const response = await axios({
+                method: 'get',
+                url: `${import.meta.env.VITE_BACKEND_URL}/users/me`,
+                params: { fields: 'role.name,role.id' },
+            });
+            const role = response.data?.data?.role?.name ?? null;
+            this.user = { ...(this.user ?? {}), role };
         },
         logout() {
             const appStore = useAppStore();
@@ -99,12 +116,25 @@ const useUserStore = defineStore('user', {
                 return;
             }
 
+            if (this.user?.role) {
+                return;
+            }
+
             this.kleiner_kreis_ansicht = localStorage.getItem('kleiner_kreis_ansicht') === 'true';
             this.kleiner_kreis = localStorage.getItem('kleiner_kreis') === 'true';
 
             this.user = {
                 username: username,
             };
+
+            try {
+                await this.fetchMe();
+            } catch (error) {
+                console.warn('Auto login failed, clearing session', error);
+                this.logout();
+                return;
+            }
+
             console.log('Auto login successful');
             appstore.loadData();
         },

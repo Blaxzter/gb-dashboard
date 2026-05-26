@@ -2,6 +2,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/store/user';
 
+const notentextRoles = (import.meta.env.VITE_NOTENTEXT_ROLES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 const routes = [
     {
         path: '/',
@@ -93,6 +98,7 @@ const routes = [
             {
                 path: 'notentext-hochladen',
                 name: 'NotentextHochladen',
+                meta: { requiredRoles: notentextRoles },
                 component: () =>
                     import(
                         /* webpackChunkName: "noten-upload" */ '@/views/NotentextUploadView.vue'
@@ -139,13 +145,17 @@ router.beforeEach(async (to, from, next) => {
     const user_store = useUserStore();
     await user_store.autoLogin();
     if (to.matched.some((record) => record.meta.requiresAuth)) {
-        if (user_store.is_logged_in) {
-            next();
+        if (!user_store.is_logged_in) {
+            console.log('Not logged in');
+            next({ path: '/login', query: { redirect: to.fullPath } });
             return;
         }
-        console.log('Not logged in');
-        next({ path: '/login', query: { redirect: to.fullPath } });
-        return;
+        const required = to.meta.requiredRoles;
+        if (required && required.length > 0 && !user_store.has_role(required)) {
+            console.log(`Access denied to ${to.fullPath} — required roles: ${required.join(', ')}`);
+            next({ path: '/dashboard' });
+            return;
+        }
     }
     next();
 });
