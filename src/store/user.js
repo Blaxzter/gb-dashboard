@@ -43,6 +43,13 @@ const useUserStore = defineStore('user', {
             const specialUserAlias = import.meta.env.VITE_SPECIAL_USER_ALIAS;
             const specialUserName = import.meta.env.VITE_SPECIAL_USER_NAME;
 
+            // Alias logins share a Directus account; route them through the shared
+            // static token to avoid session-overwrite conflicts. Real e-mail logins
+            // use their own per-user token.
+            const isAliasLogin =
+                authData.username === defaultUserAlias ||
+                authData.username === specialUserAlias;
+
             if (authData.username === defaultUserAlias) {
                 username = defaultUserName;
             } else if (authData.username === specialUserAlias) {
@@ -69,7 +76,7 @@ const useUserStore = defineStore('user', {
                             localStorage.getItem('kleiner_kreis_ansicht') === 'true';
                     }
 
-                    this.set_user_data(authData, response.data.data, remember_me);
+                    this.set_user_data(authData, response.data.data, remember_me, isAliasLogin);
                     return this.fetchMe();
                 })
                 .then(() => {
@@ -104,6 +111,7 @@ const useUserStore = defineStore('user', {
             localStorage.removeItem('kleiner_kreis');
             localStorage.removeItem('kleiner_kreis_ansicht');
             localStorage.removeItem('access_token');
+            localStorage.removeItem('use_static_token');
 
             // Navigate to login
             router.replace('/login');
@@ -138,12 +146,13 @@ const useUserStore = defineStore('user', {
             console.log('Auto login successful');
             appstore.loadData();
         },
-        set_user_data(authData, response_data, remember_me) {
+        set_user_data(authData, response_data, remember_me, useStaticToken) {
             this.user = {
                 username: authData.username,
             };
 
             localStorage.setItem('access_token', response_data.access_token);
+            localStorage.setItem('use_static_token', useStaticToken ? 'true' : 'false');
 
             if (remember_me) {
                 localStorage.setItem('username', authData.username);
