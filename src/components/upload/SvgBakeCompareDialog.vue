@@ -6,6 +6,7 @@ import {
     prepareBakedSvgForDom,
     ensureCompareFonts,
     bakeSeverity,
+    computeSvgEquality,
 } from '@/assets/js/svgCompare.js';
 
 const props = defineProps({
@@ -156,33 +157,6 @@ function onSliderEnd() {
     window.removeEventListener('mouseup', onSliderEnd);
 }
 
-// Normalize SVG text for an "are these the same drawing?" comparison.
-// Strips XML/DOCTYPE prologue and collapses inter-tag whitespace so that
-// pure formatting differences (line endings, indentation) don't count.
-function normalizeSvgForEquality(svg) {
-    if (!svg) return '';
-    return svg
-        .replace(/<\?xml[^?]*\?>/gi, '')
-        .replace(/<!DOCTYPE[^>]*>/gi, '')
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/>\s+</g, '><')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function computeEquality(bakedSvg, existingSvg) {
-    if (!bakedSvg || !existingSvg) return null;
-    if (bakedSvg === existingSvg) {
-        return { equal: true, reason: 'Byte-identisch' };
-    }
-    const a = normalizeSvgForEquality(bakedSvg);
-    const b = normalizeSvgForEquality(existingSvg);
-    if (a === b) {
-        return { equal: true, reason: 'Strukturell identisch (nur Formatierung unterscheidet sich)' };
-    }
-    return { equal: false, reason: 'Inhalte unterscheiden sich' };
-}
-
 async function runComparison() {
     if (!props.file) return;
     loading.value = true;
@@ -215,7 +189,7 @@ async function runComparison() {
                 const existingText = await resp.text();
                 existing_svg.value = existingText;
                 existing_url.value = svgToBlobUrl(existingText);
-                equality.value = computeEquality(baked.svgString, existingText);
+                equality.value = computeSvgEquality(baked.svgString, existingText);
             } catch (e) {
                 console.warn('Bereits hochgeladene Datei konnte nicht geladen werden', e);
                 existing_error.value = e?.message || String(e);

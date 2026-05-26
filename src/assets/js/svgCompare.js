@@ -177,6 +177,33 @@ export function bakeSeverity(bakedCount, totalTexts) {
     return { level: 'warn', color: 'warning', label: 'Texte teilweise gebacken' };
 }
 
+// Normalize SVG text for an "are these the same drawing?" comparison.
+// Strips XML/DOCTYPE prologue and collapses inter-tag whitespace so that
+// pure formatting differences (line endings, indentation) don't count.
+export function normalizeSvgForEquality(svg) {
+    if (!svg) return '';
+    return svg
+        .replace(/<\?xml[^?]*\?>/gi, '')
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/>\s+</g, '><')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+export function computeSvgEquality(bakedSvg, existingSvg) {
+    if (!bakedSvg || !existingSvg) return null;
+    if (bakedSvg === existingSvg) {
+        return { equal: true, reason: 'Byte-identisch' };
+    }
+    const a = normalizeSvgForEquality(bakedSvg);
+    const b = normalizeSvgForEquality(existingSvg);
+    if (a === b) {
+        return { equal: true, reason: 'Strukturell identisch (nur Formatierung unterscheidet sich)' };
+    }
+    return { equal: false, reason: 'Inhalte unterscheiden sich' };
+}
+
 /**
  * Lightweight scan: bakes the SVG and reports coverage. No rasterization —
  * pixel-diff comparisons of SVG text vs opentype.js paths produce false

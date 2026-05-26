@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
 import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
-import { scanSvgBake } from '@/assets/js/svgCompare.js';
+import { scanSvgBake, computeSvgEquality } from '@/assets/js/svgCompare.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
 import LyricsAlignDialog from '@/components/upload/LyricsAlignDialog.vue';
 
@@ -68,9 +68,56 @@ async function onAlignmentApplied({ svgString }) {
     const blob = new Blob([svgString], { type: 'image/svg+xml' });
     const newName = item.file?.name || 'corrected.svg';
     item.file = new File([blob], newName, { type: 'image/svg+xml' });
+    item.locallyModified = true;
     // Trigger re-scan so the chip updates
     if (item.scan) item.scan = { status: 'pending' };
     runScanWorker();
+}
+
+let equality_busy = false;
+async function runEqualityWorker() {
+    if (equality_busy) return;
+    equality_busy = true;
+    try {
+        while (true) {
+            const next = queue.value.find(
+                (q) =>
+                    q.kind === 'svg' &&
+                    q.status === 'conflict' &&
+                    !q.locallyModified &&
+                    existingFileUrlFor(q) &&
+                    q.uploadedEquality?.status === 'pending',
+            );
+            if (!next) break;
+            next.uploadedEquality = { status: 'checking' };
+            try {
+                const text = await next.file.text();
+                const baked = await bakeSvgString(text);
+                const resp = await fetch(existingFileUrlFor(next));
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const existingText = await resp.text();
+                const eq = computeSvgEquality(baked.svgString, existingText);
+                next.uploadedEquality = { status: 'done', ...eq };
+            } catch (e) {
+                console.warn('Equality-Check fehlgeschlagen', e);
+                next.uploadedEquality = {
+                    status: 'error',
+                    error: e?.message || String(e),
+                };
+            }
+        }
+    } finally {
+        equality_busy = false;
+    }
+}
+
+function queueEqualityCheck(item) {
+    if (item.kind !== 'svg') return;
+    if (item.status !== 'conflict') return;
+    if (item.locallyModified) return;
+    if (!existingFileUrlFor(item)) return;
+    item.uploadedEquality = { status: 'pending' };
+    runEqualityWorker();
 }
 
 let scan_busy = false;
@@ -412,10 +459,13 @@ function refreshItemStatus(item) {
         return;
     }
     const lied = lookupLied(item.liedId);
+    const wasConflict = item.status === 'conflict';
     if (lied && liedHasField(lied, item) && !item.conflictChoice) {
         item.status = 'conflict';
+        if (!wasConflict || !item.uploadedEquality) queueEqualityCheck(item);
     } else {
         item.status = 'matched';
+        item.uploadedEquality = null;
     }
 }
 
@@ -1234,39 +1284,76 @@ async function shareSummary() {
                                 Lied hat bereits einen Notentext für Seite {{ item.page }}. Was tun?
                             </template>
                         </span>
-                        <v-btn
-                            v-if="item.kind === 'svg' && existingFileUrlFor(item)"
-                            size="x-small"
-                            variant="tonal"
-                            color="primary"
-                            prepend-icon="mdi-vector-difference-ab"
-                            @click="openCompareDialog(item)"
+                        <template
+                            v-if="
+                                !item.locallyModified &&
+                                item.uploadedEquality?.status === 'done' &&
+                                item.uploadedEquality.equal
+                            "
                         >
-                            Mit hochgeladener Version vergleichen
-                        </v-btn>
-                        <v-btn
-                            size="x-small"
-                            color="error"
-                            variant="tonal"
-                            @click="applyConflictChoice(item, 'overwrite')"
-                        >
-                            Überschreiben
-                        </v-btn>
-                        <v-btn
-                            v-if="item.kind === 'svg'"
-                            size="x-small"
-                            variant="tonal"
-                            @click="applyConflictChoice(item, 'swap')"
-                        >
-                            Als Seite {{ item.page === 1 ? 2 : 1 }} nehmen
-                        </v-btn>
-                        <v-btn
-                            size="x-small"
-                            variant="tonal"
-                            @click="applyConflictChoice(item, 'skip')"
-                        >
-                            Überspringen
-                        </v-btn>
+                            <v-btn
+                                v-if="item.kind === 'svg' && existingFileUrlFor(item)"
+                                size="x-small"
+                                variant="tonal"
+                                color="success"
+                                prepend-icon="mdi-equal"
+                                @click="openCompareDialog(item)"
+                            >
+                                Gleich mit hochgeladener Version
+                            </v-btn>
+                            <v-btn
+                                v-if="item.kind === 'svg'"
+                                size="x-small"
+                                variant="tonal"
+                                @click="applyConflictChoice(item, 'swap')"
+                            >
+                                Als Seite {{ item.page === 1 ? 2 : 1 }} nehmen
+                            </v-btn>
+                            <v-btn
+                                size="x-small"
+                                color="primary"
+                                variant="flat"
+                                @click="applyConflictChoice(item, 'skip')"
+                            >
+                                Überspringen
+                            </v-btn>
+                        </template>
+                        <template v-else>
+                            <v-btn
+                                v-if="item.kind === 'svg' && existingFileUrlFor(item)"
+                                size="x-small"
+                                variant="tonal"
+                                color="primary"
+                                prepend-icon="mdi-vector-difference-ab"
+                                :loading="item.uploadedEquality?.status === 'checking'"
+                                @click="openCompareDialog(item)"
+                            >
+                                Mit hochgeladener Version vergleichen
+                            </v-btn>
+                            <v-btn
+                                size="x-small"
+                                color="error"
+                                variant="tonal"
+                                @click="applyConflictChoice(item, 'overwrite')"
+                            >
+                                Überschreiben
+                            </v-btn>
+                            <v-btn
+                                v-if="item.kind === 'svg'"
+                                size="x-small"
+                                variant="tonal"
+                                @click="applyConflictChoice(item, 'swap')"
+                            >
+                                Als Seite {{ item.page === 1 ? 2 : 1 }} nehmen
+                            </v-btn>
+                            <v-btn
+                                size="x-small"
+                                variant="tonal"
+                                @click="applyConflictChoice(item, 'skip')"
+                            >
+                                Überspringen
+                            </v-btn>
+                        </template>
                     </div>
 
                     <div v-if="item.errorMessage" class="text-caption text-error mt-1">
