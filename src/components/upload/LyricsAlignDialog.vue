@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { analyzeLyrics, applyCorrections } from '@/assets/js/lyricsAlign.js';
+import { analyzePdfAlignment } from '@/assets/js/pdfAlign.js';
 import { bakeSvgString } from '@/assets/js/svgBaker.js';
 import { prepareOriginalSvgForDom } from '@/assets/js/svgCompare.js';
 
@@ -8,6 +9,13 @@ const props = defineProps({
     modelValue: { type: Boolean, default: false },
     file: { type: Object, default: null },
     title: { type: String, default: '' },
+    // Optional reference PDF for auto-alignment. When present, we run the PDF
+    // analysis on dialog open and pre-fill the lyric overrides.
+    referencePdf: { type: Object, default: null },
+    // Pre-computed PDF corrections (Map<lyricId, newX>) from the upload view's
+    // background worker. Lets us skip re-running the analysis when the dialog
+    // opens and the worker has already finished.
+    initialCorrections: { type: Object, default: null },
 });
 const emit = defineEmits(['update:modelValue', 'apply']);
 
@@ -38,6 +46,15 @@ let pan_start = null;
 // a diff between this and the original.
 const current_x = ref(new Map());
 const original_x = ref(new Map());
+// Subset of current_x that came from the PDF auto-alignment (vs user edits).
+// We render these with a slightly different shade in the marker so users can
+// tell "auto-corrected" apart from "I nudged this".
+const pdf_x = ref(new Map());
+const pdf_align_status = ref('idle'); // 'idle' | 'running' | 'done' | 'error'
+const pdf_align_error = ref('');
+// Object URL for the reference PDF — created on dialog open so the "PDF" view
+// mode can embed it for visual comparison, revoked on close to avoid leaks.
+const pdf_object_url = ref('');
 
 const selected_id = ref(null);
 const hide_aligned = ref(true);
@@ -81,14 +98,48 @@ watch(
 async function load() {
     loading.value = true;
     error_message.value = '';
+    pdf_align_status.value = 'idle';
+    pdf_align_error.value = '';
+    pdf_x.value = new Map();
+    if (props.referencePdf) {
+        pdf_object_url.value = URL.createObjectURL(props.referencePdf);
+    }
     try {
         original_svg.value = await props.file.text();
         const analysis = await analyzeLyrics(original_svg.value);
         lyrics.value = analysis.lyrics;
         notes.value = analysis.notes;
-        current_x.value = new Map(analysis.lyrics.map((l) => [l.id, l.x]));
-        original_x.value = new Map(analysis.lyrics.map((l) => [l.id, l.x]));
+        const startX = new Map(analysis.lyrics.map((l) => [l.id, l.x]));
+        original_x.value = new Map(startX);
         selected_id.value = null;
+
+        // PDF-driven auto-alignment. If the upload view already produced a
+        // corrections Map, prefer that (no extra work). Otherwise, if a PDF
+        // is attached, compute it now.
+        let pdfCorrections = null;
+        if (props.initialCorrections && props.initialCorrections.size > 0) {
+            pdfCorrections = props.initialCorrections;
+            pdf_align_status.value = 'done';
+        } else if (props.referencePdf) {
+            pdf_align_status.value = 'running';
+            try {
+                const pdfBuf = await props.referencePdf.arrayBuffer();
+                const result = await analyzePdfAlignment(original_svg.value, pdfBuf);
+                pdfCorrections = result.corrections;
+                pdf_align_status.value = 'done';
+            } catch (e) {
+                console.warn('PDF-Ausrichtung fehlgeschlagen', e);
+                pdf_align_status.value = 'error';
+                pdf_align_error.value = e?.message || String(e);
+            }
+        }
+        if (pdfCorrections && pdfCorrections.size > 0) {
+            for (const [id, x] of pdfCorrections.entries()) {
+                startX.set(id, x);
+                pdf_x.value.set(id, x);
+            }
+        }
+        current_x.value = new Map(startX);
 
         // Bake once. We render the same baked SVG both as the interactive
         // "edit" view (with lyric tags, drag/key targets) and as a read-only
@@ -281,6 +332,12 @@ function toggleViewMode() {
     const i = VIEW_MODES.indexOf(view_mode.value);
     view_mode.value = VIEW_MODES[(i + 1) % VIEW_MODES.length];
 }
+// Independent of the view modes (which render the SVG in different ways), the
+// user can pop the reference PDF into a side panel next to the SVG. We keep
+// these separate because the PDF renders at its own page scale (not the SVG
+// viewBox), so it isn't a clean drop-in replacement — but it's invaluable for
+// visual cross-check.
+const show_pdf_side = ref(false);
 
 function onDialogKeydown(e) {
     if (!dialog_open.value) return;
@@ -307,6 +364,22 @@ function focusKbd() {
     if (svg_container.value) svg_container.value.focus();
 }
 
+// Classify a changed lyric by what positioned it at its current x: PDF auto-
+// alignment, the analyzer's note-center heuristic, or the user. Detection is
+// purely by value match against pdf_x / lyric.expectedX, so the source
+// remains correct even after re-applies and round-trips.
+const SOURCE_COLORS = {
+    pdf: '#1976d2', // blue — engraver intent
+    note: '#2e7d32', // green — algorithmic
+    manual: '#ef6c00', // orange — user touch
+};
+function correctionSource(id, cur) {
+    if (pdf_x.value.has(id) && Math.abs(pdf_x.value.get(id) - cur) < 0.001) return 'pdf';
+    const l = lyrics.value.find((x) => x.id === id);
+    if (l && Math.abs(l.expectedX - cur) < 0.001) return 'note';
+    return 'manual';
+}
+
 function applyHighlights() {
     if (view_mode.value !== 'edit') return;
     if (!svg_container.value) return;
@@ -319,9 +392,9 @@ function applyHighlights() {
         const cur = current_x.value.get(id);
         const orig = original_x.value.get(id);
         const isChanged = cur !== undefined && orig !== undefined && Math.abs(cur - orig) > 0.001;
-        // Strip prior overlay so we can recompute bbox cleanly.
-        const old = g.querySelector('.lyric-overlay');
-        if (old) old.remove();
+        const source = isChanged ? correctionSource(id, cur) : null;
+        // Strip prior overlay + marker so we can recompute them cleanly.
+        g.querySelectorAll('.lyric-overlay, .lyric-shift-marker').forEach((n) => n.remove());
         // Transparent rect that *catches clicks* covering the whole syllable
         // bbox plus some margin — without this the hit area is just the glyph
         // ink, which is fiddly (especially for hyphens). The margin makes the
@@ -343,7 +416,7 @@ function applyHighlights() {
             overlay.setAttribute('stroke', '#1976d2');
             overlay.setAttribute('stroke-width', '0.5');
         } else if (show_outlines.value && isChanged) {
-            overlay.setAttribute('stroke', '#43a047');
+            overlay.setAttribute('stroke', SOURCE_COLORS[source]);
             overlay.setAttribute('stroke-width', '0.4');
         } else if (show_outlines.value && isMis) {
             overlay.setAttribute('stroke', '#fb8c00');
@@ -351,6 +424,55 @@ function applyHighlights() {
             overlay.setAttribute('stroke-dasharray', '1 0.5');
         }
         g.appendChild(overlay);
+
+        // Old-position marker: a small tick at the original x position plus a
+        // thin connector pointing to the current position. The marker lives
+        // inside the <g>, so its local origin (0,0) sits at the current
+        // translate — and the original position is at local x = orig - cur.
+        // Direction of the arrow tells you which way the syllable moved
+        // (left vs right). Color follows the source palette.
+        if (show_outlines.value && isChanged) {
+            const dxLocal = orig - cur;
+            const marker = document.createElementNS(ns, 'g');
+            marker.setAttribute('class', 'lyric-shift-marker');
+            marker.setAttribute('pointer-events', 'none');
+            const color = SOURCE_COLORS[source];
+            // Vertical tick at the original position spanning roughly the
+            // text x-height — visible at every reasonable zoom level.
+            const tick = document.createElementNS(ns, 'line');
+            tick.setAttribute('x1', dxLocal);
+            tick.setAttribute('x2', dxLocal);
+            tick.setAttribute('y1', bb.y);
+            tick.setAttribute('y2', bb.y + bb.height);
+            tick.setAttribute('stroke', color);
+            tick.setAttribute('stroke-width', '0.35');
+            marker.appendChild(tick);
+            // Horizontal connector at the baseline from original → current.
+            const arrow = document.createElementNS(ns, 'line');
+            arrow.setAttribute('x1', dxLocal);
+            arrow.setAttribute('x2', 0);
+            arrow.setAttribute('y1', bb.y + bb.height + 0.6);
+            arrow.setAttribute('y2', bb.y + bb.height + 0.6);
+            arrow.setAttribute('stroke', color);
+            arrow.setAttribute('stroke-width', '0.35');
+            marker.appendChild(arrow);
+            // Tiny arrowhead pointing at the current position. We approximate
+            // it with a 2-segment chevron so we don't need a <defs><marker>.
+            const headSize = 0.8;
+            const dir = dxLocal >= 0 ? -1 : 1; // arrow head points from orig → current
+            const ax = 0;
+            const ay = bb.y + bb.height + 0.6;
+            const head = document.createElementNS(ns, 'polyline');
+            head.setAttribute(
+                'points',
+                `${ax - dir * headSize},${ay - headSize * 0.7} ${ax},${ay} ${ax - dir * headSize},${ay + headSize * 0.7}`,
+            );
+            head.setAttribute('fill', 'none');
+            head.setAttribute('stroke', color);
+            head.setAttribute('stroke-width', '0.35');
+            marker.appendChild(head);
+            g.appendChild(marker);
+        }
     });
 }
 
@@ -521,6 +643,28 @@ function autoCorrectAll() {
     return moved;
 }
 
+function applyPdfToSelected() {
+    const id = selected_id.value;
+    if (!id || !pdf_x.value.has(id)) return;
+    const l = lyrics.value.find((x) => x.id === id);
+    if (!l) return;
+    setLyricX(l, pdf_x.value.get(id));
+    current_x.value = new Map(current_x.value);
+    applyHighlights();
+}
+
+function applyPdfToAll() {
+    if (pdf_x.value.size === 0) return;
+    for (const [id, x] of pdf_x.value.entries()) {
+        const l = lyrics.value.find((y) => y.id === id);
+        if (!l) continue;
+        if (Math.abs((current_x.value.get(id) ?? l.x) - x) < 0.001) continue;
+        setLyricX(l, x);
+    }
+    current_x.value = new Map(current_x.value);
+    applyHighlights();
+}
+
 const can_auto_correct = computed(() =>
     lyrics.value.some((l) => {
         if (l.isPunctuation || !l.noteId) return false;
@@ -529,6 +673,22 @@ const can_auto_correct = computed(() =>
         return Math.abs(cur - l.expectedX) > 0.001;
     }),
 );
+
+const can_apply_pdf_all = computed(() => {
+    if (pdf_x.value.size === 0) return false;
+    for (const [id, x] of pdf_x.value.entries()) {
+        const cur = current_x.value.get(id);
+        if (cur === undefined) continue;
+        if (Math.abs(cur - x) > 0.001) return true;
+    }
+    return false;
+});
+const can_apply_pdf_selected = computed(() => {
+    const id = selected_id.value;
+    if (!id || !pdf_x.value.has(id)) return false;
+    const cur = current_x.value.get(id);
+    return cur !== undefined && Math.abs(cur - pdf_x.value.get(id)) > 0.001;
+});
 
 function buildCorrectionsMap() {
     const out = new Map();
@@ -564,6 +724,13 @@ function cleanup() {
     notes.value = [];
     current_x.value = new Map();
     original_x.value = new Map();
+    pdf_x.value = new Map();
+    pdf_align_status.value = 'idle';
+    pdf_align_error.value = '';
+    if (pdf_object_url.value) {
+        URL.revokeObjectURL(pdf_object_url.value);
+        pdf_object_url.value = '';
+    }
     selected_id.value = null;
     zoom.value = 1;
 }
@@ -584,15 +751,62 @@ function isChanged(l) {
     const orig = original_x.value.get(l.id);
     return cur !== undefined && orig !== undefined && Math.abs(cur - orig) > 0.001;
 }
+function sourceForLyric(l) {
+    if (!isChanged(l)) return null;
+    return correctionSource(l.id, current_x.value.get(l.id));
+}
+const SOURCE_LABELS = { pdf: 'PDF', note: 'Note', manual: 'Manuell' };
+const SOURCE_CHIP_COLORS = { pdf: 'primary', note: 'success', manual: 'warning' };
 </script>
 
 <template>
-    <v-dialog v-model="dialog_open" max-width="1200" scrollable>
+    <v-dialog v-model="dialog_open" :max-width="show_pdf_side ? 1800 : 1200" width="95vw" scrollable>
         <v-card>
             <v-card-title class="d-flex align-center ga-3">
                 <v-icon>mdi-vector-arrange-below</v-icon>
                 <span class="text-truncate">Lyrics ausrichten – {{ title }}</span>
                 <v-spacer />
+                <v-tooltip
+                    v-if="pdf_align_status === 'running'"
+                    text="PDF-Referenz wird analysiert…"
+                    location="bottom"
+                >
+                    <template #activator="{ props }">
+                        <v-chip v-bind="props" size="small" color="info" variant="tonal" prepend-icon="mdi-progress-clock">
+                            PDF…
+                        </v-chip>
+                    </template>
+                </v-tooltip>
+                <v-tooltip
+                    v-else-if="pdf_align_status === 'done' && pdf_x.size > 0"
+                    :text="`${pdf_x.size} Silben wurden anhand des PDF-Layouts automatisch ausgerichtet (blaue Markierung).`"
+                    location="bottom"
+                    max-width="340"
+                >
+                    <template #activator="{ props }">
+                        <v-chip
+                            v-bind="props"
+                            size="small"
+                            color="primary"
+                            variant="tonal"
+                            prepend-icon="mdi-file-pdf-box"
+                        >
+                            PDF: {{ pdf_x.size }} angewendet
+                        </v-chip>
+                    </template>
+                </v-tooltip>
+                <v-tooltip
+                    v-else-if="pdf_align_status === 'error'"
+                    :text="pdf_align_error || 'PDF-Ausrichtung fehlgeschlagen'"
+                    location="bottom"
+                    max-width="340"
+                >
+                    <template #activator="{ props }">
+                        <v-chip v-bind="props" size="small" color="error" variant="tonal" prepend-icon="mdi-alert">
+                            PDF-Fehler
+                        </v-chip>
+                    </template>
+                </v-tooltip>
                 <v-chip
                     v-if="!loading && lyrics.length"
                     size="small"
@@ -678,6 +892,24 @@ function isChanged(l) {
                                     />
                                 </template>
                             </v-tooltip>
+                            <v-tooltip
+                                v-if="pdf_object_url"
+                                :text="show_pdf_side ? 'PDF-Referenz ausblenden' : 'PDF-Referenz neben dem SVG einblenden'"
+                                location="bottom"
+                            >
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        :color="show_pdf_side ? 'primary' : undefined"
+                                        prepend-icon="mdi-file-pdf-box"
+                                        size="small"
+                                        variant="text"
+                                        @click="show_pdf_side = !show_pdf_side"
+                                    >
+                                        PDF
+                                    </v-btn>
+                                </template>
+                            </v-tooltip>
                             <v-tooltip text="Strg/⌘ + Mausrad zum Zoomen, Mittelklick oder Drag (bei Zoom > 1) zum Verschieben" location="bottom">
                                 <template #activator="{ props }">
                                     <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
@@ -711,6 +943,39 @@ function isChanged(l) {
                             </div>
                         </div>
                     </div>
+                    <template v-if="show_pdf_side && pdf_object_url">
+                        <v-divider vertical />
+                        <div class="d-flex flex-column flex-grow-1" style="min-width: 0">
+                            <div class="d-flex align-center ga-2 pa-2 bg-grey-lighten-3" style="flex-shrink: 0">
+                                <v-icon size="small">mdi-file-pdf-box</v-icon>
+                                <span class="text-caption font-weight-medium">PDF-Referenz</span>
+                                <v-spacer />
+                                <v-tooltip text="PDF-Bereich schließen" location="bottom">
+                                    <template #activator="{ props }">
+                                        <v-btn
+                                            v-bind="props"
+                                            icon="mdi-close"
+                                            size="x-small"
+                                            variant="text"
+                                            @click="show_pdf_side = false"
+                                        />
+                                    </template>
+                                </v-tooltip>
+                            </div>
+                            <div class="pdf-side-render">
+                                <!-- Native PDF viewer with its own zoom +
+                                     scroll. FitH starts the page at full
+                                     width; the browser's PDF toolbar (kept
+                                     enabled) gives the user zoom in/out and
+                                     pan. We only hide the sidebar / navpanes
+                                     since they're useless for a single page. -->
+                                <embed
+                                    :src="`${pdf_object_url}#view=FitH&navpanes=0`"
+                                    type="application/pdf"
+                                />
+                            </div>
+                        </div>
+                    </template>
                     <v-divider vertical />
                     <div
                         class="d-flex flex-column"
@@ -718,7 +983,18 @@ function isChanged(l) {
                     >
                         <div class="pa-3 d-flex flex-column ga-2">
                             <v-btn
+                                v-if="pdf_x.size > 0"
                                 color="primary"
+                                size="small"
+                                prepend-icon="mdi-file-pdf-box"
+                                :disabled="!can_apply_pdf_all"
+                                @click="applyPdfToAll"
+                            >
+                                Alle auf PDF-Position setzen
+                            </v-btn>
+                            <v-btn
+                                :color="pdf_x.size > 0 ? undefined : 'primary'"
+                                :variant="pdf_x.size > 0 ? 'tonal' : 'elevated'"
                                 size="small"
                                 prepend-icon="mdi-auto-fix"
                                 :disabled="!can_auto_correct"
@@ -757,13 +1033,13 @@ function isChanged(l) {
                                     <v-list-item-title class="text-body-2">
                                         {{ l.text }}
                                         <v-chip
-                                            v-if="isChanged(l)"
+                                            v-if="sourceForLyric(l)"
                                             size="x-small"
-                                            color="success"
+                                            :color="SOURCE_CHIP_COLORS[sourceForLyric(l)]"
                                             variant="tonal"
                                             class="ml-2"
                                         >
-                                            geändert
+                                            {{ SOURCE_LABELS[sourceForLyric(l)] }}
                                         </v-chip>
                                     </v-list-item-title>
                                     <v-list-item-subtitle class="text-caption">
@@ -793,6 +1069,17 @@ function isChanged(l) {
                         </div>
                         <v-divider />
                         <div v-if="selected_id" class="pa-3 d-flex ga-2 flex-wrap">
+                            <v-btn
+                                v-if="pdf_x.has(selected_id)"
+                                size="x-small"
+                                color="primary"
+                                variant="tonal"
+                                prepend-icon="mdi-file-pdf-box"
+                                :disabled="!can_apply_pdf_selected"
+                                @click="applyPdfToSelected"
+                            >
+                                Auf PDF setzen
+                            </v-btn>
                             <v-btn
                                 size="x-small"
                                 variant="tonal"
@@ -873,5 +1160,20 @@ function isChanged(l) {
     height: 100%;
     max-width: 100%;
     max-height: 100%;
+}
+/* PDF-Referenz side panel — sized to the same 70vh as zoom-outer so the SVG
+ * and PDF columns line up visually. The native PDF viewer fills it. */
+.pdf-side-render {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 70vh;
+    background: #fff;
+}
+.pdf-side-render embed {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
 }
 </style>

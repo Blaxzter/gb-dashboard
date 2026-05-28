@@ -4,6 +4,8 @@ import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
 import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
 import { scanSvgBake, computeSvgEquality } from '@/assets/js/svgCompare.js';
+import { analyzePdfAlignment } from '@/assets/js/pdfAlign.js';
+import { applyCorrections } from '@/assets/js/lyricsAlign.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
 import LyricsAlignDialog from '@/components/upload/LyricsAlignDialog.vue';
 
@@ -18,6 +20,8 @@ const align_dialog = ref(false);
 const align_file = ref(null);
 const align_title = ref('');
 const align_item = ref(null);
+const align_reference_pdf = ref(null);
+const align_initial_corrections = ref(null);
 
 const preview_dialog = ref(false);
 const preview_url = ref(null);
@@ -59,6 +63,10 @@ function openAlignDialog(item) {
     align_file.value = item.file;
     align_title.value = item.name;
     align_item.value = item;
+    align_reference_pdf.value = item.referencePdf?.file || null;
+    // Pass any already-computed PDF corrections so the dialog can start with
+    // them pre-applied without re-running the analysis.
+    align_initial_corrections.value = item.pdfAlign?.corrections || null;
     align_dialog.value = true;
 }
 
@@ -151,6 +159,41 @@ async function runScanWorker() {
         }
     } finally {
         scan_busy = false;
+    }
+}
+
+let pdf_align_busy = false;
+async function runPdfAlignWorker() {
+    if (pdf_align_busy) return;
+    pdf_align_busy = true;
+    try {
+        while (true) {
+            const next = queue.value.find(
+                (q) => q.kind === 'svg' && q.referencePdf && q.pdfAlign?.status === 'pending',
+            );
+            if (!next) break;
+            next.pdfAlign = { ...next.pdfAlign, status: 'running' };
+            try {
+                const [svgText, pdfBuf] = await Promise.all([
+                    next.file.text(),
+                    next.referencePdf.file.arrayBuffer(),
+                ]);
+                const { corrections, report } = await analyzePdfAlignment(svgText, pdfBuf);
+                next.pdfAlign = {
+                    status: 'done',
+                    corrections,
+                    report,
+                };
+            } catch (e) {
+                console.warn('PDF-Ausrichtung fehlgeschlagen', e);
+                next.pdfAlign = {
+                    status: 'error',
+                    error: e?.message || String(e),
+                };
+            }
+        }
+    } finally {
+        pdf_align_busy = false;
     }
 }
 
@@ -274,15 +317,17 @@ function firstVerseText(lied) {
 
 const SVG_EXT_RE = /\.svg$/i;
 const MXL_EXT_RE = /\.(mxl|musicxml)$/i;
+const PDF_EXT_RE = /\.pdf$/i;
 
 function detectKind(name) {
     if (SVG_EXT_RE.test(name)) return 'svg';
     if (MXL_EXT_RE.test(name)) return 'mxl';
+    if (PDF_EXT_RE.test(name)) return 'pdf';
     return null;
 }
 
 function parseFilename(name) {
-    let base = name.replace(SVG_EXT_RE, '').replace(MXL_EXT_RE, '');
+    let base = name.replace(SVG_EXT_RE, '').replace(MXL_EXT_RE, '').replace(PDF_EXT_RE, '');
     let page = 1;
     // Finale convention: ...001 / ...002 page suffix (also _001, -001 etc.)
     const finalePageMatch = base.match(/[\s_\-]?(\d{3})$/);
@@ -371,11 +416,50 @@ async function rankLiederAsync(parsed, onProgress) {
     return scored.slice(0, 5);
 }
 
+// PDFs that arrived without a matching SVG queue item yet — keyed by
+// normalizedBase+page so a later-arriving SVG can claim them.
+const pdf_pool = new Map();
+
+function pdfPoolKey(parsed) {
+    return `${parsed.normalizedBase}|${parsed.page}`;
+}
+
+function attachPdfToItem(item, pdfFile, parsedPdf) {
+    item.referencePdf = {
+        file: pdfFile,
+        name: pdfFile.name,
+        parsed: parsedPdf,
+    };
+    item.pdfAlign = { status: 'pending' };
+    runPdfAlignWorker();
+}
+
 async function addFiles(files) {
     const arr = Array.from(files)
         .map((f) => ({ file: f, kind: detectKind(f.name) }))
         .filter((x) => x.kind);
     if (arr.length === 0) return;
+    // Pull PDFs aside; they're reference-only and attach to a matching SVG
+    // rather than becoming their own queue item.
+    const pdfs = arr.filter((x) => x.kind === 'pdf');
+    const rest = arr.filter((x) => x.kind !== 'pdf');
+    for (const { file } of pdfs) {
+        const parsed = parseFilename(file.name);
+        const key = pdfPoolKey(parsed);
+        // First try an existing SVG already in the queue
+        const target = queue.value.find(
+            (q) => q.kind === 'svg' && pdfPoolKey(q.parsed) === key && !q.referencePdf,
+        );
+        if (target) {
+            attachPdfToItem(target, file, parsed);
+        } else {
+            // Stash for SVGs that come in this same batch or later.
+            pdf_pool.set(key, { file, parsed });
+        }
+    }
+    if (rest.length === 0) return;
+    arr.length = 0;
+    arr.push(...rest);
     const candidateTotal = store.gesangbuchlieder.length;
     console.log('[matching] starting', { files: arr.length, candidates: candidateTotal });
     matching_progress.value = {
@@ -441,6 +525,15 @@ async function addFiles(files) {
                 uploadedFileId: null,
                 scan: kind === 'svg' ? { status: 'pending' } : null,
             };
+            // Claim a pending PDF from the pool if its filename matches.
+            if (kind === 'svg') {
+                const key = pdfPoolKey(parsed);
+                const pending = pdf_pool.get(key);
+                if (pending) {
+                    pdf_pool.delete(key);
+                    attachPdfToItem(item, pending.file, pending.parsed);
+                }
+            }
             queue.value.push(item);
             if (autoMatch) refreshItemStatus(item);
         }
@@ -450,6 +543,7 @@ async function addFiles(files) {
     sortQueue();
     if (queue.value.length > 0) dropbox_collapsed.value = true;
     runScanWorker();
+    runPdfAlignWorker();
 }
 
 function refreshItemStatus(item) {
@@ -578,9 +672,12 @@ function readFileAsText(file) {
     });
 }
 
-async function bakeFileToBlob(file) {
-    const original = await readFileAsText(file);
-    const { svgString, bakedCount, totalTexts } = await bakeSvgString(original);
+async function bakeFileToBlob(file, options = {}) {
+    let svgText = await readFileAsText(file);
+    if (options.pdfCorrections && options.pdfCorrections.size > 0) {
+        svgText = await applyCorrections(svgText, options.pdfCorrections);
+    }
+    const { svgString, bakedCount, totalTexts } = await bakeSvgString(svgText);
     const blob = new Blob([svgString], { type: 'image/svg+xml' });
     return { blob, bakedCount, totalTexts };
 }
@@ -627,7 +724,16 @@ async function processItem(item) {
     try {
         let uploaded;
         if (item.kind === 'svg' && bake_on_upload.value) {
-            const { blob, bakedCount, totalTexts } = await bakeFileToBlob(item.file);
+            // If the dialog has produced edited corrections (locallyModified)
+            // we trust item.file as-is. Otherwise apply the PDF auto-align
+            // corrections (if any) before baking.
+            const corrections =
+                !item.locallyModified && item.pdfAlign?.status === 'done'
+                    ? item.pdfAlign.corrections
+                    : null;
+            const { blob, bakedCount, totalTexts } = await bakeFileToBlob(item.file, {
+                pdfCorrections: corrections,
+            });
             item.bakedCount = bakedCount;
             item.totalTexts = totalTexts;
             uploaded = await uploadBlob(blob, item.file.name, item.name);
@@ -936,12 +1042,13 @@ async function shareSummary() {
                 >
                     <v-icon size="40" color="primary">mdi-cloud-upload-outline</v-icon>
                     <div class="text-subtitle-1 mt-2">
-                        SVG- und MXL-Dateien hier ablegen oder klicken zum Auswählen
+                        SVG-, MXL- und PDF-Dateien hier ablegen oder klicken zum Auswählen
                     </div>
                     <div class="text-caption text-medium-emphasis">
                         Mehrere Dateien auf einmal möglich (SVG + MXL für denselben Song werden
                         automatisch zugeordnet). Liednummer und „_seite2"/„_2" im Dateinamen
-                        werden erkannt.
+                        werden erkannt. PDFs werden nicht hochgeladen, sondern als
+                        Layout-Referenz zum automatischen Ausrichten der SVG-Texte verwendet.
                     </div>
                 </div>
             </div>
@@ -978,7 +1085,7 @@ async function shareSummary() {
             <input
                 ref="file_input"
                 type="file"
-                accept=".svg,image/svg+xml,.mxl,.musicxml"
+                accept=".svg,image/svg+xml,.mxl,.musicxml,.pdf,application/pdf"
                 multiple
                 style="display: none"
                 @change="onPickFiles"
@@ -1269,6 +1376,78 @@ async function shareSummary() {
                                 </v-chip>
                             </template>
                         </v-tooltip>
+
+                        <v-tooltip
+                            v-if="item.kind === 'svg' && item.pdfAlign?.status === 'running'"
+                            text="PDF-Referenz wird analysiert…"
+                            location="top"
+                        >
+                            <template #activator="{ props }">
+                                <v-chip
+                                    v-bind="props"
+                                    size="x-small"
+                                    variant="tonal"
+                                    color="info"
+                                    prepend-icon="mdi-progress-clock"
+                                >
+                                    PDF-Ausrichtung…
+                                </v-chip>
+                            </template>
+                        </v-tooltip>
+                        <v-tooltip
+                            v-else-if="item.kind === 'svg' && item.pdfAlign?.status === 'done'"
+                            :text="`${item.pdfAlign.report.changedCount} Silben automatisch am PDF ausgerichtet (max. Verschiebung ${item.pdfAlign.report.maxAbsDelta.toFixed(2)}). Klicken zum Anzeigen.`"
+                            location="top"
+                            max-width="340"
+                        >
+                            <template #activator="{ props }">
+                                <v-chip
+                                    v-bind="props"
+                                    size="x-small"
+                                    variant="tonal"
+                                    color="success"
+                                    prepend-icon="mdi-file-pdf-box"
+                                    class="cursor-pointer"
+                                    @click="openAlignDialog(item)"
+                                >
+                                    PDF: {{ item.pdfAlign.report.changedCount }} ausgerichtet
+                                </v-chip>
+                            </template>
+                        </v-tooltip>
+                        <v-tooltip
+                            v-else-if="item.kind === 'svg' && item.pdfAlign?.status === 'error'"
+                            :text="item.pdfAlign.error || 'PDF-Ausrichtung fehlgeschlagen'"
+                            location="top"
+                            max-width="340"
+                        >
+                            <template #activator="{ props }">
+                                <v-chip
+                                    v-bind="props"
+                                    size="x-small"
+                                    variant="tonal"
+                                    color="error"
+                                    prepend-icon="mdi-alert"
+                                >
+                                    PDF-Ausrichtung fehlgeschlagen
+                                </v-chip>
+                            </template>
+                        </v-tooltip>
+                        <v-tooltip
+                            v-else-if="item.kind === 'svg' && item.referencePdf"
+                            text="PDF-Referenz vorhanden"
+                            location="top"
+                        >
+                            <template #activator="{ props }">
+                                <v-chip
+                                    v-bind="props"
+                                    size="x-small"
+                                    variant="tonal"
+                                    prepend-icon="mdi-file-pdf-box"
+                                >
+                                    PDF
+                                </v-chip>
+                            </template>
+                        </v-tooltip>
                     </div>
 
                     <div
@@ -1509,6 +1688,8 @@ async function shareSummary() {
         v-model="align_dialog"
         :file="align_file"
         :title="align_title"
+        :reference-pdf="align_reference_pdf"
+        :initial-corrections="align_initial_corrections"
         @apply="onAlignmentApplied"
     />
 
