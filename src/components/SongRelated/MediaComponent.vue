@@ -24,6 +24,9 @@ export default {
     emits: ['fullscreen_pdf'],
     data: () => ({
         maxWidth: 100,
+        image_zoom: 1,
+        is_panning: false,
+        pan_start: null,
         config: {
             secondaryToolbar: {
                 cursorSelectTool: false,
@@ -36,9 +39,20 @@ export default {
             },
         },
     }),
+    computed: {
+        zoom_is_image() {
+            return this.screenMode === 'sing-mode' && this.file && this.is_image(this.file);
+        },
+        zoom_minus_disabled() {
+            return this.zoom_is_image ? this.image_zoom <= 1 : this.maxWidth === 20;
+        },
+        zoom_plus_disabled() {
+            return this.zoom_is_image ? this.image_zoom >= 4 : this.maxWidth === 100;
+        },
+    },
     watch: {
         file() {
-            console.log('file changed');
+            this.image_zoom = 1;
         },
     },
     methods: {
@@ -67,6 +81,41 @@ export default {
         fullscreen_pdf(event, file) {
             this.$emit('fullscreen_pdf', event, file);
         },
+        // Images in sing-mode use the scroll+zoom pattern (1×–4×, pannable);
+        // video/audio still use the maxWidth percentage clamp.
+        zoomMinus() {
+            if (this.zoom_is_image) {
+                this.image_zoom = Math.max(this.image_zoom - 0.25, 1);
+            } else {
+                this.maxWidth = this.maxWidth - 5 < 20 ? this.maxWidth : this.maxWidth - 5;
+            }
+        },
+        zoomPlus() {
+            if (this.zoom_is_image) {
+                this.image_zoom = Math.min(this.image_zoom + 0.25, 4);
+            } else {
+                this.maxWidth = this.maxWidth + 5 > 100 ? this.maxWidth : this.maxWidth + 5;
+            }
+        },
+        onPanStart(e) {
+            if (this.image_zoom <= 1) return;
+            this.is_panning = true;
+            this.pan_start = {
+                x: e.clientX,
+                y: e.clientY,
+                scrollLeft: e.currentTarget.scrollLeft,
+                scrollTop: e.currentTarget.scrollTop,
+            };
+            e.preventDefault();
+        },
+        onPanMove(e) {
+            if (!this.is_panning) return;
+            e.currentTarget.scrollLeft = this.pan_start.scrollLeft - (e.clientX - this.pan_start.x);
+            e.currentTarget.scrollTop = this.pan_start.scrollTop - (e.clientY - this.pan_start.y);
+        },
+        onPanEnd() {
+            this.is_panning = false;
+        },
     },
 };
 </script>
@@ -80,16 +129,16 @@ export default {
         <v-btn
             icon="mdi-magnify-minus-outline"
             variant="text"
-            :disabled="maxWidth === 20"
+            :disabled="zoom_minus_disabled"
             color="primary"
-            @click="maxWidth = maxWidth - 5 < 20 ? maxWidth : maxWidth - 5"
+            @click="zoomMinus"
         />
         <v-btn
             icon="mdi-magnify-plus-outline"
             variant="text"
-            :disabled="maxWidth === 100"
+            :disabled="zoom_plus_disabled"
             color="primary"
-            @click="maxWidth = maxWidth + 5 > 100 ? maxWidth : maxWidth + 5"
+            @click="zoomPlus"
         />
     </div>
     <div v-if="file?.type === 'application/pdf'" class="h-100">
@@ -149,26 +198,53 @@ export default {
         </div>
     </div>
     <div
-        v-else-if="is_image(file) && (screenMode === 'sing-mode' || screenMode === 'print')"
-        class="d-flex flex-column align-center h-100"
-        :class="{ 'pt-5': screenMode === 'sing-mode' }"
+        v-else-if="is_image(file) && screenMode === 'sing-mode'"
+        class="d-flex flex-column h-100"
     >
-        <div :class="{ 'pa-10': screenMode === 'sing-mode' }">
-            <div v-if="screenMode === 'sing-mode'" class="text-h6 mb-3">
-                {{ file.title }}
+        <div class="text-h6 mb-3 pt-5 text-center px-10">{{ file.title }}</div>
+        <div class="sing-zoom-outer flex-grow-1">
+            <div
+                class="sing-zoom-scroll"
+                :class="{ 'is-zoomed': image_zoom > 1, 'is-panning': is_panning }"
+                @mousedown="onPanStart"
+                @mousemove="onPanMove"
+                @mouseup="onPanEnd"
+                @mouseleave="onPanEnd"
+            >
+                <div
+                    class="sing-zoom-wrapper"
+                    :style="{
+                        width: `${image_zoom * 100}%`,
+                        height: `${image_zoom * 100}%`,
+                    }"
+                >
+                    <img
+                        :src="getImgUrl(file.id)"
+                        alt="Bild"
+                        class="sing-zoom-image"
+                        draggable="false"
+                    />
+                </div>
             </div>
+        </div>
+    </div>
+    <div
+        v-else-if="is_image(file) && screenMode === 'print'"
+        class="d-flex flex-column align-center h-100"
+    >
+        <div>
             <div class="d-flex align-center justify-center">
                 <div
                     :style="{
                         maxWidth: `${maxWidth}%`,
-                        maxHeight: screenMode === 'print' && maxHeight ? `${maxHeight}px` : 'none'
+                        maxHeight: maxHeight ? `${maxHeight}px` : 'none'
                     }"
                 >
                     <img
                         :src="getImgUrl(file.id)"
                         alt="Bild"
                         :style="{
-                            maxHeight: screenMode === 'print' && maxHeight ? `${maxHeight}px` : '100%',
+                            maxHeight: maxHeight ? `${maxHeight}px` : '100%',
                             maxWidth: '100%',
                             objectFit: 'contain'
                         }"
@@ -193,4 +269,43 @@ export default {
     </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+/* sing-mode image zoom: same scroll+zoom pattern as NotenCarousel, so a small
+ * SVG can actually be made larger (1×–4×) and panned around when zoomed. */
+.sing-zoom-outer {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    min-height: 0;
+}
+.sing-zoom-scroll {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+}
+.sing-zoom-scroll.is-zoomed {
+    cursor: grab;
+}
+.sing-zoom-scroll.is-panning {
+    cursor: grabbing;
+}
+.sing-zoom-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100%;
+    min-height: 100%;
+    transition:
+        width 0.15s ease,
+        height 0.15s ease;
+    padding: 8px;
+    box-sizing: border-box;
+}
+.sing-zoom-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+</style>
