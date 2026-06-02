@@ -188,9 +188,11 @@ function csvEscape(value) {
 
 const CSV_HEADERS = [
     'liednummer2026',
+    'titel',
     'strophen',
     'text_autoren',
     'melodie_autoren',
+    'footer',
     'pdf-path_1',
     'pdf-path_2',
 ];
@@ -234,6 +236,67 @@ function formatAuthors(authors, ...copyrights) {
         .filter((c) => c && String(c).trim())
         .map((c) => `© ${String(c).trim()}`);
     return [authorStrings.join(', '), ...copyrightStrings].filter(Boolean).join('\n');
+}
+
+// --- "footer"-Spalte nach Janoschs Grammatik -------------------------------
+// Pro Autor:  {praefix} {vorname} {nachname} (*{geburtsjahr}–{sterbejahr}) {suffix}
+//   - Leerzeichen nach vorname/praefix nur, wenn nicht leer
+//   - Strich vor Sterbejahr nur, wenn Sterbejahr vorhanden
+function formatFooterAuthorEntry(author) {
+    if (!author) return '';
+    let s = '';
+    if (author.autorPrefix) s += `${author.autorPrefix} `;
+    if (author.vorname) s += `${author.vorname} `;
+    if (author.nachname) s += author.nachname;
+    s = s.trimEnd();
+
+    const g = author.geburtsjahr;
+    const t = author.sterbejahr;
+    if (g || t) {
+        const years = `(${g ? `*${g}` : ''}${t ? `–${t}` : ''})`;
+        s = s ? `${s} ${years}` : years;
+    }
+    if (author.autorSuffix) s += s ? ` ${author.autorSuffix}` : author.autorSuffix;
+    return s.trim();
+}
+
+function formatFooterAuthors(authors) {
+    return (authors || []).map(formatFooterAuthorEntry).filter(Boolean).join(', ');
+}
+
+function footerCopyright(copyright) {
+    const v = copyright && String(copyright).trim();
+    return v ? `© ${v}` : '';
+}
+
+// Liefert den fertig formatierten Footer:
+//   Melodie: {Melodie-Autor} © {Melodie-Copyright}
+//   Wort: {Text-Autor} © {Text-Copyright}
+//   © {Lied-Copyright}
+// Sind Text- und Melodie-Autor gleich: "Melodie und Wort: {Autor}".
+// Leere Bestandteile (Copyright, Autor) werden samt führendem Trenner weggelassen.
+function buildFooter(lied) {
+    const melodyAuthors = formatFooterAuthors(lied.melodie?.authors);
+    const textAuthors = formatFooterAuthors(lied.text?.authors);
+    const melodyCr = footerCopyright(lied.melodie?.copyright);
+    const textCr = footerCopyright(lied.text?.copyright);
+    const liedCr = footerCopyright(lied.copyright);
+
+    const lines = [];
+
+    if (melodyAuthors && textAuthors && melodyAuthors === textAuthors) {
+        const crs = _.uniq([melodyCr, textCr].filter(Boolean));
+        lines.push(['Melodie und Wort:', melodyAuthors, ...crs].join(' '));
+    } else {
+        const melodyBody = [melodyAuthors, melodyCr].filter(Boolean).join(' ');
+        if (melodyBody) lines.push(`Melodie: ${melodyBody}`);
+        const textBody = [textAuthors, textCr].filter(Boolean).join(' ');
+        if (textBody) lines.push(`Wort: ${textBody}`);
+    }
+
+    if (liedCr) lines.push(liedCr);
+
+    return lines.join('\n');
 }
 
 function formatStrophen(strophenEinzeln) {
@@ -416,6 +479,7 @@ async function runExport() {
 
         const row = {
             liednummer2026,
+            titel: lied.titel || '',
             strophen: formatStrophen(lied.text?.strophenEinzeln),
             text_autoren: formatAuthors(lied.text?.authors, lied.text?.copyright),
             melodie_autoren: formatAuthors(
@@ -423,6 +487,7 @@ async function runExport() {
                 lied.melodie?.copyright,
                 lied.copyright,
             ),
+            footer: buildFooter(lied),
             'pdf-path_1': pdfFilename,
             'pdf-path_2': lied.notentext_seite2 ? pdfFilename : '',
         };
