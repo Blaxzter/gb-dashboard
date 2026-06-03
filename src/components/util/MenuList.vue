@@ -126,6 +126,13 @@ export default {
                 public: false,
             },
             {
+                name: 'Checks &amp; Validierung',
+                route: '/checks',
+                icon: 'mdi-clipboard-check',
+                marginButton: true,
+                public: false,
+            },
+            {
                 name: 'Notentext-Export',
                 route: '/notentext-export',
                 icon: 'mdi-file-music',

@@ -1,0 +1,493 @@
+// Validierungs-Checks für das Gesangbuch.
+//
+// Diese Datei bündelt die fachlichen Prüfungen, die vor einem Export (oder
+// generell zur Qualitätssicherung) über die "Bewertet und genommen"-Lieder
+// laufen sollen. Jeder Check ist ein eigenständiges Objekt in `CHECKS` – neue
+// Prüfungen lassen sich einfach ergänzen, ohne die View anzufassen.
+//
+// Ein Check sieht so aus:
+//   {
+//     id, category, title, description,
+//     run(ctx) -> { status, summary, items }
+//   }
+// wobei `ctx = { alle, genommen }` und
+//   status ∈ 'ok' | 'info' | 'warning' | 'error'
+//   items  = [{ id?, title, nummer?, detail?, to? }]
+
+import _ from 'lodash';
+
+// "Genommen" = Lieder mit Status 'accepted' ("Bewertet und genommen").
+export const GENOMMEN_STATUS = 'accepted';
+
+export const STATUS = {
+    ok: { color: 'success', icon: 'mdi-check-circle', label: 'OK', rank: 0 },
+    info: { color: 'info', icon: 'mdi-information', label: 'Hinweis', rank: 1 },
+    warning: { color: 'warning', icon: 'mdi-alert', label: 'Warnung', rank: 2 },
+    error: { color: 'error', icon: 'mdi-alert-circle', label: 'Fehler', rank: 3 },
+};
+
+// --- kleine Helfer ---------------------------------------------------------
+
+export function isGenommen(lied) {
+    return lied?.status === GENOMMEN_STATUS;
+}
+
+export function isRein(lied) {
+    const bezeichner = lied?.bewertung_kleiner_kreis?.bezeichner;
+    return !!bezeichner && bezeichner.toLowerCase().includes('rein');
+}
+
+function hasNummer(value) {
+    return value !== null && value !== undefined && String(value).trim() !== '';
+}
+
+// Führende Ganzzahl einer Liednummer ("12" / "12a" / 12 -> 12, "" -> null)
+export function parseNummer(value) {
+    if (!hasNummer(value)) return null;
+    const match = String(value).match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+}
+
+function strophen(lied) {
+    return lied?.text?.strophenEinzeln || [];
+}
+
+// Alle KI-Reviews eines Liedes (über alle Strophen hinweg)
+function kiReviews(lied) {
+    return strophen(lied).flatMap((s) => (Array.isArray(s?.kiReview) ? s.kiReview : []));
+}
+
+// "Offen" = KI-Review hat ein Ergebnis, aber noch keine menschliche Bewertung
+// (akzeptiert / abgelehnt / Diskussion).
+function openKiReviews(lied) {
+    return kiReviews(lied).filter((r) => r && r.reviewErgebnis && !r.bewertungDurchMensch);
+}
+
+function openSuggestions(lied) {
+    return strophen(lied).filter(
+        (s) => s?.aenderungsvorschlag && String(s.aenderungsvorschlag).trim(),
+    );
+}
+
+function openRemarks(lied) {
+    return strophen(lied).filter((s) => s?.anmerkung && String(s.anmerkung).trim());
+}
+
+// Findet ein eventuell vorhandenes Chorbuchnummern-Feld dynamisch, damit der
+// Check automatisch greift, sobald ein solches Feld im Datenmodell existiert.
+function detectChorbuchField(list) {
+    const candidates = new Set();
+    list.forEach((lied) => {
+        Object.keys(lied || {}).forEach((key) => {
+            if (/chorbuch/i.test(key)) candidates.add(key);
+        });
+    });
+    const withData = [...candidates].find((key) => list.some((lied) => hasNummer(lied[key])));
+    return withData || [...candidates][0] || null;
+}
+
+// Analysiert eine Zahlenreihe auf Lücken.
+function analyzeSequence(values) {
+    const nums = _.uniq(values.map(parseNummer).filter((n) => n !== null)).sort((a, b) => a - b);
+    const present = new Set(nums);
+    const missing = [];
+    if (nums.length) {
+        for (let n = nums[0]; n <= nums[nums.length - 1]; n++) {
+            if (!present.has(n)) missing.push(n);
+        }
+    }
+    return {
+        numbers: nums,
+        missing,
+        min: nums.length ? nums[0] : null,
+        max: nums.length ? nums[nums.length - 1] : null,
+    };
+}
+
+function result(ok, severity, summary, items) {
+    return { status: ok ? 'ok' : severity, summary, items: items || [] };
+}
+
+function songItem(lied, detail) {
+    return {
+        // `id` verweist auf das Lied – die View öffnet damit den Lied-Dialog.
+        id: lied.id,
+        title: lied.titel || `Lied #${lied.id}`,
+        nummer: lied.liednummer2026 || lied.liednummer2000 || null,
+        detail: detail || '',
+    };
+}
+
+// --- die eigentlichen Checks ----------------------------------------------
+
+export const CHECKS = [
+    // ===== Nummerierung =====
+    {
+        id: 'liednummer-fehlt',
+        category: 'Nummerierung',
+        title: 'Alle genommenen Lieder haben eine Liednummer (2026)',
+        description:
+            'Jedes „Bewertet und genommen“-Lied sollte eine Liednummer für das Gesangbuch 2026 besitzen.',
+        run({ genommen }) {
+            const fehlt = genommen.filter((l) => !hasNummer(l.liednummer2026));
+            return result(
+                fehlt.length === 0,
+                'error',
+                fehlt.length === 0
+                    ? 'Alle genommenen Lieder haben eine Liednummer.'
+                    : `${fehlt.length} genommene(s) Lied(er) ohne Liednummer 2026.`,
+                fehlt.map((l) => songItem(l)),
+            );
+        },
+    },
+    {
+        id: 'liednummer-luecken',
+        category: 'Nummerierung',
+        title: 'Keine Lücken in den Liednummern',
+        description:
+            'Die Liednummern (2026) der genommenen Lieder sollten eine lückenlose Reihe bilden.',
+        run({ genommen }) {
+            const seq = analyzeSequence(genommen.map((l) => l.liednummer2026));
+            if (!seq.numbers.length) {
+                return result(true, 'warning', 'Noch keine nummerierten Lieder vorhanden.', []);
+            }
+            const ok = seq.missing.length === 0;
+            return result(
+                ok,
+                'error',
+                ok
+                    ? `Lückenlos von ${seq.min} bis ${seq.max} (${seq.numbers.length} Nummern).`
+                    : `${seq.missing.length} fehlende Nummer(n) zwischen ${seq.min} und ${seq.max}.`,
+                seq.missing.map((n) => ({ title: `Liednummer ${n} fehlt`, nummer: n })),
+            );
+        },
+    },
+    {
+        id: 'liednummer-duplikate',
+        category: 'Nummerierung',
+        title: 'Keine doppelten Liednummern',
+        description: 'Keine Liednummer (2026) sollte mehrfach vergeben sein.',
+        run({ genommen }) {
+            const groups = _.groupBy(
+                genommen.filter((l) => hasNummer(l.liednummer2026)),
+                (l) => String(l.liednummer2026).trim().toLowerCase(),
+            );
+            const dups = Object.values(groups).filter((arr) => arr.length > 1);
+            const items = dups.flatMap((arr) =>
+                arr.map((l) => songItem(l, `Nr. ${l.liednummer2026}`)),
+            );
+            return result(
+                dups.length === 0,
+                'error',
+                dups.length === 0
+                    ? 'Alle Liednummern sind eindeutig.'
+                    : `${dups.length} doppelt vergebene Nummer(n).`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'chorbuchnummer-luecken',
+        category: 'Nummerierung',
+        title: 'Keine Lücken in den Chorbuchnummern',
+        description:
+            'Analog zu den Liednummern: die Chorbuchnummern der genommenen Lieder sollten lückenlos sein.',
+        run({ genommen }) {
+            const field = detectChorbuchField(genommen);
+            if (!field) {
+                return result(
+                    true,
+                    'info',
+                    'Kein Chorbuchnummern-Feld in den Daten gefunden – Prüfung wird automatisch aktiv, sobald es existiert.',
+                    [],
+                );
+            }
+            const seq = analyzeSequence(genommen.map((l) => l[field]));
+            if (!seq.numbers.length) {
+                return result(
+                    true,
+                    'info',
+                    `Noch keine Chorbuchnummern vergeben (Feld „${field}“).`,
+                    [],
+                );
+            }
+            const ok = seq.missing.length === 0;
+            return result(
+                ok,
+                'warning',
+                ok
+                    ? `Lückenlos von ${seq.min} bis ${seq.max} (${seq.numbers.length} Nummern).`
+                    : `${seq.missing.length} fehlende Chorbuchnummer(n) zwischen ${seq.min} und ${seq.max}.`,
+                seq.missing.map((n) => ({ title: `Chorbuchnummer ${n} fehlt`, nummer: n })),
+            );
+        },
+    },
+
+    // ===== Bewertung =====
+    {
+        id: 'genommen-rein',
+        category: 'Bewertung',
+        title: 'Alle genommenen Lieder sind „Rein“ bewertet',
+        description: 'Jedes „Bewertet und genommen“-Lied sollte die Bewertung „Rein“ haben.',
+        run({ genommen }) {
+            const nichtRein = genommen.filter((l) => !isRein(l));
+            return result(
+                nichtRein.length === 0,
+                'error',
+                nichtRein.length === 0
+                    ? 'Alle genommenen Lieder sind „Rein“.'
+                    : `${nichtRein.length} genommene(s) Lied(er) ohne Bewertung „Rein“.`,
+                nichtRein.map((l) =>
+                    songItem(
+                        l,
+                        `Bewertung: ${l.bewertung_kleiner_kreis?.bezeichner || 'Unbewertet'}`,
+                    ),
+                ),
+            );
+        },
+    },
+    {
+        id: 'rein-nicht-genommen',
+        category: 'Bewertung',
+        title: '„Rein“ bewertete Lieder sind auch genommen',
+        description:
+            'Lieder mit Bewertung „Rein“, die noch nicht den Status „Bewertet und genommen“ haben – evtl. übersehen?',
+        run({ alle }) {
+            const offen = alle.filter((l) => isRein(l) && !isGenommen(l));
+            return result(
+                offen.length === 0,
+                'info',
+                offen.length === 0
+                    ? 'Alle „Rein“-Lieder sind genommen.'
+                    : `${offen.length} „Rein“-Lied(er) noch nicht genommen.`,
+                offen.map((l) => songItem(l, `Status: ${l.status_mapped || l.status}`)),
+            );
+        },
+    },
+    {
+        id: 'aenderungsflag-offen',
+        category: 'Bewertung',
+        title: 'Keine offenen Änderungs-Markierungen',
+        description:
+            'Genommene Lieder, bei denen das Flag „Lied hat Änderung“ noch gesetzt ist (sollte nach Sichtung zurückgesetzt werden).',
+        run({ genommen }) {
+            const offen = genommen.filter((l) => l.liedHatAenderung);
+            return result(
+                offen.length === 0,
+                'warning',
+                offen.length === 0
+                    ? 'Keine offenen Änderungs-Markierungen.'
+                    : `${offen.length} genommene(s) Lied(er) mit gesetztem Änderungs-Flag.`,
+                offen.map((l) => songItem(l)),
+            );
+        },
+    },
+
+    // ===== KI-Review =====
+    {
+        id: 'offene-ki-reviews',
+        category: 'KI-Review',
+        title: 'Keine offenen KI-Anmerkungen',
+        description:
+            'KI-Reviews zu Strophen genommener Lieder, die noch nicht akzeptiert/abgelehnt/diskutiert wurden.',
+        run({ genommen }) {
+            const items = genommen
+                .map((l) => ({ lied: l, open: openKiReviews(l) }))
+                .filter((x) => x.open.length > 0)
+                .map((x) => songItem(x.lied, `${x.open.length} offene KI-Anmerkung(en)`));
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine offenen KI-Anmerkungen.'
+                    : `${items.length} Lied(er) mit unbearbeiteten KI-Anmerkungen.`,
+                items,
+            );
+        },
+    },
+
+    // ===== Redaktion / Inhalt =====
+    {
+        id: 'korrektur-gelesen',
+        category: 'Redaktion',
+        title: 'Texte sind korrekturgelesen',
+        description: 'Genommene Lieder, deren Text noch nicht als korrekturgelesen markiert ist.',
+        run({ genommen }) {
+            const offen = genommen.filter((l) => l.text && l.text.korrekturlesung1 !== true);
+            return result(
+                offen.length === 0,
+                'warning',
+                offen.length === 0
+                    ? 'Alle Texte sind korrekturgelesen.'
+                    : `${offen.length} genommene(s) Lied(er) ohne Korrekturlesung.`,
+                offen.map((l) => songItem(l)),
+            );
+        },
+    },
+    {
+        id: 'offene-aenderungsvorschlaege',
+        category: 'Redaktion',
+        title: 'Keine offenen Änderungsvorschläge',
+        description:
+            'Strophen genommener Lieder mit noch nicht eingearbeiteten Änderungsvorschlägen.',
+        run({ genommen }) {
+            const items = genommen
+                .map((l) => ({ lied: l, s: openSuggestions(l) }))
+                .filter((x) => x.s.length > 0)
+                .map((x) => songItem(x.lied, `${x.s.length} Vorschlag/Vorschläge`));
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine offenen Änderungsvorschläge.'
+                    : `${items.length} Lied(er) mit offenen Änderungsvorschlägen.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'offene-anmerkungen',
+        category: 'Redaktion',
+        title: 'Keine offenen Strophen-Anmerkungen',
+        description: 'Strophen genommener Lieder, die noch eine Anmerkung tragen.',
+        run({ genommen }) {
+            const items = genommen
+                .map((l) => ({ lied: l, a: openRemarks(l) }))
+                .filter((x) => x.a.length > 0)
+                .map((x) => songItem(x.lied, `${x.a.length} Anmerkung(en)`));
+            return result(
+                items.length === 0,
+                'info',
+                items.length === 0
+                    ? 'Keine offenen Anmerkungen.'
+                    : `${items.length} Lied(er) mit Strophen-Anmerkungen.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'autor-copyright',
+        category: 'Redaktion',
+        title: 'Autor/Copyright geprüft',
+        description: 'Genommene Lieder, die noch als „Autor oder Copyright prüfen“ markiert sind.',
+        run({ genommen }) {
+            const offen = genommen.filter((l) => l.autor_oder_copyright_checken === true);
+            return result(
+                offen.length === 0,
+                'warning',
+                offen.length === 0
+                    ? 'Bei allen genommenen Liedern ist Autor/Copyright geprüft.'
+                    : `${offen.length} genommene(s) Lied(er) mit offener Autor-/Copyright-Prüfung.`,
+                offen.map((l) => songItem(l)),
+            );
+        },
+    },
+    {
+        id: 'fehlende-autoren',
+        category: 'Redaktion',
+        title: 'Autor oder Copyright vorhanden',
+        description:
+            'Genommene Lieder ganz ohne Autorenangabe und ohne Copyright (Text, Melodie und Lied).',
+        run({ genommen }) {
+            const fehlt = genommen.filter((l) => {
+                const textHas = l.text?.authors?.length || l.text?.copyright;
+                const meloHas = l.melodie?.authors?.length || l.melodie?.copyright;
+                return !(textHas || meloHas || l.copyright);
+            });
+            return result(
+                fehlt.length === 0,
+                'info',
+                fehlt.length === 0
+                    ? 'Alle genommenen Lieder haben Autor- oder Copyright-Angaben.'
+                    : `${fehlt.length} genommene(s) Lied(er) ohne jede Autor-/Copyright-Angabe.`,
+                fehlt.map((l) => songItem(l)),
+            );
+        },
+    },
+    {
+        id: 'doppelte-titel',
+        category: 'Redaktion',
+        title: 'Keine doppelten Titel',
+        description: 'Genommene Lieder mit identischem Titel (mögliche Dubletten).',
+        run({ genommen }) {
+            const groups = _.groupBy(
+                genommen.filter((l) => l.titel && l.titel.trim()),
+                (l) => l.titel.trim().toLowerCase(),
+            );
+            const dups = Object.values(groups).filter((arr) => arr.length > 1);
+            const items = dups.flatMap((arr) => arr.map((l) => songItem(l)));
+            return result(
+                dups.length === 0,
+                'info',
+                dups.length === 0
+                    ? 'Keine doppelten Titel.'
+                    : `${dups.length} Titel mehrfach vergeben.`,
+                items,
+            );
+        },
+    },
+
+    // ===== Export-Bereitschaft =====
+    {
+        id: 'kein-notentext',
+        category: 'Export-Bereitschaft',
+        title: 'Notentext vorhanden',
+        description:
+            'Genommene Lieder ohne hinterlegten Notentext – diese können nicht als PDF exportiert werden.',
+        run({ genommen }) {
+            const fehlt = genommen.filter((l) => !l.notentext);
+            return result(
+                fehlt.length === 0,
+                'warning',
+                fehlt.length === 0
+                    ? 'Alle genommenen Lieder haben einen Notentext.'
+                    : `${fehlt.length} genommene(s) Lied(er) ohne Notentext.`,
+                fehlt.map((l) => songItem(l)),
+            );
+        },
+    },
+    {
+        id: 'fehlende-verknuepfung',
+        category: 'Export-Bereitschaft',
+        title: 'Text und Melodie verknüpft',
+        description: 'Genommene Lieder, denen ein verknüpfter Text oder eine Melodie fehlt.',
+        run({ genommen }) {
+            const fehlt = genommen
+                .map((l) => {
+                    const missing = [];
+                    if (!l.text) missing.push('Text');
+                    if (!l.melodie) missing.push('Melodie');
+                    return { lied: l, missing };
+                })
+                .filter((x) => x.missing.length > 0);
+            return result(
+                fehlt.length === 0,
+                'error',
+                fehlt.length === 0
+                    ? 'Alle genommenen Lieder sind mit Text und Melodie verknüpft.'
+                    : `${fehlt.length} genommene(s) Lied(er) mit fehlender Verknüpfung.`,
+                fehlt.map((x) => songItem(x.lied, `Fehlt: ${x.missing.join(' & ')}`)),
+            );
+        },
+    },
+];
+
+// Führt alle Checks aus und liefert die angereicherten Ergebnisse zurück.
+export function runChecks(alle) {
+    const list = alle || [];
+    const genommen = list.filter(isGenommen);
+    const ctx = { alle: list, genommen };
+    return CHECKS.map((check) => {
+        let r;
+        try {
+            r = check.run(ctx);
+        } catch (e) {
+            r = {
+                status: 'error',
+                summary: `Prüfung fehlgeschlagen: ${e?.message || e}`,
+                items: [],
+            };
+        }
+        return { ...check, ...r, count: r.items?.length || 0 };
+    });
+}

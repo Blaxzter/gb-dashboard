@@ -239,9 +239,27 @@ function formatAuthors(authors, ...copyrights) {
 }
 
 // --- "footer"-Spalte nach Janoschs Grammatik -------------------------------
-// Pro Autor:  {praefix} {vorname} {nachname} (*{geburtsjahr}–{sterbejahr}) {suffix}
+// Jahresangabe: (*{geburtsjahr}–{sterbejahr}) — Strich vor Sterbejahr nur, wenn vorhanden
+function footerYears(geburtsjahr, sterbejahr) {
+    if (!geburtsjahr && !sterbejahr) return '';
+    return `(${geburtsjahr ? `*${geburtsjahr}` : ''}${sterbejahr ? `–${sterbejahr}` : ''})`;
+}
+
+// ursprungsAutor:  {vorname} {nachname} (*{geburtsjahr}–{sterbejahr})  (ohne Praefix/Suffix)
+// ursprungsAutorObj ist entweder ein Autoren-Objekt oder der String 'Keine'.
+function formatFooterUrsprungsAutor(u) {
+    if (!u || typeof u !== 'object') return '';
+    let s = '';
+    if (u.vorname) s += `${u.vorname} `;
+    if (u.nachname) s += u.nachname;
+    s = s.trimEnd();
+    const years = footerYears(u.geburtsjahr, u.sterbejahr);
+    if (years) s = s ? `${s} ${years}` : years;
+    return s.trim();
+}
+
+// Pro Autor:  {praefix} {vorname} {nachname} (*{geburtsjahr}–{sterbejahr}) {suffix} {ursprungsAutor}
 //   - Leerzeichen nach vorname/praefix nur, wenn nicht leer
-//   - Strich vor Sterbejahr nur, wenn Sterbejahr vorhanden
 function formatFooterAuthorEntry(author) {
     if (!author) return '';
     let s = '';
@@ -250,13 +268,12 @@ function formatFooterAuthorEntry(author) {
     if (author.nachname) s += author.nachname;
     s = s.trimEnd();
 
-    const g = author.geburtsjahr;
-    const t = author.sterbejahr;
-    if (g || t) {
-        const years = `(${g ? `*${g}` : ''}${t ? `–${t}` : ''})`;
-        s = s ? `${s} ${years}` : years;
-    }
+    const years = footerYears(author.geburtsjahr, author.sterbejahr);
+    if (years) s = s ? `${s} ${years}` : years;
     if (author.autorSuffix) s += s ? ` ${author.autorSuffix}` : author.autorSuffix;
+
+    const ursprung = formatFooterUrsprungsAutor(author.ursprungsAutorObj);
+    if (ursprung) s += s ? ` ${ursprung}` : ursprung;
     return s.trim();
 }
 
@@ -270,28 +287,28 @@ function footerCopyright(copyright) {
 }
 
 // Liefert den fertig formatierten Footer:
+//   Text: {Text-Autor} © {Text-Copyright}
 //   Melodie: {Melodie-Autor} © {Melodie-Copyright}
-//   Wort: {Text-Autor} © {Text-Copyright}
 //   © {Lied-Copyright}
-// Sind Text- und Melodie-Autor gleich: "Melodie und Wort: {Autor}".
+// Sind Text- und Melodie-Autor gleich: "Text und Melodie: {Autor}".
 // Leere Bestandteile (Copyright, Autor) werden samt führendem Trenner weggelassen.
 function buildFooter(lied) {
-    const melodyAuthors = formatFooterAuthors(lied.melodie?.authors);
     const textAuthors = formatFooterAuthors(lied.text?.authors);
-    const melodyCr = footerCopyright(lied.melodie?.copyright);
+    const melodyAuthors = formatFooterAuthors(lied.melodie?.authors);
     const textCr = footerCopyright(lied.text?.copyright);
+    const melodyCr = footerCopyright(lied.melodie?.copyright);
     const liedCr = footerCopyright(lied.copyright);
 
     const lines = [];
 
-    if (melodyAuthors && textAuthors && melodyAuthors === textAuthors) {
-        const crs = _.uniq([melodyCr, textCr].filter(Boolean));
-        lines.push(['Melodie und Wort:', melodyAuthors, ...crs].join(' '));
+    if (textAuthors && melodyAuthors && textAuthors === melodyAuthors) {
+        const crs = _.uniq([textCr, melodyCr].filter(Boolean));
+        lines.push(['Text und Melodie:', textAuthors, ...crs].join(' '));
     } else {
+        const textBody = [textAuthors, textCr].filter(Boolean).join(' ');
+        if (textBody) lines.push(`Text: ${textBody}`);
         const melodyBody = [melodyAuthors, melodyCr].filter(Boolean).join(' ');
         if (melodyBody) lines.push(`Melodie: ${melodyBody}`);
-        const textBody = [textAuthors, textCr].filter(Boolean).join(' ');
-        if (textBody) lines.push(`Wort: ${textBody}`);
     }
 
     if (liedCr) lines.push(liedCr);
@@ -303,10 +320,14 @@ function formatStrophen(strophenEinzeln) {
     if (!Array.isArray(strophenEinzeln) || strophenEinzeln.length <= 1) return '';
     return strophenEinzeln
         .slice(1)
-        .map((s) => (s?.strophe || '').replaceAll('¬', '').replace(/\r?\n/g, ' '))
-        .join(' ')
-        .replace(/[\p{Zs}\s]+/gu, ' ')
-        .trim();
+        .map((s) =>
+            (s?.strophe || '')
+                .replaceAll('¬', '')
+                .replace(/[\p{Zs}\s]+/gu, ' ')
+                .trim(),
+        )
+        .filter(Boolean)
+        .join('\n');
 }
 
 function resolveLiednummer2026(lied, liednummer2026ById) {

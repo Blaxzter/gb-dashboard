@@ -90,6 +90,12 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/AutorenMailingView.vue'),
             },
             {
+                path: 'checks',
+                name: 'Checks',
+                component: () =>
+                    import(/* webpackChunkName: "checks" */ '@/views/GesangbuchChecksView.vue'),
+            },
+            {
                 path: 'notentext-export',
                 name: 'NotentextExport',
                 component: () =>
