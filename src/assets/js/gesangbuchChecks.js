@@ -48,6 +48,17 @@ export function parseNummer(value) {
     return match ? parseInt(match[0], 10) : null;
 }
 
+// Referenz auf die deutsche Liedfassung – entweder ein Objekt mit `id` oder eine
+// skalare id. Liefert die id als Zahl (oder null).
+function dlfId(lied) {
+    const dlf = lied?.deutscheLiedfassung;
+    if (dlf == null) return null;
+    const id = typeof dlf === 'object' ? dlf.id : dlf;
+    if (id == null) return null;
+    const num = Number(id);
+    return Number.isNaN(num) ? id : num;
+}
+
 function strophen(lied) {
     return lied?.text?.strophenEinzeln || [];
 }
@@ -61,6 +72,14 @@ function kiReviews(lied) {
 // (akzeptiert / abgelehnt / Diskussion).
 function openKiReviews(lied) {
     return kiReviews(lied).filter((r) => r && r.reviewErgebnis && !r.bewertungDurchMensch);
+}
+
+// KI-Reviews mit einer bestimmten menschlichen Bewertung ('accepted' | 'rejected'
+// | 'discussion').
+function kiReviewsWithVerdict(lied, verdict) {
+    return kiReviews(lied).filter(
+        (r) => r && r.reviewErgebnis && r.bewertungDurchMensch === verdict,
+    );
 }
 
 function openSuggestions(lied) {
@@ -166,13 +185,25 @@ export const CHECKS = [
         id: 'liednummer-duplikate',
         category: 'Nummerierung',
         title: 'Keine doppelten Liednummern',
-        description: 'Keine Liednummer (2026) sollte mehrfach vergeben sein.',
+        description:
+            'Keine Liednummer (2026) sollte mehrfach vergeben sein. Ausnahme: deutsche und fremdsprachige Fassungen desselben Liedes (verknüpft über die deutsche Liedfassung) dürfen sich eine Nummer teilen.',
         run({ genommen }) {
             const groups = _.groupBy(
                 genommen.filter((l) => hasNummer(l.liednummer2026)),
                 (l) => String(l.liednummer2026).trim().toLowerCase(),
             );
-            const dups = Object.values(groups).filter((arr) => arr.length > 1);
+            // Eine Gruppe ist nur dann ein echtes Duplikat, wenn sie mehr als eine
+            // eigenständige „Wurzel“ enthält – also mehr als ein Lied, das nicht
+            // über die deutsche Liedfassung auf ein anderes Lied der Gruppe verweist.
+            const dups = Object.values(groups).filter((arr) => {
+                if (arr.length < 2) return false;
+                const ids = new Set(arr.map((l) => l.id));
+                const roots = arr.filter((l) => {
+                    const ref = dlfId(l);
+                    return ref == null || !ids.has(ref);
+                });
+                return roots.length > 1;
+            });
             const items = dups.flatMap((arr) =>
                 arr.map((l) => songItem(l, `Nr. ${l.liednummer2026}`)),
             );
@@ -180,8 +211,43 @@ export const CHECKS = [
                 dups.length === 0,
                 'error',
                 dups.length === 0
-                    ? 'Alle Liednummern sind eindeutig.'
+                    ? 'Alle Liednummern sind eindeutig (Liedfassungen ausgenommen).'
                     : `${dups.length} doppelt vergebene Nummer(n).`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'liedfassung-nummer',
+        category: 'Nummerierung',
+        title: 'Liedfassungen tragen dieselbe Liednummer',
+        description:
+            'Lieder mit Verweis auf eine deutsche Liedfassung sollten dieselbe Liednummer (2026) wie diese tragen.',
+        run({ genommen, alle }) {
+            const byId = _.keyBy(alle, 'id');
+            const items = [];
+            genommen.forEach((l) => {
+                const ref = dlfId(l);
+                if (ref == null) return;
+                const deutsch = byId[ref];
+                if (!deutsch) return;
+                const a = parseNummer(l.liednummer2026);
+                const b = parseNummer(deutsch.liednummer2026);
+                if (a != null && b != null && a !== b) {
+                    items.push(
+                        songItem(
+                            l,
+                            `Nr. ${l.liednummer2026} ≠ „${deutsch.titel || 'dt. Fassung'}“ (Nr. ${deutsch.liednummer2026})`,
+                        ),
+                    );
+                }
+            });
+            return result(
+                items.length === 0,
+                'error',
+                items.length === 0
+                    ? 'Alle Liedfassungen tragen dieselbe Liednummer.'
+                    : `${items.length} Lied(er) mit abweichender Nummer zur deutschen Fassung.`,
                 items,
             );
         },
@@ -301,6 +367,26 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Keine offenen KI-Anmerkungen.'
                     : `${items.length} Lied(er) mit unbearbeiteten KI-Anmerkungen.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'ki-review-diskussion',
+        category: 'KI-Review',
+        title: 'Keine KI-Anmerkungen in Diskussion',
+        description: 'Genommene Lieder mit KI-Anmerkungen, die als „Diskussion“ markiert sind.',
+        run({ genommen }) {
+            const items = genommen
+                .map((l) => ({ lied: l, n: kiReviewsWithVerdict(l, 'discussion').length }))
+                .filter((x) => x.n > 0)
+                .map((x) => songItem(x.lied, `${x.n} KI-Anmerkung(en) in Diskussion`));
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine KI-Anmerkungen in Diskussion.'
+                    : `${items.length} Lied(er) mit KI-Anmerkungen in Diskussion.`,
                 items,
             );
         },
