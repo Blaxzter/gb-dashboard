@@ -1,6 +1,6 @@
 import * as opentype from 'opentype.js';
 import finaleMaestroUrl from '@/assets/font/FinaleMaestro.otf?url';
-import optimaRomanUrl from '@/assets/font/lte500190.ttf?url';
+import optimaRomanUrl from '@/assets/font/OptimaLTStd.otf?url';
 
 // SMuFL noteheads we treat as "anchor a syllable to"
 // E0A0..E0A4 covers double whole, whole, half, quarter, and the "quarter alt"
@@ -44,15 +44,21 @@ function isVerseMarker(text) {
 const TRAILING_PUNCT_RE = /[.,;:!?…„"'»«()\]\}]+$/;
 const LEADING_PUNCT_RE = /^[.,;:!?…„"'»«()\[\{]+/;
 
+// Measure advances WITHOUT kerning — see svgBaker.js. The original lte Optima
+// had no kerning, so the reference layout is unkerned; Optima LT Std's GPOS
+// kerning (applied by opentype.js by default) would otherwise skew where we
+// think each syllable's optical center sits and desync this from the bake.
+const NO_KERNING = { kerning: false };
+
 function getOpticalSpan(text, fontSize, font) {
-    const fullAdvance = font.getAdvanceWidth(text, fontSize);
+    const fullAdvance = font.getAdvanceWidth(text, fontSize, NO_KERNING);
     const leading = text.match(LEADING_PUNCT_RE)?.[0] || '';
     const trimmedLead = text.slice(leading.length);
     const trailing = trimmedLead.match(TRAILING_PUNCT_RE)?.[0] || '';
     const core = trimmedLead.slice(0, trimmedLead.length - trailing.length);
     if (!core) return { fullAdvance, leadingAdvance: 0, coreAdvance: fullAdvance };
-    const leadingAdvance = leading ? font.getAdvanceWidth(leading, fontSize) : 0;
-    const coreAdvance = font.getAdvanceWidth(core, fontSize);
+    const leadingAdvance = leading ? font.getAdvanceWidth(leading, fontSize, NO_KERNING) : 0;
+    const coreAdvance = font.getAdvanceWidth(core, fontSize, NO_KERNING);
     return { fullAdvance, leadingAdvance, coreAdvance };
 }
 

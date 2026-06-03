@@ -1,11 +1,20 @@
 import * as opentype from 'opentype.js';
 import finaleMaestroUrl from '@/assets/font/FinaleMaestro.otf?url';
-import optimaRomanUrl from '@/assets/font/lte500190.ttf?url';
-import optimaBoldUrl from '@/assets/font/lte500210.ttf?url';
-import optimaItalicUrl from '@/assets/font/lte524010.ttf?url';
-import optimaBoldItalicUrl from '@/assets/font/lte543790.ttf?url';
+import optimaRomanUrl from '@/assets/font/OptimaLTStd.otf?url';
+import optimaBoldUrl from '@/assets/font/OptimaLTStd-Bold.otf?url';
+import optimaItalicUrl from '@/assets/font/OptimaLTStd-Italic.otf?url';
+import optimaBoldItalicUrl from '@/assets/font/OptimaLTStd-BoldItalic.otf?url';
 
 const fontCache = {};
+
+// Bake WITHOUT kerning. Finale lays out each lyric syllable as a single <text>
+// run positioned to align with its note, and the original lte*.ttf Optima had
+// NO kerning data at all — so the reference rendering everyone has seen is
+// unkerned. Optima LT Std (the .otf reissue) ships GPOS kerning, which
+// opentype.js applies by default; that pulled letter pairs together by up to
+// ~0.1em (~1px at lyric size) on pairs like "Te"/"fi"/"Wa", making baked text
+// drift from the original. Disabling kerning reproduces the old metrics exactly.
+const NO_KERNING = { kerning: false };
 
 const FONTS = [
     { key: 'finale', family: /finale|maestro/i, url: finaleMaestroUrl },
@@ -125,11 +134,23 @@ function bakeTextElement(textEl, svgDoc) {
         if (!seg.text) return;
         let drawX = seg.x;
         if (anchor === 'middle' || anchor === 'end') {
-            const advance = font.getAdvanceWidth(seg.text, fontSize);
+            const advance = font.getAdvanceWidth(seg.text, fontSize, NO_KERNING);
             drawX = anchor === 'middle' ? seg.x - advance / 2 : seg.x - advance;
         }
-        const path = font.getPath(seg.text, drawX, seg.y, fontSize);
-        const d = path.toPathData(3);
+        const path = font.getPath(seg.text, drawX, seg.y, fontSize, NO_KERNING);
+        // Both options below are REQUIRED, and both must be passed as an object.
+        //  - optimize:false — our OTF/CFF fonts (Optima LT Std) produce glyph
+        //    contours WITHOUT an explicit closePath, and opentype.js 2.0.0's
+        //    path optimizer drops the final vertex of such unclosed contours, so
+        //    a 4-point rectangle (e.g. a hyphen "-") collapses into a 3-point
+        //    triangle. (TrueType glyphs emit closed contours and were
+        //    unaffected — that's why this only surfaced after the .ttf → .otf
+        //    swap.)
+        //  - flipY:false — opentype.js defaults flipY to false when toPathData
+        //    is called with a NUMBER but to true when called with an OBJECT.
+        //    getPath() already returns y-down SVG coords, so letting flipY
+        //    default to true mirrors every glyph vertically (upside-down text).
+        const d = path.toPathData({ decimalPlaces: 3, optimize: false, flipY: false });
         if (!d) return;
         const pathEl = svgDoc.createElementNS(ns, 'path');
         pathEl.setAttribute('d', d);

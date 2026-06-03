@@ -690,9 +690,10 @@ function toggleAbView() {
                     Neu vorbereiten
                 </v-btn>
                 <v-btn
-                    v-if="!loading && !error_message"
-                    variant="text"
+                    variant="tonal"
+                    color="primary"
                     prepend-icon="mdi-download"
+                    :disabled="loading || !!error_message || !baked_svg"
                     @click="downloadBakedSvg"
                 >
                     Gebacktes SVG speichern

@@ -1,16 +1,18 @@
 import finaleMaestroUrl from '@/assets/font/FinaleMaestro.otf?url';
-import optimaRomanUrl from '@/assets/font/lte500190.ttf?url';
-import optimaBoldUrl from '@/assets/font/lte500210.ttf?url';
-import optimaItalicUrl from '@/assets/font/lte524010.ttf?url';
-import optimaBoldItalicUrl from '@/assets/font/lte543790.ttf?url';
+import optimaRomanUrl from '@/assets/font/OptimaLTStd.otf?url';
+import optimaBoldUrl from '@/assets/font/OptimaLTStd-Bold.otf?url';
+import optimaItalicUrl from '@/assets/font/OptimaLTStd-Italic.otf?url';
+import optimaBoldItalicUrl from '@/assets/font/OptimaLTStd-BoldItalic.otf?url';
 import { bakeSvgString } from './svgBaker.js';
 import { analyzeLyrics } from './lyricsAlign.js';
 
 // Each bundled font registered under every plausible family name Finale may
-// have used. `localNames` are tried FIRST: if the user has the real font
-// installed (typical for someone working with Finale), the browser uses that
-// — matching exactly what "open the .svg in a new tab" shows. Our bundled
-// file is only used when nothing local matches.
+// have used. We ALWAYS render the Original pane with the bundled file (no
+// local() fallback): the baked pane draws vector outlines of these exact
+// files, so forcing the same bundled font on both sides makes the comparison
+// apples-to-apples. Using the viewer's locally-installed Optima/Maestro
+// instead would make glyphs differ in shape/size/position between the panes
+// (the "dancing letters" in the A/B switcher) even when the bake is faithful.
 const FONT_BUNDLE = [
     {
         url: finaleMaestroUrl,
@@ -18,61 +20,34 @@ const FONT_BUNDLE = [
         weight: 'normal',
         italic: false,
         families: ['Finale Maestro', 'FinaleMaestro', 'Maestro'],
-        localNames: ['Finale Maestro', 'FinaleMaestro', 'Maestro'],
     },
     {
         url: optimaRomanUrl,
-        format: 'truetype',
+        format: 'opentype',
         weight: 'normal',
         italic: false,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
-        localNames: [
-            'Optima LT Roman',
-            'Optima LT',
-            'OptimaLT',
-            'Optima LT Std',
-            'Optima Regular',
-            'Optima',
-        ],
     },
     {
         url: optimaBoldUrl,
-        format: 'truetype',
+        format: 'opentype',
         weight: 'bold',
         italic: false,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
-        localNames: [
-            'Optima LT Bold',
-            'OptimaLT-Bold',
-            'Optima LT Std Bold',
-            'Optima Bold',
-        ],
     },
     {
         url: optimaItalicUrl,
-        format: 'truetype',
+        format: 'opentype',
         weight: 'normal',
         italic: true,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
-        localNames: [
-            'Optima LT Italic',
-            'OptimaLT-Italic',
-            'Optima LT Std Italic',
-            'Optima Italic',
-        ],
     },
     {
         url: optimaBoldItalicUrl,
-        format: 'truetype',
+        format: 'opentype',
         weight: 'bold',
         italic: true,
         families: ['Optima LT', 'Optima LT Std', 'OptimaLTStd', 'OptimaLT'],
-        localNames: [
-            'Optima LT Bold Italic',
-            'OptimaLT-BoldItalic',
-            'Optima LT Std Bold Italic',
-            'Optima Bold Italic',
-        ],
     },
 ];
 
@@ -101,12 +76,7 @@ async function buildFontFaceCss() {
         const rules = [];
         for (const variant of FONT_BUNDLE) {
             const src = await fontDataUrl(variant.url, variant.format);
-            const localSrcs = (variant.localNames || [])
-                .map((n) => `local("${n}")`)
-                .join(', ');
-            const srcDecl = localSrcs
-                ? `${localSrcs}, url(${src}) format("${variant.format}")`
-                : `url(${src}) format("${variant.format}")`;
+            const srcDecl = `url(${src}) format("${variant.format}")`;
             for (const family of variant.families) {
                 rules.push(
                     `@font-face { font-family: "${family}"; ` +
@@ -117,6 +87,17 @@ async function buildFontFaceCss() {
                 );
             }
         }
+        // Make the Original pane's live <text> render as close to the vector
+        // baked pane as possible:
+        //  - font-kerning:none — the baker bakes WITHOUT kerning, so without
+        //    this the browser applies Optima LT Std's GPOS kerning and the two
+        //    panes drift on pairs like "We"/"Te"/"Wa".
+        //  - text-rendering:geometricPrecision — disables the rasterizer's pixel
+        //    grid-fitting/hinting, so glyphs render at their exact outline
+        //    geometry. Without it, tiny features (the ~0.6u-tall dashes) snap to
+        //    whole pixels inconsistently and appear to grow/shrink ("jumping")
+        //    between the panes even though the bake is faithful.
+        rules.push('text { font-kerning: none; text-rendering: geometricPrecision; }');
         return rules.join('\n');
     })();
     return fontFaceCssPromise;

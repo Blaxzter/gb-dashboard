@@ -682,9 +682,15 @@ async function bakeFileToBlob(file, options = {}) {
     return { blob, bakedCount, totalTexts };
 }
 
+// Directus folder these uploads land in. When unset, files go to the instance
+// default (root) — keeps local dev working against a Directus without this folder.
+const NOTENTEXT_FOLDER_ID = import.meta.env.VITE_NOTENTEXT_FOLDER_ID;
+
 async function uploadBlob(blob, filename, displayName) {
     const formData = new FormData();
     formData.append('title', displayName);
+    // Metadata fields must precede `file` so Directus applies them to the upload.
+    if (NOTENTEXT_FOLDER_ID) formData.append('folder', NOTENTEXT_FOLDER_ID);
     formData.append('file', blob, filename);
     const resp = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData);
     return resp.data.data;
