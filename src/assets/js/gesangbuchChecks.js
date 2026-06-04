@@ -73,6 +73,12 @@ function verseText(strophe) {
     return '';
 }
 
+// Silbentrennzeichen: das Zeichen ¬ (U+00AC) markiert in den Strophentexten die
+// Silbengrenzen für die Silben-/Notenausrichtung (vgl. SyllableEditList.vue,
+// beim Export wird es entfernt). Eine Strophe ohne dieses Zeichen ist noch nicht
+// in Silben getrennt.
+const SILBENTRENNER = '¬';
+
 // Erlaubt sind nur die deutschen „Gänsefüßchen“: öffnend „ (U+201E) und
 // schließend “ (U+201C). Alle übrigen doppelten Anführungszeichen-Varianten
 // werden vom Normalisierungs-Skript auf diese beiden ersetzt und sollen daher
@@ -553,6 +559,39 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Alle Strophentexte verwenden nur deutsche Anführungszeichen „ “.'
                     : `${items.length} Lied(er) mit unerwünschten Anführungszeichen in Strophentexten.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'strophen-ohne-silbentrenner',
+        category: 'Redaktion',
+        title: 'Alle Strophen sind in Silben getrennt',
+        description:
+            'Strophentexte werden für die Silben-/Notenausrichtung mit dem Trennzeichen „¬“ versehen. Hier werden genommene Lieder gemeldet, bei denen einzelne Strophen (mit Text) noch kein einziges Silbentrennzeichen enthalten.',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const ohne = [];
+                strophen(l).forEach((s, index) => {
+                    const text = verseText(s).trim();
+                    // Leere Strophen können nicht getrennt werden – überspringen.
+                    if (text !== '' && !text.includes(SILBENTRENNER)) {
+                        ohne.push(index + 1);
+                    }
+                });
+                if (ohne.length) {
+                    const label = ohne.length === 1 ? 'Strophe' : 'Strophen';
+                    items.push(songItem(l, `${label} ${ohne.join(', ')} ohne Silbentrennzeichen`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Alle Strophen mit Text sind in Silben getrennt.'
+                    : `${items.length} Lied(er) mit Strophen ohne Silbentrennzeichen.`,
                 items,
             );
         },
