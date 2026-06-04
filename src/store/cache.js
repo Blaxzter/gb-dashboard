@@ -22,11 +22,10 @@ export const useCacheStore = defineStore('cache', {
     },
 
     actions: {
-        async toggleCache() {
-            const oldValue = this.cacheEnabled;
-            this.cacheEnabled = !this.cacheEnabled;
-
-            console.log('[Cache Store] 🔄 Toggling cache from', oldValue, 'to', this.cacheEnabled);
+        async persistCacheSetting() {
+            // Note: this.cacheEnabled is already updated by the v-switch v-model
+            // binding before this runs, so we must NOT flip it again here.
+            console.log('[Cache Store] 🔄 Cache setting changed to', this.cacheEnabled);
 
             // Store the cache setting in IndexedDB
             try {

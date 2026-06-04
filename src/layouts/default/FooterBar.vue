@@ -15,7 +15,7 @@
                                     hide-details
                                     density="compact"
                                     :label="`Cache ${cacheStore.cacheEnabled ? 'aktiviert' : 'deaktiviert'}`"
-                                    @change="cacheStore.toggleCache()"
+                                    @change="cacheStore.persistCacheSetting()"
                                 />
                             </div>
                         </template>
