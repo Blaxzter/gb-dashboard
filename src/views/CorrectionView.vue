@@ -485,6 +485,50 @@ const get_color = (category) => {
                                     color="warning"
                                     size="small"
                                 />
+                                <v-tooltip
+                                    v-if="lied.liednummer2000"
+                                    text="Liednummer im Gesangbuch 2000"
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <span
+                                            v-bind="props"
+                                            class="text-body-2 text-medium-emphasis text-grey ms-1"
+                                        >
+                                            (GB 2000: {{ lied.liednummer2000 }})
+                                        </span>
+                                    </template>
+                                </v-tooltip>
+                                <v-tooltip
+                                    v-if="lied.melodieGeaendert"
+                                    text="Melodie wurde gegenüber Gesangbuch 2000 geändert"
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-icon
+                                            v-bind="props"
+                                            icon="mdi-music-box"
+                                            color="primary"
+                                            size="small"
+                                            class="ms-1"
+                                        />
+                                    </template>
+                                </v-tooltip>
+                                <v-tooltip
+                                    v-if="lied.textGeaendert"
+                                    text="Text wurde gegenüber Gesangbuch 2000 geändert"
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-icon
+                                            v-bind="props"
+                                            icon="mdi-text-box-edit"
+                                            color="primary"
+                                            size="small"
+                                            class="ms-1"
+                                        />
+                                    </template>
+                                </v-tooltip>
                             </div>
                             <div class="d-flex ga-1">
                                 <v-chip
