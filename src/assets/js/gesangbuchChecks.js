@@ -476,23 +476,6 @@ export const CHECKS = [
         },
     },
     {
-        id: 'autor-copyright',
-        category: 'Redaktion',
-        title: 'Autor/Copyright geprüft',
-        description: 'Genommene Lieder, die noch als „Autor oder Copyright prüfen“ markiert sind.',
-        run({ genommen }) {
-            const offen = genommen.filter((l) => l.autor_oder_copyright_checken === true);
-            return result(
-                offen.length === 0,
-                'warning',
-                offen.length === 0
-                    ? 'Bei allen genommenen Liedern ist Autor/Copyright geprüft.'
-                    : `${offen.length} genommene(s) Lied(er) mit offener Autor-/Copyright-Prüfung.`,
-                offen.map((l) => songItem(l)),
-            );
-        },
-    },
-    {
         id: 'fehlende-autoren',
         category: 'Redaktion',
         title: 'Autor oder Copyright vorhanden',
