@@ -63,6 +63,30 @@ function strophen(lied) {
     return lied?.text?.strophenEinzeln || [];
 }
 
+// Strophentext eines Strophen-Objekts. Wie im Normalisierungs-Skript
+// (gb-scripts/app/10-normalize-quotation-marks.py) wird das Feld `strophe`
+// bevorzugt, ersatzweise `text`.
+function verseText(strophe) {
+    if (!strophe || typeof strophe !== 'object') return '';
+    if (strophe.strophe) return String(strophe.strophe);
+    if (strophe.text) return String(strophe.text);
+    return '';
+}
+
+// Erlaubt sind nur die deutschen „Gänsefüßchen“: öffnend „ (U+201E) und
+// schließend “ (U+201C). Alle übrigen doppelten Anführungszeichen-Varianten
+// werden vom Normalisierungs-Skript auf diese beiden ersetzt und sollen daher
+// nicht in den Strophentexten stehen. Die Auswahl entspricht 1:1 den vom Skript
+// ersetzten Zeichen (always_open ohne „, always_close, toggling ohne “).
+const VERBOTENE_DOPPEL_ANFUEHRUNGSZEICHEN = {
+    '"': 'gerade (")', // U+0022 QUOTATION MARK
+    '”': 'englisch schließend (”)', // U+201D RIGHT DOUBLE QUOTATION MARK
+    '‟': 'hoch-reversiert (‟)', // U+201F DOUBLE HIGH-REVERSED-9
+    '«': 'Guillemet (« )', // U+00AB
+    '»': 'Guillemet ( »)', // U+00BB
+    '＂': 'vollbreit (＂)', // U+FF02 FULLWIDTH QUOTATION MARK
+};
+
 // Alle KI-Reviews eines Liedes (über alle Strophen hinweg)
 function kiReviews(lied) {
     return strophen(lied).flatMap((s) => (Array.isArray(s?.kiReview) ? s.kiReview : []));
@@ -508,6 +532,44 @@ export const CHECKS = [
                 dups.length === 0
                     ? 'Keine doppelten Titel.'
                     : `${dups.length} Titel mehrfach vergeben.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'strophen-anfuehrungszeichen',
+        category: 'Redaktion',
+        title: 'Nur deutsche Anführungszeichen „ “ in Strophentexten',
+        description:
+            'Strophentexte sollen ausschließlich die deutschen Anführungszeichen „ und “ verwenden. Gerade (") oder andere Varianten lassen sich mit dem Skript 10-normalize-quotation-marks.py automatisch ersetzen.',
+        run({ genommen }) {
+            const verboten = Object.keys(VERBOTENE_DOPPEL_ANFUEHRUNGSZEICHEN);
+            const items = [];
+            genommen.forEach((l) => {
+                const gefunden = new Set();
+                let betroffeneStrophen = 0;
+                strophen(l).forEach((s) => {
+                    const text = verseText(s);
+                    const inDieser = verboten.filter((ch) => text.includes(ch));
+                    if (inDieser.length) {
+                        betroffeneStrophen++;
+                        inDieser.forEach((ch) => gefunden.add(ch));
+                    }
+                });
+                if (gefunden.size) {
+                    const zeichen = [...gefunden]
+                        .map((ch) => VERBOTENE_DOPPEL_ANFUEHRUNGSZEICHEN[ch])
+                        .join(', ');
+                    items.push(songItem(l, `${betroffeneStrophen} Strophe(n) mit ${zeichen}`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Alle Strophentexte verwenden nur deutsche Anführungszeichen „ “.'
+                    : `${items.length} Lied(er) mit unerwünschten Anführungszeichen in Strophentexten.`,
                 items,
             );
         },
