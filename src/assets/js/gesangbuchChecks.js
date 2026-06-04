@@ -582,6 +582,43 @@ export const CHECKS = [
     },
 
     {
+        id: 'lied-text-titel-abweichung',
+        category: 'Redaktion',
+        title: 'Lied-Titel stimmt mit Text-Titel überein',
+        description:
+            'Hinweis (kein Fehler): Genommene Lieder, deren eigener Titel vom Titel des verknüpften Textes abweicht. In vielen Fällen ist das in Ordnung – manchmal ist aber auch eine echte Abweichung durchgerutscht, die man sich noch einmal anschauen sollte. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung und mehrfachen Leerzeichen. Lieder ohne verknüpften Text oder ohne Text-Titel werden übersprungen.',
+        run({ genommen }) {
+            // Normalisiert einen Titel für den Vergleich: Unicode (NFC),
+            // Whitespace zusammenfassen, trimmen, Kleinschreibung – so lösen reine
+            // Formatierungs-/Schreibungsunterschiede keinen Hinweis aus.
+            const norm = (value) =>
+                String(value || '')
+                    .normalize('NFC')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .toLowerCase();
+            const items = [];
+            genommen.forEach((l) => {
+                const liedTitel = (l.titel || '').trim();
+                const textTitel = (l.text_titel || '').trim();
+                // Nur vergleichen, wenn beide Titel vorhanden sind.
+                if (!liedTitel || !textTitel) return;
+                if (norm(liedTitel) !== norm(textTitel)) {
+                    items.push(songItem(l, `Lied „${liedTitel}“ ≠ Text „${textTitel}“`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'info',
+                items.length === 0
+                    ? 'Alle Lied-Titel stimmen mit dem Titel des verknüpften Textes überein.'
+                    : `${items.length} Lied(er) mit abweichendem Text-Titel.`,
+                items,
+            );
+        },
+    },
+
+    {
         id: 'leere-strophen',
         category: 'Redaktion',
         title: 'Keine leeren Strophen',
