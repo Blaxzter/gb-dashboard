@@ -1,7 +1,7 @@
 <script setup>
 import _ from 'lodash';
-import { ref, watch, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, watch, computed, onMounted, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
 import { useUserStore } from '@/store/user.js';
 import {
@@ -81,6 +81,7 @@ const saveTitle = async (lied) => {
 };
 
 const route = useRoute();
+const router = useRouter();
 
 const applyFilterFromLink = () => {
     try {
@@ -172,9 +173,11 @@ const authors = computed(() => {
     }).map((a) => a.name);
 });
 
-// Watch for route changes to apply filters
+// Watch for filter changes to apply filters. Nur auf den Filter-Parameter
+// hören, damit andere Query-Änderungen (z. B. ?dialog) den Filter nicht erneut
+// dekodieren und die Snackbar auslösen.
 watch(
-    () => route.query,
+    () => route.query.filter,
     () => applyFilterFromLink(),
     { immediate: true },
 );
@@ -286,15 +289,9 @@ const filtered_gesangbuchlieder = computed(() => {
     }
 
     if (notentext_filter.value === 'has') {
-        filtered_gesangbuchlied = _.filter(
-            filtered_gesangbuchlied,
-            (elem) => !!elem.notentext,
-        );
+        filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => !!elem.notentext);
     } else if (notentext_filter.value === 'no') {
-        filtered_gesangbuchlied = _.filter(
-            filtered_gesangbuchlied,
-            (elem) => !elem.notentext,
-        );
+        filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => !elem.notentext);
     }
 
     // sort by titel
@@ -302,6 +299,89 @@ const filtered_gesangbuchlieder = computed(() => {
 
     return filtered_gesangbuchlied;
 });
+
+// Geöffneten Zustand an die URL koppeln, damit ein in der Korrektur-Ansicht
+// geöffnetes Lied verlinkbar ist und beim Neuladen wiederhergestellt wird.
+// Es werden zwei Zustände unterschieden (Muster aus der Checks-Ansicht, issue #2):
+//   Pfad-Param  :id      -> aufgeklapptes Expansion-Panel (Inline-Detailansicht)
+//   Query  ?dialog=1     -> geöffneter Lied-Dialog (GesangbuchLiedComponent)
+const openPanel = ref(null);
+const song_dialog = ref(false);
+const selected_song = ref(null);
+
+// Zum Lied scrollen, sobald das Panel im DOM steht. Der Abstand zum (fixen)
+// Header wird per CSS `scroll-margin-top` berücksichtigt – `scrollIntoView`
+// selbst kennt keinen Offset-Parameter.
+const scrollToPanel = (id) => {
+    nextTick(() => {
+        document
+            .querySelector(`[data-lied-id="${id}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+};
+
+// Panel-Zustand <-> URL-Pfad. Beim Öffnen die URL auf /korrektur-lesung/:id
+// setzen, dabei die bestehenden Filter-Query-Parameter erhalten.
+watch(openPanel, (id) => {
+    if (id != null) {
+        if (String(route.params.id) !== String(id)) {
+            router.replace({
+                name: 'CorrectionReading',
+                params: { id: String(id) },
+                query: route.query,
+            });
+        }
+        const lied = filtered_gesangbuchlieder.value.find((l) => l.id === id);
+        if (lied?.gesangbuch_titel) document.title = lied.gesangbuch_titel;
+    } else {
+        // Beim Schließen die URL wieder auf /korrektur-lesung zurücksetzen.
+        if (route.params.id != null) {
+            router.replace({ name: 'CorrectionReading', query: route.query });
+        }
+        document.title = 'Gesangbuch 2026';
+    }
+});
+
+// Dialog-Zustand <-> URL-Query (?dialog=1).
+watch(song_dialog, (is_open) => {
+    if (is_open) {
+        if (selected_song.value && route.query.dialog == null) {
+            router.replace({
+                name: 'CorrectionReading',
+                params: { id: String(selected_song.value.id) },
+                query: { ...route.query, dialog: '1' },
+            });
+        }
+    } else {
+        selected_song.value = null;
+        if (route.query.dialog != null) {
+            const query = { ...route.query };
+            delete query.dialog;
+            router.replace({ name: 'CorrectionReading', params: route.params, query });
+        }
+    }
+});
+
+// Panel/Dialog aus der URL wiederherstellen, sobald die (gefilterten) Lieder
+// verfügbar sind – z. B. nach Reload oder über einen geteilten Link.
+const openFromRoute = () => {
+    const id = route.params.id;
+    if (id == null || id === '') return;
+    const idNum = parseInt(id, 10);
+    const lied = filtered_gesangbuchlieder.value.find((l) => l.id === idNum);
+    if (!lied) return;
+    if (openPanel.value == null) {
+        openPanel.value = idNum;
+        scrollToPanel(idNum);
+    }
+    if (route.query.dialog != null && !song_dialog.value) {
+        selected_song.value = lied;
+        song_dialog.value = true;
+    }
+};
+
+onMounted(openFromRoute);
+watch(filtered_gesangbuchlieder, openFromRoute);
 
 // Syllable view state for each song
 const syllableViewEnabled = ref({});
@@ -326,10 +406,7 @@ const toggleKiReview = () => {
     localStorage.setItem('strophen-show-ki-review', JSON.stringify(showKiReview.value));
 };
 
-// Song dialog stuff
-const song_dialog = ref(false);
-const selected_song = ref(null);
-
+// Song dialog stuff (Zustand siehe oben: song_dialog / selected_song)
 const modalClose = () => {
     song_dialog.value = false;
     selected_song.value = null;
@@ -457,8 +534,13 @@ const get_color = (category) => {
         <v-alert outlined color="warning" icon="mdi-alert">Keine Lieder gefunden</v-alert>
     </div>
     <div v-else class="mt-5">
-        <v-expansion-panels>
-            <v-expansion-panel v-for="lied in filtered_gesangbuchlieder" :key="lied.id">
+        <v-expansion-panels v-model="openPanel">
+            <v-expansion-panel
+                v-for="lied in filtered_gesangbuchlieder"
+                :key="lied.id"
+                :value="lied.id"
+                :data-lied-id="lied.id"
+            >
                 <v-expansion-panel-title>
                     <div class="w-100">
                         <div class="d-flex justify-space-between">
@@ -590,10 +672,9 @@ const get_color = (category) => {
                                         lied.gesangbuchlied_satz_mit_melodie_und_text
                                     "
                                     :notentext-files="
-                                        [
-                                            lied.notentext_file,
-                                            lied.notentext_seite2_file,
-                                        ].filter(Boolean)
+                                        [lied.notentext_file, lied.notentext_seite2_file].filter(
+                                            Boolean,
+                                        )
                                     "
                                 />
                             </div>
@@ -777,7 +858,11 @@ const get_color = (category) => {
     </div>
 
     <v-dialog v-model="song_dialog" width="700" @close="modalClose">
-        <GesangbuchLiedComponent :selected-song="selected_song" @close="song_dialog = false" />
+        <GesangbuchLiedComponent
+            v-if="selected_song"
+            :selected-song="selected_song"
+            @close="song_dialog = false"
+        />
     </v-dialog>
 
     <v-snackbar v-model="snackbar" :timeout="3000">
@@ -790,6 +875,13 @@ const get_color = (category) => {
 </template>
 
 <style>
+/* Beim Scrollen zu einem Lied (Deep-Link) den fixen App-Header freihalten.
+   --v-layout-top wird vom Vuetify-Layout auf die App-Bar-Höhe gesetzt und
+   vererbt sich bis hierher; +16px Luft darunter. */
+.v-expansion-panel[data-lied-id] {
+    scroll-margin-top: calc(var(--v-layout-top, 64px) + 16px);
+}
+
 .melo-changed-chip {
     position: absolute;
     top: 10px;
