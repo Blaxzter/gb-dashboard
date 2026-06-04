@@ -1,15 +1,20 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
 import { runChecks, isGenommen } from '@/assets/js/gesangbuchChecks.js';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 import CheckCategory from '@/components/checks/CheckCategory.vue';
 
 const store = useAppStore();
+const route = useRoute();
+const router = useRouter();
 
 const only_problems = ref(false);
 
 // Lied-Dialog: Klick auf einen Treffer öffnet das Lied direkt in dieser View.
+// Die URL wird dabei auf /checks/:id angepasst, damit ein geöffnetes Lied
+// verlinkbar ist und beim Neuladen wieder geöffnet wird.
 const song_dialog = ref(false);
 const selected_song = ref(null);
 
@@ -19,11 +24,36 @@ function openSong(id) {
     if (!lied) return;
     selected_song.value = lied;
     song_dialog.value = true;
+    if (String(route.params.id) !== String(id)) {
+        router.replace({ name: 'Checks', params: { id: String(id) } });
+    }
+    if (lied.gesangbuch_titel) document.title = lied.gesangbuch_titel;
 }
+
+// Lied aus der URL (z. B. nach Reload oder per geteiltem Link) öffnen, sobald
+// die Lieder geladen sind.
+function openSongFromRoute() {
+    const id = route.params.id;
+    if (id == null || id === '' || selected_song.value) return;
+    openSong(parseInt(id, 10));
+}
+
+// Beim Schließen des Dialogs die URL wieder auf /checks zurücksetzen.
+watch(song_dialog, (is_open) => {
+    if (is_open) return;
+    selected_song.value = null;
+    if (route.params.id != null) router.replace({ name: 'Checks' });
+    document.title = 'Gesangbuch 2026';
+});
 
 const alle_lieder = computed(() => store.gesangbuchlieder);
 const genommen = computed(() => alle_lieder.value.filter(isGenommen));
 const results = computed(() => runChecks(alle_lieder.value));
+
+// Beim ersten Laden und sobald die Lieder verfügbar sind ein evtl. in der URL
+// hinterlegtes Lied öffnen.
+onMounted(openSongFromRoute);
+watch(alle_lieder, () => openSongFromRoute());
 
 const summary = computed(() => {
     const counts = { ok: 0, info: 0, warning: 0, error: 0 };

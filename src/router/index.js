@@ -90,7 +90,7 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/AutorenMailingView.vue'),
             },
             {
-                path: 'checks',
+                path: 'checks/:id?',
                 name: 'Checks',
                 component: () =>
                     import(/* webpackChunkName: "checks" */ '@/views/GesangbuchChecksView.vue'),
