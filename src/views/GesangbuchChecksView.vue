@@ -48,7 +48,7 @@ watch(song_dialog, (is_open) => {
 
 const alle_lieder = computed(() => store.gesangbuchlieder);
 const genommen = computed(() => alle_lieder.value.filter(isGenommen));
-const results = computed(() => runChecks(alle_lieder.value));
+const results = computed(() => runChecks(alle_lieder.value, store.authors));
 
 // Beim ersten Laden und sobald die Lieder verfügbar sind ein evtl. in der URL
 // hinterlegtes Lied öffnen.

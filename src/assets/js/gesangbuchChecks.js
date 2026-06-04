@@ -15,9 +15,15 @@
 //   items  = [{ id?, title, nummer?, detail?, to? }]
 
 import _ from 'lodash';
+import { status_mapping } from '@/assets/js/utils';
 
 // "Genommen" = Lieder mit Status 'accepted' ("Bewertet und genommen").
 export const GENOMMEN_STATUS = 'accepted';
+
+// Autoren gelten als final geprüft, sobald sie diesen Status tragen
+// ("Veröffentlicht"). Der Status wird erst gesetzt, wenn der Autor
+// korrekturgelesen und v. a. die Geburts-/Sterbedaten gegengeprüft wurden.
+export const AUTOR_VEROEFFENTLICHT_STATUS = 'published';
 
 export const STATUS = {
     ok: { color: 'success', icon: 'mdi-check-circle', label: 'OK', rank: 0 },
@@ -559,6 +565,55 @@ export const CHECKS = [
         },
     },
     {
+        id: 'autoren-nicht-veroeffentlicht',
+        category: 'Redaktion',
+        title: 'Autoren sind „Veröffentlicht“',
+        description:
+            'Autoren genommener Lieder, die noch nicht den Status „Veröffentlicht“ haben. Dieser Status wird erst gesetzt, wenn der Autor korrekturgelesen und insbesondere die Geburts-/Sterbedaten gegengeprüft wurden (siehe Issue #14). Gezählt wird jeder Autor (Text und Melodie) einmal.',
+        run({ genommen, authors }) {
+            const byId = _.keyBy(authors || [], 'id');
+            // Distinkte Autoren der genommenen Lieder mit Anzahl betroffener Lieder.
+            // Die maßgebliche Autor-Angabe (inkl. Status) kommt aus `authors`,
+            // verknüpft über `autor_id` – nicht aus dem eingebetteten Autor-Objekt,
+            // dessen `id` die Verknüpfungszeile und nicht den Autor meint.
+            const liederProAutor = {};
+            genommen.forEach((l) => {
+                const gesehen = new Set();
+                [...(l.text?.authors || []), ...(l.melodie?.authors || [])].forEach((a) => {
+                    const id = a?.autor_id;
+                    if (id == null || gesehen.has(id)) return;
+                    gesehen.add(id);
+                    liederProAutor[id] = (liederProAutor[id] || 0) + 1;
+                });
+            });
+            const items = Object.keys(liederProAutor)
+                .map((id) => byId[id])
+                .filter((autor) => autor && autor.status !== AUTOR_VEROEFFENTLICHT_STATUS)
+                .map((autor) => {
+                    const statusLabel =
+                        status_mapping[autor.status] || autor.status || 'ohne Status';
+                    const anzahl = liederProAutor[autor.id];
+                    const name =
+                        autor.name ||
+                        `${autor.vorname || ''} ${autor.nachname || ''}`.trim() ||
+                        `Autor #${autor.id}`;
+                    return {
+                        title: name,
+                        detail: `Status: ${statusLabel} – in ${anzahl} genommenen Lied(ern)`,
+                    };
+                });
+            const sortiert = _.sortBy(items, (i) => i.title.toLowerCase());
+            return result(
+                sortiert.length === 0,
+                'warning',
+                sortiert.length === 0
+                    ? 'Alle Autoren genommener Lieder sind „Veröffentlicht“.'
+                    : `${sortiert.length} Autor(en) genommener Lieder noch nicht „Veröffentlicht“.`,
+                sortiert,
+            );
+        },
+    },
+    {
         id: 'doppelte-titel',
         category: 'Redaktion',
         title: 'Keine doppelten Titel',
@@ -893,10 +948,12 @@ export const CHECKS = [
 ];
 
 // Führt alle Checks aus und liefert die angereicherten Ergebnisse zurück.
-export function runChecks(alle) {
+// `authors` ist die vollständige Autorenliste (store.authors) – für Prüfungen,
+// die den Autor-Status (z. B. „Veröffentlicht“) auswerten.
+export function runChecks(alle, authors) {
     const list = alle || [];
     const genommen = list.filter(isGenommen);
-    const ctx = { alle: list, genommen };
+    const ctx = { alle: list, genommen, authors: authors || [] };
     return CHECKS.map((check) => {
         let r;
         try {
