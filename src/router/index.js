@@ -96,7 +96,7 @@ const routes = [
                     import(/* webpackChunkName: "checks" */ '@/views/GesangbuchChecksView.vue'),
             },
             {
-                path: 'notentext-export',
+                path: 'notentext-export/:id?',
                 name: 'NotentextExport',
                 component: () =>
                     import(/* webpackChunkName: "noten-export" */ '@/views/NotenExportView.vue'),

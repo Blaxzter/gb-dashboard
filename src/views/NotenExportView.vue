@@ -1,16 +1,20 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import _ from 'lodash';
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
 import { jsPDF } from 'jspdf';
 import 'svg2pdf.js';
 import JSZip from 'jszip';
+import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
 const HISTORY_KEY = 'notenexport_history';
 const MAX_HISTORY = 20;
 
 const store = useAppStore();
+const route = useRoute();
+const router = useRouter();
 
 const search = ref('');
 const filter_status = ref('set'); // 'set' | 'empty' | 'all'
@@ -29,6 +33,44 @@ const snackbar_message = ref('');
 
 const history = ref([]);
 
+// Lied-Detail-Dialog: Klick auf "Detail" öffnet das Lied direkt in dieser View.
+// Die URL wird dabei auf /notentext-export/:id angepasst, damit ein geöffnetes
+// Lied verlinkbar ist und beim Neuladen wieder geöffnet wird.
+const detail_dialog = ref(false);
+const detail_song = ref(null);
+
+function openDetail(lied) {
+    if (!lied) return;
+    detail_song.value = lied;
+    detail_dialog.value = true;
+    if (String(route.params.id) !== String(lied.id)) {
+        router.replace({ name: 'NotentextExport', params: { id: String(lied.id) } });
+    }
+    if (lied.gesangbuch_titel) document.title = lied.gesangbuch_titel;
+}
+
+function switchDetailSong(song) {
+    if (!song) return;
+    openDetail(song);
+}
+
+// Lied aus der URL (z. B. nach Reload oder per geteiltem Link) öffnen, sobald
+// die Lieder geladen sind.
+function openDetailFromRoute() {
+    const id = route.params.id;
+    if (id == null || id === '' || detail_song.value) return;
+    const lied = all_lieder.value.find((l) => l.id === parseInt(id, 10));
+    if (lied) openDetail(lied);
+}
+
+// Beim Schließen des Dialogs die URL wieder auf /notentext-export zurücksetzen.
+watch(detail_dialog, (is_open) => {
+    if (is_open) return;
+    detail_song.value = null;
+    if (route.params.id != null) router.replace({ name: 'NotentextExport' });
+    document.title = 'Gesangbuch 2026';
+});
+
 onMounted(() => {
     try {
         const stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -36,7 +78,10 @@ onMounted(() => {
     } catch {
         history.value = [];
     }
+    openDetailFromRoute();
 });
+
+watch(() => store.gesangbuchlieder, openDetailFromRoute);
 
 watch(history, (v) => localStorage.setItem(HISTORY_KEY, JSON.stringify(v)), { deep: true });
 
@@ -55,8 +100,7 @@ const filtered_lieder = computed(() => {
             const has = !!lied.notentext;
             if (filter_status.value === 'set' && !has) return false;
             if (filter_status.value === 'empty' && has) return false;
-            if (only_rein.value && !isRein(lied.bewertung_kleiner_kreis?.bezeichner))
-                return false;
+            if (only_rein.value && !isRein(lied.bewertung_kleiner_kreis?.bezeichner)) return false;
             if (hide_already_exported.value && previously_exported_ids.value.has(lied.id))
                 return false;
             if (q) {
@@ -82,15 +126,13 @@ const stats = computed(() => {
     return { total, with_notentext, without };
 });
 
-const exportable_count = computed(
-    () => filtered_lieder.value.filter((l) => !!l.notentext).length,
-);
+const exportable_count = computed(() => filtered_lieder.value.filter((l) => !!l.notentext).length);
 
 const selected_ids = ref(new Set());
 const last_clicked_id = ref(null);
 
-const exportable_filtered_ids = computed(
-    () => filtered_lieder.value.filter((l) => !!l.notentext).map((l) => l.id),
+const exportable_filtered_ids = computed(() =>
+    filtered_lieder.value.filter((l) => !!l.notentext).map((l) => l.id),
 );
 
 const selected_count = computed(
@@ -122,9 +164,7 @@ function onRowCheckboxClick(id, event) {
     const lied = all_lieder.value.find((l) => l.id === id);
     if (!lied || !lied.notentext) return;
 
-    const visibleIds = filtered_lieder.value
-        .filter((l) => !!l.notentext)
-        .map((l) => l.id);
+    const visibleIds = filtered_lieder.value.filter((l) => !!l.notentext).map((l) => l.id);
 
     if (
         event.shiftKey &&
@@ -176,7 +216,10 @@ watch(
 );
 
 function safeFilename(s) {
-    return (s || 'lied').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').slice(0, 80);
+    return (s || 'lied')
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .replace(/\s+/g, '_')
+        .slice(0, 80);
 }
 
 function csvEscape(value) {
@@ -368,7 +411,10 @@ function isWhiteFill(fill) {
 function removeFullCanvasBackgrounds(svgEl) {
     // Determine canvas extent from viewBox or width/height
     const vb = svgEl.getAttribute('viewBox');
-    let cx = 0, cy = 0, cw = 0, ch = 0;
+    let cx = 0,
+        cy = 0,
+        cw = 0,
+        ch = 0;
     if (vb) {
         const p = vb.split(/[\s,]+/).map(parseFloat);
         if (p.length === 4) [cx, cy, cw, ch] = p;
@@ -569,11 +615,7 @@ async function runExport() {
     zip.file('export.json', JSON.stringify(meta, null, 2));
 
     const zipBlob = await zip.generateAsync({ type: 'blob' });
-    const ts = new Date()
-        .toISOString()
-        .replace(/[:.]/g, '-')
-        .replace('T', '_')
-        .slice(0, 19);
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob);
     a.download = `notentext-export_${ts}.zip`;
@@ -635,7 +677,12 @@ function formatDate(iso) {
                     density="comfortable"
                     style="min-width: 280px; flex: 1"
                 />
-                <v-btn-toggle v-model="filter_status" mandatory variant="tonal" density="comfortable">
+                <v-btn-toggle
+                    v-model="filter_status"
+                    mandatory
+                    variant="tonal"
+                    density="comfortable"
+                >
                     <v-btn value="set">
                         <v-icon class="me-1">mdi-check-circle</v-icon>notentext gesetzt
                     </v-btn>
@@ -686,8 +733,8 @@ function formatDate(iso) {
                 <div>
                     <div class="text-subtitle-2">Im Filter: {{ filtered_lieder.length }}</div>
                     <div class="text-caption text-medium-emphasis">
-                        Davon exportierbar (mit notentext): {{ exportable_count }} —
-                        ausgewählt: {{ selected_count }}
+                        Davon exportierbar (mit notentext): {{ exportable_count }} — ausgewählt:
+                        {{ selected_count }}
                     </div>
                 </div>
                 <v-spacer />
@@ -795,6 +842,7 @@ function formatDate(iso) {
                         <th>Titel</th>
                         <th style="width: 140px">notentext</th>
                         <th style="width: 100px">vorher</th>
+                        <th style="width: 72px">Detail</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -857,9 +905,23 @@ function formatDate(iso) {
                                 exportiert
                             </v-chip>
                         </td>
+                        <td>
+                            <v-tooltip text="Detailansicht öffnen" location="left">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        icon="mdi-eye"
+                                        size="small"
+                                        variant="text"
+                                        color="primary"
+                                        @click="openDetail(lied)"
+                                    />
+                                </template>
+                            </v-tooltip>
+                        </td>
                     </tr>
                     <tr v-if="filtered_lieder.length === 0">
-                        <td colspan="5" class="text-center text-medium-emphasis py-4">
+                        <td colspan="6" class="text-center text-medium-emphasis py-4">
                             Keine Lieder im aktuellen Filter.
                         </td>
                     </tr>
@@ -871,6 +933,15 @@ function formatDate(iso) {
     <div class="text-caption text-medium-emphasis mt-1">
         Tipp: Shift + Klick wählt einen Bereich aus.
     </div>
+
+    <v-dialog v-model="detail_dialog" width="90vw" max-width="1100">
+        <GesangbuchLiedComponent
+            v-if="detail_song"
+            :selected-song="detail_song"
+            @close="detail_dialog = false"
+            @switch-song="switchDetailSong"
+        />
+    </v-dialog>
 
     <v-snackbar v-model="snackbar" :timeout="3500">
         {{ snackbar_message }}
