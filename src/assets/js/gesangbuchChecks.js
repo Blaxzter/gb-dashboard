@@ -582,6 +582,35 @@ export const CHECKS = [
     },
 
     {
+        id: 'leere-strophen',
+        category: 'Redaktion',
+        title: 'Keine leeren Strophen',
+        description:
+            'Eine Strophe ganz ohne Textinhalt deutet auf einen Eingabefehler hin – etwa eine versehentlich angelegte oder beim Übertragen leer gebliebene Strophe. Gemeldet werden genommene Lieder, deren Strophenliste leere Einträge (ohne sichtbaren Text) enthält.',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const leer = [];
+                strophen(l).forEach((s, index) => {
+                    if (verseText(s).trim() === '') leer.push(index + 1);
+                });
+                if (leer.length) {
+                    const label = leer.length === 1 ? 'Strophe' : 'Strophen';
+                    items.push(songItem(l, `${label} ${leer.join(', ')} ohne Textinhalt`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'error',
+                items.length === 0
+                    ? 'Keine leeren Strophen.'
+                    : `${items.length} genommene(s) Lied(er) mit leeren Strophen.`,
+                items,
+            );
+        },
+    },
+
+    {
         id: 'strophen-anfuehrungszeichen',
         category: 'Redaktion',
         title: 'Nur deutsche Anführungszeichen „ “ in Strophentexten',
