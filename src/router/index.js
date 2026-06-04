@@ -78,7 +78,7 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/TextMelodieVerteilung.vue'),
             },
             {
-                path: 'korrektur-lesung',
+                path: 'korrektur-lesung/:id?',
                 name: 'CorrectionReading',
                 component: () =>
                     import(/* webpackChunkName: "home" */ '@/views/CorrectionView.vue'),
