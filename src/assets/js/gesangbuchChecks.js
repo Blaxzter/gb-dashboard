@@ -112,6 +112,34 @@ const VERBOTENE_DOPPEL_ANFUEHRUNGSZEICHEN = {
     '＂': 'vollbreit (＂)', // U+FF02 FULLWIDTH QUOTATION MARK
 };
 
+// Zum Verkürzen von Wörtern (Apostroph) ist ausschließlich das rechte einfache
+// Anführungszeichen ’ (U+2019) erlaubt – nicht der gerade Apostroph ('), der
+// Akut (´), der Gravis (`) o. Ä. Alle übrigen Varianten werden vom
+// Normalisierungs-Skript (gb-scripts/app/10-normalize-quotation-marks.py) auf ’
+// ersetzt. Die Auswahl entspricht 1:1 den dort ersetzten Zeichen
+// (quotation_variants ohne das Zielzeichen ’). Siehe Issue #7.
+const VERBOTENE_APOSTROPHE = {
+    "'": "gerade (')", // U+0027 APOSTROPHE
+    '`': 'Gravis (`)', // U+0060 GRAVE ACCENT
+    '´': 'Akut (´)', // U+00B4 ACUTE ACCENT
+    '‘': 'links (‘)', // U+2018 LEFT SINGLE QUOTATION MARK
+    '‚': 'tief (‚)', // U+201A SINGLE LOW-9 QUOTATION MARK
+    '‛': 'hoch-reversiert (‛)', // U+201B SINGLE HIGH-REVERSED-9
+    '′': 'Prime (′)', // U+2032 PRIME
+    '‵': 'reversierte Prime (‵)', // U+2035 REVERSED PRIME
+    ʼ: 'Modifikator-Apostroph (ʼ)', // U+02BC MODIFIER LETTER APOSTROPHE
+    ʹ: 'Modifikator-Prime (ʹ)', // U+02B9 MODIFIER LETTER PRIME
+    ˈ: 'Senkrechtstrich (ˈ)', // U+02C8 MODIFIER LETTER VERTICAL LINE
+    ˊ: 'Modifikator-Akut (ˊ)', // U+02CA MODIFIER LETTER ACUTE ACCENT
+    ˋ: 'Modifikator-Gravis (ˋ)', // U+02CB MODIFIER LETTER GRAVE ACCENT
+    ꞌ: 'Saltillo (ꞌ)', // U+A78C MODIFIER LETTER SALTILLO
+    '＇': 'vollbreit (＇)', // U+FF07 FULLWIDTH APOSTROPHE
+    '｀': 'vollbreiter Gravis (｀)', // U+FF40 FULLWIDTH GRAVE ACCENT
+    ʾ: 'rechter Halbring (ʾ)', // U+02BE MODIFIER LETTER RIGHT HALF RING
+    ʿ: 'linker Halbring (ʿ)', // U+02BF MODIFIER LETTER LEFT HALF RING
+    '᾿': 'Koronis (᾿)', // U+1FBD GREEK KORONIS
+};
+
 // Alle KI-Reviews eines Liedes (über alle Strophen hinweg)
 function kiReviews(lied) {
     return strophen(lied).flatMap((s) => (Array.isArray(s?.kiReview) ? s.kiReview : []));
@@ -586,6 +614,59 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Alle Strophentexte verwenden nur deutsche Anführungszeichen „ “.'
                     : `${items.length} Lied(er) mit unerwünschten Anführungszeichen in Strophentexten.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'apostroph-variante',
+        category: 'Redaktion',
+        title: 'Nur das Apostroph „’“ in Texten und Titeln',
+        description:
+            "Zum Verkürzen von Wörtern soll ausschließlich das rechte einfache Anführungszeichen ’ (U+2019) verwendet werden – nicht der gerade Apostroph ('), Akut (´), Gravis (`) o. Ä. Geprüft werden Strophentexte sowie die Titel von Lied, Text und Melodie. Die Varianten lassen sich mit dem Skript 10-normalize-quotation-marks.py automatisch ersetzen.",
+        run({ genommen }) {
+            const verboten = Object.keys(VERBOTENE_APOSTROPHE);
+            const enthaltene = (wert) => verboten.filter((ch) => String(wert || '').includes(ch));
+            const items = [];
+            genommen.forEach((l) => {
+                const gefunden = new Set();
+                const stellen = [];
+                // Titel von Lied, Text und Melodie (vgl. Issue #7).
+                [
+                    ['Liedtitel', l.titel],
+                    ['Texttitel', l.text_titel],
+                    ['Melodietitel', l.melodie_titel],
+                ].forEach(([label, wert]) => {
+                    const treffer = enthaltene(wert);
+                    if (treffer.length) {
+                        stellen.push(label);
+                        treffer.forEach((ch) => gefunden.add(ch));
+                    }
+                });
+                // Strophentexte.
+                let betroffeneStrophen = 0;
+                strophen(l).forEach((s) => {
+                    const treffer = enthaltene(verseText(s));
+                    if (treffer.length) {
+                        betroffeneStrophen++;
+                        treffer.forEach((ch) => gefunden.add(ch));
+                    }
+                });
+                if (betroffeneStrophen) {
+                    stellen.push(`${betroffeneStrophen} Strophe(n)`);
+                }
+                if (gefunden.size) {
+                    const zeichen = [...gefunden].map((ch) => VERBOTENE_APOSTROPHE[ch]).join(', ');
+                    items.push(songItem(l, `${stellen.join(', ')} – mit ${zeichen}`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Alle Strophentexte und Titel verwenden nur das Apostroph ’.'
+                    : `${items.length} Lied(er) mit abweichenden Apostroph-Varianten.`,
                 items,
             );
         },
