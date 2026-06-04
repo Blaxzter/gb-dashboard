@@ -79,6 +79,25 @@ function verseText(strophe) {
 // in Silben getrennt.
 const SILBENTRENNER = '¬';
 
+// Sichtbare Zeichenzahl eines Strophentextes: Silbentrennzeichen und jeglicher
+// Whitespace (Leerzeichen, Zeilenumbrüche) werden entfernt, sodass nur der
+// eigentliche Textinhalt gezählt wird und unterschiedliche Formatierung die
+// Länge nicht verfälscht.
+function verseLength(strophe) {
+    return verseText(strophe).split(SILBENTRENNER).join('').replace(/\s+/g, '').length;
+}
+
+// Auslassungszeichen, die darauf hindeuten, dass der Stropheninhalt nicht
+// vollständig übertragen wurde: drei (oder mehr) aufeinanderfolgende Punkte
+// oder das Auslassungszeichen … (U+2026).
+const AUSLASSUNGS_REGEX = /\.{3,}|…/;
+
+// Schwellen für den Strophenlängen-Check (siehe Check „strophen-laenge-ausreisser“).
+const STROPHENLAENGE_MIN_STROPHEN = 3; // erst ab 3 (gefüllten) Strophen vergleichbar
+const STROPHENLAENGE_UNTERGRENZE = 0.5; // < 50 % des Medians → evtl. fehlender Text
+const STROPHENLAENGE_OBERGRENZE = 1.8; // > 180 % des Medians → evtl. Refrain/Anmerkung
+const STROPHENLAENGE_MIN_DIFF = 15; // absolute Mindestabweichung in Zeichen (gegen Rauschen)
+
 // Erlaubt sind nur die deutschen „Gänsefüßchen“: öffnend „ (U+201E) und
 // schließend “ (U+201C). Alle übrigen doppelten Anführungszeichen-Varianten
 // werden vom Normalisierungs-Skript auf diese beiden ersetzt und sollen daher
@@ -133,6 +152,14 @@ function detectChorbuchField(list) {
     });
     const withData = [...candidates].find((key) => list.some((lied) => hasNummer(lied[key])));
     return withData || [...candidates][0] || null;
+}
+
+// Median einer Zahlenreihe (robuster gegen Ausreißer als der Mittelwert).
+function median(values) {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 // Analysiert eine Zahlenreihe auf Lücken.
@@ -592,6 +619,82 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Alle Strophen mit Text sind in Silben getrennt.'
                     : `${items.length} Lied(er) mit Strophen ohne Silbentrennzeichen.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'strophen-auslassung',
+        category: 'Redaktion',
+        title: 'Keine ausgelassenen Strophentexte (…)',
+        description:
+            'Strophentexte, die „...“ oder „…“ enthalten – ein deutlicher Hinweis darauf, dass der Stropheninhalt nicht vollständig übertragen wurde.',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const betroffen = [];
+                strophen(l).forEach((s, index) => {
+                    if (AUSLASSUNGS_REGEX.test(verseText(s))) betroffen.push(index + 1);
+                });
+                if (betroffen.length) {
+                    const label = betroffen.length === 1 ? 'Strophe' : 'Strophen';
+                    items.push(
+                        songItem(l, `${label} ${betroffen.join(', ')} mit Auslassungszeichen`),
+                    );
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine Strophentexte mit Auslassungszeichen.'
+                    : `${items.length} Lied(er) mit „...“/„…“ in Strophentexten.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'strophen-laenge-ausreisser',
+        category: 'Redaktion',
+        title: 'Strophen eines Liedes etwa gleich lang',
+        description:
+            'Die Strophen eines Liedes sollten ähnlich viel Text enthalten. Stark abweichende Strophen können auf nicht vollständig übertragenen Text, einen nur in einer Strophe eingetragenen Refrain oder ein als Anmerkungsfeld missbrauchtes Strophen-Feld hindeuten. Verglichen wird die sichtbare Zeichenzahl (ohne Silbentrennzeichen und Leerzeichen) gegen den Median des Liedes – erst ab 3 gefüllten Strophen.',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                // Nur gefüllte Strophen vergleichen (leere verzerren den Median).
+                const lengths = strophen(l)
+                    .map((s, index) => ({ nr: index + 1, len: verseLength(s) }))
+                    .filter((x) => x.len > 0);
+                if (lengths.length < STROPHENLAENGE_MIN_STROPHEN) return;
+                const med = median(lengths.map((x) => x.len));
+                if (med <= 0) return;
+                const ausreisser = lengths.filter((x) => {
+                    const ratio = x.len / med;
+                    const abweichend =
+                        ratio < STROPHENLAENGE_UNTERGRENZE || ratio > STROPHENLAENGE_OBERGRENZE;
+                    // Zusätzlich eine absolute Mindestabweichung verlangen, damit kurze
+                    // Strophen (z. B. Median 10) keine Fehlalarme auslösen.
+                    return abweichend && Math.abs(x.len - med) >= STROPHENLAENGE_MIN_DIFF;
+                });
+                if (ausreisser.length) {
+                    const detail = ausreisser
+                        .map(
+                            (x) =>
+                                `Strophe ${x.nr}: ${x.len} Z. (${x.len < med ? 'kürzer' : 'länger'})`,
+                        )
+                        .join(', ');
+                    items.push(songItem(l, `${detail} – Median ${Math.round(med)} Z.`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'info',
+                items.length === 0
+                    ? 'Alle Lieder haben etwa gleich lange Strophen.'
+                    : `${items.length} Lied(er) mit auffällig unterschiedlichen Strophenlängen.`,
                 items,
             );
         },
