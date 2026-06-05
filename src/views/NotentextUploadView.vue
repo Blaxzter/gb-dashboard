@@ -416,20 +416,33 @@ async function rankLiederAsync(parsed, onProgress) {
     return scored.slice(0, 5);
 }
 
-// PDFs that arrived without a matching SVG queue item yet — keyed by
-// normalizedBase+page so a later-arriving SVG can claim them.
-const pdf_pool = new Map();
-
 function pdfPoolKey(parsed) {
     return `${parsed.normalizedBase}|${parsed.page}`;
 }
 
-function attachPdfToItem(item, pdfFile, parsedPdf) {
-    item.referencePdf = {
-        file: pdfFile,
-        name: pdfFile.name,
-        parsed: parsedPdf,
-    };
+// Verknüpft jede SVG mit einem gleichnamigen PDF aus der Queue, damit die SVG
+// optional (auf Knopfdruck) am PDF-Layout ausgerichtet werden kann (Issue #19).
+// Die Ausrichtung läuft nicht mehr automatisch beim Hinzufügen.
+function pairSvgWithPdf() {
+    const pdfByKey = new Map();
+    queue.value.forEach((q) => {
+        if (q.kind === 'pdf') pdfByKey.set(pdfPoolKey(q.parsed), q);
+    });
+    queue.value.forEach((q) => {
+        if (q.kind !== 'svg' || q.referencePdf) return;
+        const pdf = pdfByKey.get(pdfPoolKey(q.parsed));
+        if (pdf) {
+            q.referencePdf = { file: pdf.file, name: pdf.file.name, parsed: pdf.parsed };
+        }
+    });
+}
+
+// Startet die PDF-Ausrichtung einer SVG auf Knopfdruck (Issue #19). Der Status
+// wird über die bestehenden Chips angezeigt; ist die Analyse fertig, lässt sich
+// das Ergebnis im Dialog öffnen.
+function triggerPdfAlign(item) {
+    if (item.kind !== 'svg' || !item.referencePdf) return;
+    if (item.pdfAlign?.status === 'running') return;
     item.pdfAlign = { status: 'pending' };
     runPdfAlignWorker();
 }
@@ -439,27 +452,8 @@ async function addFiles(files) {
         .map((f) => ({ file: f, kind: detectKind(f.name) }))
         .filter((x) => x.kind);
     if (arr.length === 0) return;
-    // Pull PDFs aside; they're reference-only and attach to a matching SVG
-    // rather than becoming their own queue item.
-    const pdfs = arr.filter((x) => x.kind === 'pdf');
-    const rest = arr.filter((x) => x.kind !== 'pdf');
-    for (const { file } of pdfs) {
-        const parsed = parseFilename(file.name);
-        const key = pdfPoolKey(parsed);
-        // First try an existing SVG already in the queue
-        const target = queue.value.find(
-            (q) => q.kind === 'svg' && pdfPoolKey(q.parsed) === key && !q.referencePdf,
-        );
-        if (target) {
-            attachPdfToItem(target, file, parsed);
-        } else {
-            // Stash for SVGs that come in this same batch or later.
-            pdf_pool.set(key, { file, parsed });
-        }
-    }
-    if (rest.length === 0) return;
-    arr.length = 0;
-    arr.push(...rest);
+    // SVG, PDF und MXL werden allesamt eigenständige Queue-Items (Issue #19 –
+    // PDFs sind nicht mehr nur Layout-Referenz, sondern das Notenbild selbst).
     const candidateTotal = store.gesangbuchlieder.length;
     console.log('[matching] starting', { files: arr.length, candidates: candidateTotal });
     matching_progress.value = {
@@ -516,7 +510,8 @@ async function addFiles(files) {
                 name: file.name,
                 previewUrl,
                 parsed,
-                page: kind === 'svg' ? parsed.page : null,
+                // Seite betrifft nur das PDF-Notenbild; SVG hat ein eigenes Feld.
+                page: kind === 'mxl' ? null : parsed.page,
                 liedId: autoMatch?.id || null,
                 suggestions,
                 status: 'unmatched',
@@ -525,25 +520,17 @@ async function addFiles(files) {
                 uploadedFileId: null,
                 scan: kind === 'svg' ? { status: 'pending' } : null,
             };
-            // Claim a pending PDF from the pool if its filename matches.
-            if (kind === 'svg') {
-                const key = pdfPoolKey(parsed);
-                const pending = pdf_pool.get(key);
-                if (pending) {
-                    pdf_pool.delete(key);
-                    attachPdfToItem(item, pending.file, pending.parsed);
-                }
-            }
             queue.value.push(item);
             if (autoMatch) refreshItemStatus(item);
         }
     } finally {
         matching_progress.value.active = false;
     }
+    // SVG <-> PDF paaren, damit die SVG optional am PDF ausgerichtet werden kann.
+    pairSvgWithPdf();
     sortQueue();
     if (queue.value.length > 0) dropbox_collapsed.value = true;
     runScanWorker();
-    runPdfAlignWorker();
 }
 
 function refreshItemStatus(item) {
@@ -609,7 +596,8 @@ function setLied(item, lied) {
 }
 
 function togglePage(item) {
-    if (item.kind !== 'svg') return;
+    // Seite 1/2 betrifft nur das PDF-Notenbild (notentext / notentext_seite2).
+    if (item.kind !== 'pdf') return;
     if (['uploading', 'done'].includes(item.status)) return;
     item.page = item.page === 1 ? 2 : 1;
     item.conflictChoice = null;
@@ -619,7 +607,7 @@ function togglePage(item) {
 function applyConflictChoice(item, choice) {
     item.conflictChoice = choice;
     if (choice === 'swap') {
-        if (item.kind !== 'svg') return;
+        if (item.kind !== 'pdf') return;
         item.page = item.page === 1 ? 2 : 1;
         item.conflictChoice = null;
         refreshItemStatus(item);
@@ -643,12 +631,19 @@ function lookupLied(id) {
 function liedHasField(lied, item) {
     if (!lied) return false;
     if (item.kind === 'mxl') return !!lied.notentext_mxml;
+    // SVG -> eigenes Feld (Issue #19); PDF -> notentext / notentext_seite2
+    if (item.kind === 'svg') return !!lied.notentext_svg;
     return item.page === 2 ? !!lied.notentext_seite2 : !!lied.notentext;
 }
 
 function fieldFor(item) {
     if (item.kind === 'mxl') {
         return { field: 'notentext_mxml', fileField: 'notentext_mxml_file' };
+    }
+    // Die gebackene SVG landet in notentext_svg, das PDF-Notenbild in
+    // notentext / notentext_seite2 (Issue #19).
+    if (item.kind === 'svg') {
+        return { field: 'notentext_svg', fileField: 'notentext_svg_file' };
     }
     return item.page === 2
         ? { field: 'notentext_seite2', fileField: 'notentext_seite2_file' }
@@ -896,11 +891,12 @@ function detachItem(item) {
 }
 
 function showPageToggle(item, group) {
-    if (item.kind !== 'svg') return false;
+    // Seite 1/2 betrifft nur das PDF-Notenbild (notentext / notentext_seite2).
+    if (item.kind !== 'pdf') return false;
     if (item.page === 2) return true;
     if (item.parsed?.page === 2) return true;
-    const svgCount = group?.items?.filter((i) => i.kind === 'svg').length ?? 0;
-    if (svgCount > 1) return true;
+    const pdfCount = group?.items?.filter((i) => i.kind === 'pdf').length ?? 0;
+    if (pdfCount > 1) return true;
     return false;
 }
 
@@ -963,7 +959,8 @@ function buildSummaryText() {
         lines.push(`Hochgeladen (${done.length}):`);
         done.forEach((q) => {
             const lied = lookupLied(q.liedId);
-            const kindLabel = q.kind === 'mxl' ? 'MusicXML' : `Seite ${q.page}`;
+            const kindLabel =
+                q.kind === 'mxl' ? 'MusicXML' : q.kind === 'svg' ? 'SVG' : `Seite ${q.page}`;
             lines.push(
                 `  • Lied ${lied?.liednummer2026 || lied?.liednummer2000 || '–'} „${lied?.titel || ''}" – ${kindLabel} (${q.name})`,
             );
@@ -1048,13 +1045,14 @@ async function shareSummary() {
                 >
                     <v-icon size="40" color="primary">mdi-cloud-upload-outline</v-icon>
                     <div class="text-subtitle-1 mt-2">
-                        SVG-, MXL- und PDF-Dateien hier ablegen oder klicken zum Auswählen
+                        SVG-, PDF- und MXL-Dateien hier ablegen oder klicken zum Auswählen
                     </div>
                     <div class="text-caption text-medium-emphasis">
-                        Mehrere Dateien auf einmal möglich (SVG + MXL für denselben Song werden
-                        automatisch zugeordnet). Liednummer und „_seite2"/„_2" im Dateinamen
-                        werden erkannt. PDFs werden nicht hochgeladen, sondern als
-                        Layout-Referenz zum automatischen Ausrichten der SVG-Texte verwendet.
+                        Mehrere Dateien auf einmal möglich. Liednummer und „_seite2"/„_2" im
+                        Dateinamen werden erkannt. Das PDF-Notenbild wird als Notentext
+                        gespeichert (Seite 1/2), die SVG zusätzlich gebacken als
+                        Bearbeitungs-Vorlage. Liegen SVG und PDF zum selben Lied vor, kann die SVG
+                        auf Knopfdruck am PDF-Layout ausgerichtet werden.
                     </div>
                 </div>
             </div>
@@ -1264,6 +1262,10 @@ async function shareSummary() {
                         <v-icon size="40" color="primary">mdi-music-box-multiple-outline</v-icon>
                         <div class="text-caption text-medium-emphasis mt-1">MusicXML</div>
                     </template>
+                    <template v-else-if="item.kind === 'pdf'">
+                        <v-icon size="40" color="error">mdi-file-pdf-box</v-icon>
+                        <div class="text-caption text-medium-emphasis mt-1">PDF</div>
+                    </template>
                 </div>
 
                 <div class="d-flex flex-column ga-1 flex-grow-1" style="min-width: 0;">
@@ -1286,6 +1288,15 @@ async function shareSummary() {
                             prepend-icon="mdi-music-box-outline"
                         >
                             MusicXML
+                        </v-chip>
+                        <v-chip
+                            v-else-if="item.kind === 'svg'"
+                            size="x-small"
+                            variant="tonal"
+                            color="primary"
+                            prepend-icon="mdi-svg"
+                        >
+                            SVG
                         </v-chip>
                         <template v-else>
                             <v-chip
@@ -1440,7 +1451,7 @@ async function shareSummary() {
                         </v-tooltip>
                         <v-tooltip
                             v-else-if="item.kind === 'svg' && item.referencePdf"
-                            text="PDF-Referenz vorhanden"
+                            text="SVG am PDF-Layout ausrichten (Analyse auf Knopfdruck)"
                             location="top"
                         >
                             <template #activator="{ props }">
@@ -1448,9 +1459,12 @@ async function shareSummary() {
                                     v-bind="props"
                                     size="x-small"
                                     variant="tonal"
+                                    color="primary"
                                     prepend-icon="mdi-file-pdf-box"
+                                    class="cursor-pointer"
+                                    @click="triggerPdfAlign(item)"
                                 >
-                                    PDF
+                                    PDF ausrichten
                                 </v-chip>
                             </template>
                         </v-tooltip>
@@ -1464,6 +1478,9 @@ async function shareSummary() {
                         <span class="text-caption">
                             <template v-if="item.kind === 'mxl'">
                                 Lied hat bereits eine MusicXML-Datei. Was tun?
+                            </template>
+                            <template v-else-if="item.kind === 'svg'">
+                                Lied hat bereits eine SVG-Notentext-Datei. Was tun?
                             </template>
                             <template v-else>
                                 Lied hat bereits einen Notentext für Seite {{ item.page }}. Was tun?
@@ -1487,7 +1504,7 @@ async function shareSummary() {
                                 Gleich mit hochgeladener Version
                             </v-btn>
                             <v-btn
-                                v-if="item.kind === 'svg'"
+                                v-if="item.kind === 'pdf'"
                                 size="x-small"
                                 variant="tonal"
                                 @click="applyConflictChoice(item, 'swap')"
@@ -1524,7 +1541,7 @@ async function shareSummary() {
                                 Überschreiben
                             </v-btn>
                             <v-btn
-                                v-if="item.kind === 'svg'"
+                                v-if="item.kind === 'pdf'"
                                 size="x-small"
                                 variant="tonal"
                                 @click="applyConflictChoice(item, 'swap')"

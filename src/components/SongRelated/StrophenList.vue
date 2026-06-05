@@ -277,13 +277,29 @@
         >
             {{ saveError }}
         </v-alert>
-        <v-checkbox
-            v-model="korrekturlesung1"
-            label="Korrektur gelesen"
-            color="primary"
-            density="compact"
-            hide-details
-        />
+        <div class="d-flex flex-column align-start">
+            <v-checkbox
+                v-model="korrekturlesung1"
+                label="1. Korrekturlesung (1. Strophe) erfolgt"
+                color="primary"
+                density="compact"
+                hide-details
+            />
+            <v-checkbox
+                v-model="korrekturlesung1_alle_Strophen"
+                label="1. Korrekturlesung (alle Strophen) erfolgt"
+                color="primary"
+                density="compact"
+                hide-details
+            />
+            <v-checkbox
+                v-model="korrekturlesung2"
+                label="2. Korrekturlesung (alle Strophen) erfolgt"
+                color="primary"
+                density="compact"
+                hide-details
+            />
+        </div>
         <div class="d-flex ga-2">
             <v-btn
                 color="primary"
@@ -361,6 +377,8 @@ export default {
         isSaving: false,
         saveError: null,
         korrekturlesung1: false,
+        korrekturlesung1_alle_Strophen: false,
+        korrekturlesung2: false,
         bewertungOptions: [
             { title: 'Akzeptiert', value: 'accepted' },
             { title: 'Abgelehnt', value: 'rejected' },
@@ -397,7 +415,7 @@ export default {
                     show: this.showExtraStrophenData,
                 }));
                 this.editedStrophen = _.cloneDeep(this.show_strophen);
-                this.korrekturlesung1 = newText?.korrekturlesung1 || false;
+                this.syncKorrekturlesung(newText);
             },
             deep: true,
         },
@@ -405,8 +423,8 @@ export default {
             if (newVal) {
                 // Reset edited strophen when entering edit mode
                 this.editedStrophen = _.cloneDeep(this.show_strophen);
-                // Reset korrekturlesung1 from text object
-                this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
+                // Reset korrekturlesung flags from text object
+                this.syncKorrekturlesung(this.text);
             }
         },
     },
@@ -419,8 +437,8 @@ export default {
         // Initialize edited strophen as deep copy
         this.editedStrophen = _.cloneDeep(this.show_strophen);
 
-        // Initialize korrekturlesung1 from text object
-        this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
+        // Initialize korrekturlesung flags from text object
+        this.syncKorrekturlesung(this.text);
 
         // Load settings from localStorage
         this.loadSettings();
@@ -563,21 +581,6 @@ export default {
             );
         },
 
-        saveSettings() {
-            localStorage.setItem(
-                'strophen-show-syllable-symbols',
-                JSON.stringify(this.internalShowSyllableSymbols),
-            );
-            localStorage.setItem(
-                'strophen-show-spaces-as-dots',
-                JSON.stringify(this.internalShowSpacesAsDots),
-            );
-            localStorage.setItem(
-                'strophen-show-ki-review',
-                JSON.stringify(this.internalShowKiReview),
-            );
-        },
-
         loadSettings() {
             const savedSyllableSymbols = localStorage.getItem('strophen-show-syllable-symbols');
             const savedSpacesAsDots = localStorage.getItem('strophen-show-spaces-as-dots');
@@ -616,7 +619,11 @@ export default {
                         }
                         return payload;
                     }),
-                    this.korrekturlesung1,
+                    {
+                        korrekturlesung1: this.korrekturlesung1,
+                        korrekturlesung1_alle_Strophen: this.korrekturlesung1_alle_Strophen,
+                        korrekturlesung2: this.korrekturlesung2,
+                    },
                 );
 
                 // Update local data only after successful save
@@ -639,11 +646,19 @@ export default {
         cancelEdit() {
             // Reset edited strophen
             this.editedStrophen = _.cloneDeep(this.show_strophen);
-            // Reset korrekturlesung1
-            this.korrekturlesung1 = this.text?.korrekturlesung1 || false;
+            // Reset korrekturlesung flags
+            this.syncKorrekturlesung(this.text);
             this.saveError = null;
             // Emit event to close edit mode
             this.$emit('edit-completed');
+        },
+
+        // Übernimmt die Korrekturlesungs-Flags aus einem Text-Objekt in die lokalen
+        // Checkboxen (Issue #20).
+        syncKorrekturlesung(text) {
+            this.korrekturlesung1 = text?.korrekturlesung1 || false;
+            this.korrekturlesung1_alle_Strophen = text?.korrekturlesung1_alle_Strophen || false;
+            this.korrekturlesung2 = text?.korrekturlesung2 || false;
         },
     },
 };

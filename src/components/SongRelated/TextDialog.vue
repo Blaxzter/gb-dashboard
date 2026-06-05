@@ -134,14 +134,7 @@
             </div>
             <div v-for="(author, index) in text?.authors" :key="index" class="d-flex flex-row mb-4">
                 <div class="me-2">{{ index + 1 }}.</div>
-                <div>
-                    {{ author.vorname }} {{ author.nachname }}
-                    {{
-                        author.geburtsjahr || author.sterbejahr
-                            ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''} ${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
-                            : ''
-                    }}
-                </div>
+                <div>{{ formatAuthorEntry(author) }}</div>
             </div>
         </v-card-text>
         <v-card-actions>
@@ -152,6 +145,7 @@
 
 <script>
 import { auftrag_type_to_name, status_mapping } from '../../assets/js/utils';
+import { formatAuthorEntry } from '@/assets/js/authorFormat';
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 
 export default {
@@ -174,6 +168,10 @@ export default {
         status_mapping() {
             return status_mapping;
         },
+    },
+    methods: {
+        // Volle Autoren-Formatierung inkl. Präfix/Suffix und Ursprungsautor (Issue #24).
+        formatAuthorEntry,
     },
 };
 </script>

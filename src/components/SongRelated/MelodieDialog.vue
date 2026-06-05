@@ -113,14 +113,7 @@
                 class="d-flex flex-row mb-1 ps-3"
             >
                 <div class="me-2">{{ index + 1 }}.</div>
-                <div>
-                    {{ author.vorname }} {{ author.nachname }}
-                    {{
-                        author.geburtsjahr || author.sterbejahr
-                            ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''} ${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
-                            : ''
-                    }}
-                </div>
+                <div>{{ formatAuthorEntry(author) }}</div>
             </div>
         </v-card-text>
         <v-card-actions>
@@ -144,6 +137,7 @@
 <script>
 import VuePdfEmbed from 'vue-pdf-embed';
 import { auftrag_type_to_name, status_mapping } from '@/assets/js/utils';
+import { formatAuthorEntry } from '@/assets/js/authorFormat';
 
 export default {
     name: 'MelodieDialog',
@@ -169,6 +163,8 @@ export default {
         },
     },
     methods: {
+        // Volle Autoren-Formatierung inkl. Präfix/Suffix und Ursprungsautor (Issue #24).
+        formatAuthorEntry,
         getPdfUrl(file_id) {
             return `${import.meta.env.VITE_BACKEND_URL}/assets/${file_id}.pdf`;
         },

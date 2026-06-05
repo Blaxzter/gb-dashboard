@@ -24,15 +24,21 @@
                     hide-details
                     class="pa-4"
                 ></v-text-field>
-                <v-btn
-                    icon="mdi-filter-variant"
-                    :color="filter_expanded ? 'primary' : null"
+                <v-badge
+                    :model-value="active_filter_count > 0"
+                    :content="active_filter_count"
+                    color="primary"
                     class="my-4"
-                    @click="filter_expanded = !filter_expanded"
-                ></v-btn>
+                >
+                    <v-btn
+                        icon="mdi-filter-variant"
+                        :color="filter_expanded ? 'primary' : null"
+                        @click="filter_expanded = !filter_expanded"
+                    ></v-btn>
+                </v-badge>
             </div>
             <v-expand-transition v-show="filter_expanded">
-                <v-card class="mb-5">
+                <v-card class="mb-5" variant="outlined">
                     <v-card-title>
                         <div class="d-flex justify-space-between align-center">
                             <div>Filter</div>
@@ -56,7 +62,7 @@
 
                                 <v-tooltip
                                     v-if="admin && admin_ansicht"
-                                    text="Share filter"
+                                    text="Filter teilen (Link kopieren)"
                                     location="left"
                                 >
                                     <template #activator="{ props }">
@@ -78,22 +84,40 @@
                         </div>
                     </v-card-title>
                     <v-card-text>
+                        <!-- Aktive Filter als entfernbare Chips -->
+                        <div
+                            v-if="active_filters.length"
+                            class="d-flex flex-wrap align-center ga-1 mb-4"
+                        >
+                            <span class="text-caption text-medium-emphasis me-1">Aktiv:</span>
+                            <v-chip
+                                v-for="chip in active_filters"
+                                :key="chip.key"
+                                :color="chip.color"
+                                :prepend-icon="chip.icon"
+                                variant="flat"
+                                size="small"
+                                closable
+                                @click:close="chip.remove()"
+                            >
+                                {{ chip.text }}
+                            </v-chip>
+                        </div>
+
                         <div class="d-flex align-center mb-4">
                             <v-text-field
-                                v-model="strophenSearch"
+                                v-model="filters.strophenSearch"
                                 single-line
                                 prepend-inner-icon="mdi-magnify"
-                                e="mdi-magnify"
                                 label="Strophen Suche"
                                 hide-details
+                                clearable
                             ></v-text-field>
                         </div>
 
                         <div v-if="admin && admin_ansicht" class="d-flex align-center mb-4">
-                            <!-- Select vuetify element if admin is true that has status as values -->
-
                             <v-select
-                                v-model="selected_bewertung"
+                                v-model="filters.bewertung"
                                 :items="bewertungen"
                                 prepend-inner-icon="mdi-list-status"
                                 label="Filter Bewertung nach"
@@ -104,7 +128,7 @@
                             />
 
                             <v-select
-                                v-model="selected_status"
+                                v-model="filters.status"
                                 prepend-inner-icon="mdi-check"
                                 :items="status_list"
                                 label="Filter Status nach"
@@ -115,18 +139,17 @@
                             />
 
                             <v-checkbox
-                                v-model="selected_aenderung"
+                                v-model="filters.aenderung"
                                 label="Hat Änderungen"
                                 style="min-width: 158px"
                                 hide-details
                                 single-line
-                            >
-                            </v-checkbox>
+                            />
                         </div>
 
                         <div class="d-flex align-center mb-4">
                             <v-autocomplete
-                                v-model="selected_author"
+                                v-model="filters.authors"
                                 prepend-inner-icon="mdi-account"
                                 :items="authors"
                                 item-value="autor_id"
@@ -140,7 +163,7 @@
                             />
 
                             <v-select
-                                v-model="check_autor_copyright"
+                                v-model="filters.copyright"
                                 label="Autor/Copyright prüfen"
                                 prepend-inner-icon="mdi-copyright"
                                 :items="[
@@ -154,12 +177,12 @@
                             />
                         </div>
 
-                        <div class="d-flex align-center mb-4">
+                        <div class="d-flex align-center mb-4 ga-3">
                             <v-autocomplete
-                                v-model="kategorie"
+                                v-model="filters.kategorie"
                                 prepend-inner-icon="mdi-tag"
                                 label="Zugehörige Kategorie"
-                                class="me-3"
+                                class="flex-grow-1"
                                 :items="store.kategorie"
                                 item-title="name"
                                 item-value="id"
@@ -186,90 +209,71 @@
                                 </template>
                             </v-autocomplete>
 
-                            <v-btn-toggle
-                                v-model="filter"
+                            <!-- Status- & Korrektur-Filter als An/Aus/Egal-Liste im Popover. -->
+                            <v-btn
                                 variant="outlined"
-                                multiple
-                                color="primary"
+                                height="56"
+                                prepend-icon="mdi-tune-variant"
+                                :color="quick_filter_count > 0 ? 'primary' : undefined"
                             >
-                                <v-tooltip
-                                    text="Nur Gesangbuchlieder mit Textvorschlägen anzeigen."
-                                    location="bottom"
+                                Status &amp; Korrektur
+                                <span v-if="quick_filter_count > 0" class="ms-1"
+                                    >({{ quick_filter_count }})</span
                                 >
-                                    <template #activator="{ props }">
-                                        <v-btn v-bind="props" value="suggestions">
-                                            <v-icon color="primary">mdi-text-box-edit</v-icon>
-                                        </v-btn>
-                                    </template>
-                                </v-tooltip>
-                                <v-tooltip
-                                    text="Nur Gesangbuchlieder mit Anmerkung anzeigen."
-                                    location="bottom"
+                                <v-menu
+                                    activator="parent"
+                                    :close-on-content-click="false"
+                                    location="bottom end"
+                                    offset="8"
                                 >
-                                    <template #activator="{ props }">
-                                        <v-btn v-bind="props" value="remarks">
-                                            <v-icon color="primary">mdi-message</v-icon>
-                                        </v-btn>
-                                    </template>
-                                </v-tooltip>
-                                <v-tooltip
-                                    text="Nur Gesangbuchlieder mit Korrekturlesung anzeigen."
-                                    location="bottom"
-                                >
-                                    <template #activator="{ props }">
-                                        <v-btn v-bind="props" value="korrekturlesung1">
-                                            <v-icon color="primary">mdi-check-circle</v-icon>
-                                        </v-btn>
-                                    </template>
-                                </v-tooltip>
-                                <v-tooltip
-                                    text="Nur Gesangbuchlieder ohne Korrekturlesung anzeigen."
-                                    location="bottom"
-                                >
-                                    <template #activator="{ props }">
-                                        <v-btn v-bind="props" value="not_korrekturlesung1">
-                                            <v-icon color="primary">mdi-close-circle</v-icon>
-                                        </v-btn>
-                                    </template>
-                                </v-tooltip>
-                                <v-tooltip
-                                    text="Nur Gesangbuchlieder mit geändertem Text (gegenüber Gesangbuch 2000) anzeigen."
-                                    location="bottom"
-                                >
-                                    <template #activator="{ props }">
-                                        <v-btn v-bind="props" value="text_geaendert">
-                                            <v-icon color="primary">mdi-text-box-edit</v-icon>
-                                        </v-btn>
-                                    </template>
-                                </v-tooltip>
-                                <v-tooltip
-                                    text="Nur Gesangbuchlieder mit geänderter Melodie (gegenüber Gesangbuch 2000) anzeigen."
-                                    location="bottom"
-                                >
-                                    <template #activator="{ props }">
-                                        <v-btn v-bind="props" value="melodie_geaendert">
-                                            <v-icon color="primary">mdi-music-box</v-icon>
-                                        </v-btn>
-                                    </template>
-                                </v-tooltip>
-                            </v-btn-toggle>
-
-                            <v-tooltip :text="notentext_filter_label" location="bottom">
-                                <template #activator="{ props }">
-                                    <v-btn
-                                        v-bind="props"
-                                        variant="outlined"
-                                        :color="notentext_filter ? 'primary' : undefined"
-                                        class="ms-2"
-                                        @click="cycleNotentextFilter"
-                                    >
-                                        <v-icon :color="notentext_filter ? 'primary' : undefined">
-                                            {{ notentext_filter_icon }}
-                                        </v-icon>
-                                    </v-btn>
-                                </template>
-                            </v-tooltip>
+                                    <v-card width="400">
+                                        <v-card-text>
+                                            <TriStateFilter
+                                                v-model="filters.suggestions"
+                                                label="Textvorschläge"
+                                                icon="mdi-text-box-edit"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.remarks"
+                                                label="Anmerkungen"
+                                                icon="mdi-message"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.korrekturlesung1"
+                                                label="Korrekturlesung"
+                                                icon="mdi-check-circle"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.korrekturlesung1_alle"
+                                                label="1. KL · alle Strophen"
+                                                icon="mdi-numeric-1-circle"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.korrekturlesung2"
+                                                label="2. KL · alle Strophen"
+                                                icon="mdi-numeric-2-circle"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.textGeaendert"
+                                                label="Text geändert"
+                                                icon="mdi-text-box-edit"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.melodieGeaendert"
+                                                label="Melodie geändert"
+                                                icon="mdi-music-box"
+                                            />
+                                            <TriStateFilter
+                                                v-model="filters.notentext"
+                                                label="Notentext"
+                                                icon="mdi-file-music"
+                                            />
+                                        </v-card-text>
+                                    </v-card>
+                                </v-menu>
+                            </v-btn>
                         </div>
+
                         <!-- Drop down with multi select  -->
                         <v-select
                             :model-value="visible_selected_columns"
@@ -402,10 +406,31 @@ import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComp
 import _ from 'lodash';
 import { gesangbuch_kategorie_name_to_icon, status_mapping } from '@/assets/js/utils';
 import BewerungKleinerKreisDatatableEntry from '@/components/BewerungKleinerKreisDatatableEntry.vue';
+import TriStateFilter from '@/components/TriStateFilter.vue';
+
+// Standardzustand aller Filter. Tri-State-Filter sind 'an' | 'aus' | 'egal'
+// ('egal' = inaktiv), die übrigen null/[] für "kein Filter".
+const defaultFilters = () => ({
+    strophenSearch: null,
+    bewertung: null,
+    status: null,
+    authors: [],
+    copyright: null, // true | false | null
+    kategorie: [],
+    aenderung: false, // einfache Checkbox im Filter-Block
+    suggestions: 'egal',
+    remarks: 'egal',
+    korrekturlesung1: 'egal',
+    korrekturlesung1_alle: 'egal',
+    korrekturlesung2: 'egal',
+    textGeaendert: 'egal',
+    melodieGeaendert: 'egal',
+    notentext: 'egal', // 'an' = mit Notentext, 'aus' = ohne
+});
 
 export default {
     name: 'SongOverview',
-    components: { BewerungKleinerKreisDatatableEntry, GesangbuchLiedComponent },
+    components: { BewerungKleinerKreisDatatableEntry, GesangbuchLiedComponent, TriStateFilter },
     data: () => ({
         selected_columns: [
             'Titel',
@@ -417,22 +442,14 @@ export default {
         ],
         snackbar: false,
         snackbar_message: '',
-        selected_bewertung: null,
-        selected_author: null,
-        selected_status: null,
-        kategorie: null,
-        filter_expanded: false,
         search: null,
-        strophenSearch: null,
+        filter_expanded: false,
         song_dialog: false,
         selected_song: null,
-        selected_aenderung: false,
-        filter: [],
         store: useAppStore(),
         userStore: useUserStore(),
-        check_autor_copyright: null,
         sortBy: [],
-        notentext_filter: null, // null | 'has' | 'no'
+        filters: defaultFilters(),
     }),
     computed: {
         possible_columns() {
@@ -567,161 +584,187 @@ export default {
             return [...rated, 'Unbewertet'];
         },
         filtered_gesangbuchlieder() {
-            console.log('filtered_gesangbuchlieder');
-            let filtered_gesangbuchlied = _.filter(
-                this.gesangbuchlieder,
-                (elem) =>
-                    this.selected_status == null ||
-                    (this.selected_status &&
-                        status_mapping[elem['status']] === this.selected_status),
-            );
+            const f = this.filters;
+            let list = this.gesangbuchlieder;
 
-            if (this.selected_bewertung) {
-                const target =
-                    this.selected_bewertung === 'Unbewertet' ? '' : this.selected_bewertung;
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
+            // Tri-State-Helfer: filtert nach 'an'/'aus', ignoriert 'egal'.
+            const tri = (state, predicate) => {
+                if (state === 'an') list = _.filter(list, predicate);
+                else if (state === 'aus') list = _.filter(list, (elem) => !predicate(elem));
+            };
+
+            if (f.status) {
+                list = _.filter(list, (elem) => status_mapping[elem['status']] === f.status);
+            }
+
+            if (f.bewertung) {
+                const target = f.bewertung === 'Unbewertet' ? '' : f.bewertung;
+                list = _.filter(
+                    list,
                     (elem) => elem['bewertung_kleiner_kreis'].bezeichner === target,
                 );
             }
 
-            if (this.selected_author && this.selected_author.length > 0) {
-                filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) =>
-                    _.some(elem.authors, (author) => this.selected_author.includes(author.autor_id)),
+            if (f.authors && f.authors.length > 0) {
+                list = _.filter(list, (elem) =>
+                    _.some(elem.authors, (author) => f.authors.includes(author.autor_id)),
                 );
             }
 
-            // filter by selected_aenderung
-            if (this.selected_aenderung) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => elem.liedHatAenderung,
-                );
-            }
-
-            // filter by korrekturlesung1
-            if (this.filter_by_korrekturlesung1) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => elem.text?.korrekturlesung1 === true,
-                );
-            } else if (this.filter_by_not_korrekturlesung1) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => elem.text?.korrekturlesung1 !== true,
-                );
-            }
-
-            if (this.filter_by_text_geaendert) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => elem.textGeaendert === true,
-                );
-            }
-
-            if (this.filter_by_melodie_geaendert) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => elem.melodieGeaendert === true,
-                );
-            }
-
-            if (this.notentext_filter === 'has') {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => !!elem.notentext,
-                );
-            } else if (this.notentext_filter === 'no') {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => !elem.notentext,
-                );
-            }
-
-            filtered_gesangbuchlied = _.filter(
-                filtered_gesangbuchlied,
-                (elem) =>
-                    !this.filter_by_suggestions ||
-                    _.some(elem?.text?.strophenEinzeln, (obj) => {
-                        return (
-                            _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag)
-                        );
-                    }),
+            if (f.aenderung) list = _.filter(list, (elem) => elem.liedHatAenderung);
+            tri(f.korrekturlesung1, (elem) => elem.text?.korrekturlesung1 === true);
+            tri(
+                f.korrekturlesung1_alle,
+                (elem) => elem.text?.korrekturlesung1_alle_Strophen === true,
+            );
+            tri(f.korrekturlesung2, (elem) => elem.text?.korrekturlesung2 === true);
+            tri(f.textGeaendert, (elem) => elem.textGeaendert === true);
+            tri(f.melodieGeaendert, (elem) => elem.melodieGeaendert === true);
+            tri(f.notentext, (elem) => !!elem.notentext);
+            tri(f.suggestions, (elem) =>
+                _.some(
+                    elem?.text?.strophenEinzeln,
+                    (obj) =>
+                        _.has(obj, 'aenderungsvorschlag') && !_.isEmpty(obj.aenderungsvorschlag),
+                ),
+            );
+            tri(f.remarks, (elem) =>
+                _.some(
+                    elem?.text?.strophenEinzeln,
+                    (obj) => _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung),
+                ),
             );
 
-            if (this.filter_by_remarks) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) =>
-                        !this.filter_by_remarks ||
-                        _.some(elem?.text?.strophenEinzeln, (obj) => {
-                            return _.has(obj, 'anmerkung') && !_.isEmpty(obj.anmerkung);
-                        }),
-                );
-            }
-
-            // get kategorie names
-            const selected_kategorie_names = _.map(this.kategorie, 'name');
-
+            const selected_kategorie_names = _.map(f.kategorie, 'name');
             if (selected_kategorie_names.length > 0) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) =>
-                        !selected_kategorie_names.length ||
-                        _.every(selected_kategorie_names, (obj) => {
-                            return _.some(
-                                elem?.kategories,
-                                (kategorie) => kategorie.kategorie_name.name === obj,
-                            );
-                        }),
+                list = _.filter(list, (elem) =>
+                    _.every(selected_kategorie_names, (name) =>
+                        _.some(
+                            elem?.kategories,
+                            (kategorie) => kategorie.kategorie_name.name === name,
+                        ),
+                    ),
                 );
             }
 
-            if (this.strophenSearch) {
-                filtered_gesangbuchlied = _.filter(filtered_gesangbuchlied, (elem) => {
-                    return elem.strophen_connected?.includes(this.strophenSearch.toLowerCase());
+            if (f.strophenSearch) {
+                const needle = f.strophenSearch.toLowerCase();
+                list = _.filter(list, (elem) => elem.strophen_connected?.includes(needle));
+            }
+
+            if (f.copyright !== null) {
+                list = _.filter(list, (elem) => elem.autor_oder_copyright_checken === f.copyright);
+            }
+
+            return list;
+        },
+        // Aktive Filter als Chip-Beschreibungen für die Anzeige über der Tabelle.
+        active_filters() {
+            const f = this.filters;
+            const chips = [];
+
+            if (f.strophenSearch)
+                chips.push({
+                    key: 'strophenSearch',
+                    icon: 'mdi-magnify',
+                    color: 'blue-grey',
+                    text: `Strophen: ${f.strophenSearch}`,
+                    remove: () => (this.filters.strophenSearch = null),
                 });
-            }
+            if (f.bewertung)
+                chips.push({
+                    key: 'bewertung',
+                    icon: 'mdi-list-status',
+                    color: 'indigo',
+                    text: `Bewertung: ${f.bewertung}`,
+                    remove: () => (this.filters.bewertung = null),
+                });
+            if (f.status)
+                chips.push({
+                    key: 'status',
+                    icon: 'mdi-check',
+                    color: 'teal',
+                    text: `Status: ${f.status}`,
+                    remove: () => (this.filters.status = null),
+                });
+            (f.authors || []).forEach((id) =>
+                chips.push({
+                    key: `author:${id}`,
+                    icon: 'mdi-account',
+                    color: 'deep-purple',
+                    text: this.authorName(id),
+                    remove: () =>
+                        (this.filters.authors = this.filters.authors.filter((a) => a !== id)),
+                }),
+            );
+            if (f.copyright !== null)
+                chips.push({
+                    key: 'copyright',
+                    icon: 'mdi-copyright',
+                    color: 'brown',
+                    text: `Copyright: ${f.copyright ? 'Zu prüfen' : 'Geprüft'}`,
+                    remove: () => (this.filters.copyright = null),
+                });
+            if (f.aenderung)
+                chips.push({
+                    key: 'aenderung',
+                    icon: 'mdi-pencil',
+                    color: 'orange',
+                    text: 'Hat Änderungen',
+                    remove: () => (this.filters.aenderung = false),
+                });
+            (f.kategorie || []).forEach((k) =>
+                chips.push({
+                    key: `kat:${k.id ?? k.name}`,
+                    icon: 'mdi-tag',
+                    color: 'green',
+                    text: k.name,
+                    remove: () =>
+                        (this.filters.kategorie = this.filters.kategorie.filter((x) => x !== k)),
+                }),
+            );
 
-            // Update the autor_oder_copyright_checken filter
-            if (this.check_autor_copyright !== null) {
-                filtered_gesangbuchlied = _.filter(
-                    filtered_gesangbuchlied,
-                    (elem) => elem.autor_oder_copyright_checken === this.check_autor_copyright,
-                );
-            }
+            const triChips = [
+                ['suggestions', 'mdi-text-box-edit', 'Textvorschläge'],
+                ['remarks', 'mdi-message', 'Anmerkungen'],
+                ['korrekturlesung1', 'mdi-check-circle', 'Korrekturlesung'],
+                ['korrekturlesung1_alle', 'mdi-numeric-1-circle', '1. KL alle Strophen'],
+                ['korrekturlesung2', 'mdi-numeric-2-circle', '2. KL alle Strophen'],
+                ['textGeaendert', 'mdi-text-box-edit', 'Text geändert'],
+                ['melodieGeaendert', 'mdi-music-box', 'Melodie geändert'],
+                ['notentext', 'mdi-file-music', 'Notentext'],
+            ];
+            triChips.forEach(([key, icon, label]) => {
+                const state = f[key];
+                if (state === 'an' || state === 'aus') {
+                    chips.push({
+                        key,
+                        icon,
+                        color: state === 'an' ? 'success' : 'error',
+                        text: `${label}: ${state === 'an' ? 'An' : 'Aus'}`,
+                        remove: () => (this.filters[key] = 'egal'),
+                    });
+                }
+            });
 
-            return filtered_gesangbuchlied;
+            return chips;
         },
-        filter_by_remarks() {
-            return this.filter.includes('remarks');
+        active_filter_count() {
+            return this.active_filters.length;
         },
-        filter_by_suggestions() {
-            return this.filter.includes('suggestions');
-        },
-        filter_by_korrekturlesung1() {
-            return this.filter.includes('korrekturlesung1');
-        },
-        filter_by_not_korrekturlesung1() {
-            return this.filter.includes('not_korrekturlesung1');
-        },
-        filter_by_text_geaendert() {
-            return this.filter.includes('text_geaendert');
-        },
-        filter_by_melodie_geaendert() {
-            return this.filter.includes('melodie_geaendert');
-        },
-        notentext_filter_icon() {
-            if (this.notentext_filter === 'has') return 'mdi-file-music';
-            if (this.notentext_filter === 'no') return 'mdi-file-music-outline';
-            return 'mdi-file-music';
-        },
-        notentext_filter_label() {
-            if (this.notentext_filter === 'has')
-                return 'Notentext: nur mit (klicken: nur ohne)';
-            if (this.notentext_filter === 'no')
-                return 'Notentext: nur ohne (klicken: egal)';
-            return 'Notentext: egal (klicken: nur mit)';
+        // Anzahl gesetzter Tri-State-Filter im "Status & Korrektur"-Popover.
+        quick_filter_count() {
+            const keys = [
+                'suggestions',
+                'remarks',
+                'korrekturlesung1',
+                'korrekturlesung1_alle',
+                'korrekturlesung2',
+                'textGeaendert',
+                'melodieGeaendert',
+                'notentext',
+            ];
+            return keys.filter((k) => this.filters[k] !== 'egal').length;
         },
         admin() {
             return this.userStore.is_kleiner_kreis;
@@ -733,17 +776,6 @@ export default {
     watch: {
         selected_columns(newValue) {
             localStorage.setItem('selected_columns', JSON.stringify(newValue));
-        },
-        filter(newValue, oldValue) {
-            const added = _.difference(newValue, oldValue);
-            if (added.includes('korrekturlesung1') && newValue.includes('not_korrekturlesung1')) {
-                this.filter = newValue.filter((v) => v !== 'not_korrekturlesung1');
-            } else if (
-                added.includes('not_korrekturlesung1') &&
-                newValue.includes('korrekturlesung1')
-            ) {
-                this.filter = newValue.filter((v) => v !== 'korrekturlesung1');
-            }
         },
         song_dialog: function (newValue) {
             if (!newValue) {
@@ -768,40 +800,37 @@ export default {
     },
     mounted() {
         const q = this.$route.query;
-        let filterFromQuery = false;
 
-        if (q.filter_kategorie) {
-            this.kategorie = [{ name: q.filter_kategorie }];
-            filterFromQuery = true;
-        }
-        if (q.selected_bewertung !== undefined) {
-            this.selected_bewertung = q.selected_bewertung || 'Unbewertet';
-            filterFromQuery = true;
-        }
-        if (q.selected_aenderung === 'true') {
-            this.selected_aenderung = true;
-            filterFromQuery = true;
-        }
-        if (q.filter_by_korrekturlesung1 === 'true') {
-            this.filter = _.union(this.filter, ['korrekturlesung1']);
-            filterFromQuery = true;
-        }
-        if (q.filter_by_not_korrekturlesung1 === 'true') {
-            this.filter = _.union(this.filter, ['not_korrekturlesung1']);
-            filterFromQuery = true;
-        }
-        if (q.filter_by_text_geaendert === 'true') {
-            this.filter = _.union(this.filter, ['text_geaendert']);
-            filterFromQuery = true;
-        }
-        if (q.filter_by_melodie_geaendert === 'true') {
-            this.filter = _.union(this.filter, ['melodie_geaendert']);
-            filterFromQuery = true;
-        }
+        if (q.filter_kategorie) this.filters.kategorie = [{ name: q.filter_kategorie }];
+        if (q.selected_bewertung !== undefined)
+            this.filters.bewertung = q.selected_bewertung || 'Unbewertet';
+        if (q.selected_aenderung === 'true') this.filters.aenderung = true;
+        if (q.filter_by_korrekturlesung1 === 'true') this.filters.korrekturlesung1 = 'an';
+        if (q.filter_by_not_korrekturlesung1 === 'true') this.filters.korrekturlesung1 = 'aus';
+        if (q.filter_by_korrekturlesung1_alle_strophen === 'true')
+            this.filters.korrekturlesung1_alle = 'an';
+        if (q.filter_by_not_korrekturlesung1_alle_strophen === 'true')
+            this.filters.korrekturlesung1_alle = 'aus';
+        if (q.filter_by_korrekturlesung2 === 'true') this.filters.korrekturlesung2 = 'an';
+        if (q.filter_by_not_korrekturlesung2 === 'true') this.filters.korrekturlesung2 = 'aus';
+        if (q.filter_by_text_geaendert === 'true') this.filters.textGeaendert = 'an';
+        if (q.filter_by_melodie_geaendert === 'true') this.filters.melodieGeaendert = 'an';
 
-        if (filterFromQuery) {
-            this.filter_expanded = ['filter_expanded'];
-        }
+        // Block aufklappen, wenn ein Filter über die URL gesetzt wurde.
+        const filterQueryKeys = [
+            'filter_kategorie',
+            'selected_bewertung',
+            'selected_aenderung',
+            'filter_by_korrekturlesung1',
+            'filter_by_not_korrekturlesung1',
+            'filter_by_korrekturlesung1_alle_strophen',
+            'filter_by_not_korrekturlesung1_alle_strophen',
+            'filter_by_korrekturlesung2',
+            'filter_by_not_korrekturlesung2',
+            'filter_by_text_geaendert',
+            'filter_by_melodie_geaendert',
+        ];
+        if (filterQueryKeys.some((k) => q[k] !== undefined)) this.filter_expanded = true;
 
         // get selected columns from local storage
         if (localStorage.getItem('selected_columns')) {
@@ -830,48 +859,38 @@ export default {
             return text.replace(/¬/g, '');
         },
         resetFilter() {
-            this.selected_status = null;
-            this.selected_bewertung = null;
-            this.selected_aenderung = false;
-            this.kategorie = null;
-            this.filter_by_suggestions = false;
-            this.filter_by_remarks = false;
-            this.selected_author = null;
-            this.strophenSearch = null;
-            this.check_autor_copyright = null;
-            this.notentext_filter = null;
+            this.filters = defaultFilters();
         },
-        cycleNotentextFilter() {
-            this.notentext_filter =
-                this.notentext_filter === null
-                    ? 'has'
-                    : this.notentext_filter === 'has'
-                      ? 'no'
-                      : null;
+        authorName(id) {
+            const a = _.find(this.authors, { autor_id: id });
+            return a ? a.name : String(id);
         },
         copyFilterIntoLink() {
+            const f = this.filters;
             const appliedFilter = {};
-            if (this.strophenSearch) appliedFilter.strophenSearch = this.strophenSearch;
-            if (this.selected_status) appliedFilter.selected_status = this.selected_status;
-            if (this.selected_bewertung) appliedFilter.selected_bewertung = this.selected_bewertung;
-            if (this.selected_aenderung) appliedFilter.selected_aenderung = this.selected_aenderung;
-            if (this.filter_by_korrekturlesung1)
-                appliedFilter.filter_by_korrekturlesung1 = this.filter_by_korrekturlesung1;
-            if (this.filter_by_not_korrekturlesung1)
-                appliedFilter.filter_by_not_korrekturlesung1 = this.filter_by_not_korrekturlesung1;
-            if (this.filter_by_text_geaendert)
-                appliedFilter.filter_by_text_geaendert = this.filter_by_text_geaendert;
-            if (this.filter_by_melodie_geaendert)
-                appliedFilter.filter_by_melodie_geaendert = this.filter_by_melodie_geaendert;
-            if (this.kategorie) appliedFilter.kategorie = this.kategorie;
-            if (this.filter_by_suggestions)
-                appliedFilter.filter_by_suggestions = this.filter_by_suggestions;
-            if (this.filter_by_remarks) appliedFilter.filter_by_remarks = this.filter_by_remarks;
-            if (this.selected_author) appliedFilter.selected_author = this.selected_author;
-            if (this.check_autor_copyright !== null)
-                appliedFilter.check_autor_copyright = this.check_autor_copyright;
-            if (this.notentext_filter !== null)
-                appliedFilter.notentext_filter = this.notentext_filter;
+            if (f.strophenSearch) appliedFilter.strophenSearch = f.strophenSearch;
+            if (f.status) appliedFilter.selected_status = f.status;
+            if (f.bewertung) appliedFilter.selected_bewertung = f.bewertung;
+            if (f.aenderung) appliedFilter.selected_aenderung = true;
+            if (f.korrekturlesung1 === 'an') appliedFilter.filter_by_korrekturlesung1 = true;
+            else if (f.korrekturlesung1 === 'aus')
+                appliedFilter.filter_by_not_korrekturlesung1 = true;
+            if (f.korrekturlesung1_alle === 'an')
+                appliedFilter.filter_by_korrekturlesung1_alle_strophen = true;
+            else if (f.korrekturlesung1_alle === 'aus')
+                appliedFilter.filter_by_not_korrekturlesung1_alle_strophen = true;
+            if (f.korrekturlesung2 === 'an') appliedFilter.filter_by_korrekturlesung2 = true;
+            else if (f.korrekturlesung2 === 'aus')
+                appliedFilter.filter_by_not_korrekturlesung2 = true;
+            if (f.textGeaendert === 'an') appliedFilter.filter_by_text_geaendert = true;
+            if (f.melodieGeaendert === 'an') appliedFilter.filter_by_melodie_geaendert = true;
+            if (f.kategorie && f.kategorie.length) appliedFilter.kategorie = f.kategorie;
+            if (f.suggestions === 'an') appliedFilter.filter_by_suggestions = true;
+            if (f.remarks === 'an') appliedFilter.filter_by_remarks = true;
+            if (f.authors && f.authors.length) appliedFilter.selected_author = f.authors;
+            if (f.copyright !== null) appliedFilter.check_autor_copyright = f.copyright;
+            if (f.notentext === 'an') appliedFilter.notentext_filter = 'has';
+            else if (f.notentext === 'aus') appliedFilter.notentext_filter = 'no';
 
             if (Object.keys(appliedFilter).length === 0) {
                 this.snackbar_message = 'Wähle zuerst einen filter an.';
@@ -899,11 +918,7 @@ export default {
             const liedEntry = newSort.find((s) => s.key === 'liednummer2026');
             if (liedEntry) {
                 const rest = newSort.filter((s) => s.key !== 'liednummer2026');
-                this.sortBy = [
-                    { key: '_has_liednummer2026', order: 'desc' },
-                    liedEntry,
-                    ...rest,
-                ];
+                this.sortBy = [{ key: '_has_liednummer2026', order: 'desc' }, liedEntry, ...rest];
             } else {
                 this.sortBy = newSort;
             }

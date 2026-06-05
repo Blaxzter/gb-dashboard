@@ -219,14 +219,7 @@
                             class="author-item"
                         >
                             <span class="author-number">{{ index + 1 }}.</span>
-                            <span class="author-name">
-                                {{ author.vorname }} {{ author.nachname }}
-                                {{
-                                    author.geburtsjahr || author.sterbejahr
-                                        ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
-                                        : ''
-                                }}
-                            </span>
+                            <span class="author-name">{{ formatAuthorEntry(author) }}</span>
                         </div>
                     </div>
                 </div>
@@ -294,6 +287,7 @@
 // import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import MediaComponent from '@/components/SongRelated/MediaComponent.vue';
 import { gesangbuch_kategorie_name_to_icon, chart_colors } from '@/assets/js/utils';
+import { formatAuthorEntry } from '@/assets/js/authorFormat';
 import _ from 'lodash';
 
 export default {
@@ -346,6 +340,8 @@ export default {
     },
     methods: {
         gesangbuch_kategorie_name_to_icon,
+        // Volle Autoren-Formatierung inkl. Präfix/Suffix und Ursprungsautor (Issue #24).
+        formatAuthorEntry,
         get_color(category) {
             return chart_colors[category.id % chart_colors.length];
         },

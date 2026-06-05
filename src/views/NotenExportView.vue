@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/app.js';
 import { jsPDF } from 'jspdf';
 import 'svg2pdf.js';
 import JSZip from 'jszip';
+import { formatYearRange, formatAuthors } from '@/assets/js/authorFormat';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
 const HISTORY_KEY = 'notenexport_history';
@@ -149,6 +150,27 @@ const some_filtered_selected = computed(
     () => selected_count.value > 0 && !all_filtered_selected.value,
 );
 
+// Issue #19: Ein Lied "braucht noch ein PDF", wenn sein Notenbild (oder die
+// 2. Seite) noch als SVG statt als PDF hinterlegt ist. Der Export backt solche
+// SVGs zwar noch (Übergang), aber sie sollten als PDF neu hochgeladen werden.
+function isPdfFile(file) {
+    return file?.type === 'application/pdf';
+}
+
+function notentextNeedsPdf(lied) {
+    if (!lied?.notentext) return false;
+    if (!isPdfFile(lied.notentext_file)) return true;
+    if (lied.notentext_seite2 && !isPdfFile(lied.notentext_seite2_file)) return true;
+    return false;
+}
+
+// Ausgewählte Lieder, deren Notenbild noch nicht (vollständig) als PDF vorliegt.
+const selected_without_pdf = computed(() =>
+    filtered_lieder.value.filter(
+        (l) => l.notentext && selected_ids.value.has(l.id) && notentextNeedsPdf(l),
+    ),
+);
+
 function isSelected(id) {
     return selected_ids.value.has(id);
 }
@@ -231,6 +253,7 @@ function csvEscape(value) {
 
 const CSV_HEADERS = [
     'liednummer2026',
+    'choralbuchnummer',
     'titel',
     'strophen',
     'text_autoren',
@@ -248,47 +271,11 @@ function buildCsv(rows) {
     return '﻿' + lines.join('\n');
 }
 
-function formatYearRange(geburtsjahr, sterbejahr) {
-    if (!geburtsjahr && !sterbejahr) return '';
-    return `${geburtsjahr || ''}–${sterbejahr || ''}`;
-}
-
-function formatAuthorEntry(author) {
-    if (!author) return '';
-    const parts = [];
-    if (author.autorPrefix) parts.push(author.autorPrefix);
-    const name = [author.vorname, author.nachname].filter(Boolean).join(' ');
-    if (name) parts.push(name);
-    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
-    if (years) parts.push(years);
-    if (author.autorSuffix) parts.push(author.autorSuffix);
-
-    const u = author.ursprungsAutorObj;
-    if (u && typeof u === 'object') {
-        const uName = [u.vorname, u.nachname].filter(Boolean).join(' ');
-        if (uName) parts.push(uName);
-        const uYears = formatYearRange(u.geburtsjahr, u.sterbejahr);
-        if (uYears) parts.push(uYears);
-    }
-    return parts.join(' ');
-}
-
-function formatAuthors(authors, ...copyrights) {
-    const authorStrings = (authors || []).map(formatAuthorEntry).filter(Boolean);
-    const copyrightStrings = copyrights
-        .filter((c) => c && String(c).trim())
-        .map((c) => `© ${String(c).trim()}`);
-    return [authorStrings.join(', '), ...copyrightStrings].filter(Boolean).join('\n');
-}
-
 // --- "footer"-Spalte nach Janoschs Grammatik -------------------------------
-// Jahresangabe: (*{geburtsjahr}–{sterbejahr}) — Strich vor Sterbejahr nur, wenn vorhanden
-function footerYears(geburtsjahr, sterbejahr) {
-    if (!geburtsjahr && !sterbejahr) return '';
-    return `(${geburtsjahr ? `*${geburtsjahr}` : ''}${sterbejahr ? `–${sterbejahr}` : ''})`;
-}
+// Jahresangabe (Issue #18): (1798–1874) / (1989) – ohne Sternchen oder Kreuz.
+// Verwendet dieselbe Formatierung wie die Autoren-Spalten (formatYearRange).
 
-// ursprungsAutor:  {vorname} {nachname} (*{geburtsjahr}–{sterbejahr})  (ohne Praefix/Suffix)
+// ursprungsAutor:  {vorname} {nachname} (geburtsjahr–sterbejahr)  (ohne Praefix/Suffix)
 // ursprungsAutorObj ist entweder ein Autoren-Objekt oder der String 'Keine'.
 function formatFooterUrsprungsAutor(u) {
     if (!u || typeof u !== 'object') return '';
@@ -296,12 +283,12 @@ function formatFooterUrsprungsAutor(u) {
     if (u.vorname) s += `${u.vorname} `;
     if (u.nachname) s += u.nachname;
     s = s.trimEnd();
-    const years = footerYears(u.geburtsjahr, u.sterbejahr);
+    const years = formatYearRange(u.geburtsjahr, u.sterbejahr);
     if (years) s = s ? `${s} ${years}` : years;
     return s.trim();
 }
 
-// Pro Autor:  {praefix} {vorname} {nachname} (*{geburtsjahr}–{sterbejahr}) {suffix} {ursprungsAutor}
+// Pro Autor:  {praefix} {vorname} {nachname} (geburtsjahr–sterbejahr) {suffix} {ursprungsAutor}
 //   - Leerzeichen nach vorname/praefix nur, wenn nicht leer
 function formatFooterAuthorEntry(author) {
     if (!author) return '';
@@ -311,7 +298,7 @@ function formatFooterAuthorEntry(author) {
     if (author.nachname) s += author.nachname;
     s = s.trimEnd();
 
-    const years = footerYears(author.geburtsjahr, author.sterbejahr);
+    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
     if (years) s = s ? `${s} ${years}` : years;
     if (author.autorSuffix) s += s ? ` ${author.autorSuffix}` : author.autorSuffix;
 
@@ -505,10 +492,24 @@ async function svgsToPdfBlob(svgEls) {
     return pdf.output('blob');
 }
 
-async function fetchSvgText(fileId) {
+// Lädt ein Asset (Notenbild) als Blob für den Export.
+async function fetchFileBlob(fileId) {
     const url = `${import.meta.env.VITE_BACKEND_URL}/assets/${fileId}`;
-    const resp = await axios.get(url, { responseType: 'text' });
+    const resp = await axios.get(url, { responseType: 'blob' });
     return resp.data;
+}
+
+// Entscheidet anhand des Inhalts (statt nur des aufgelösten Datei-Typs), ob ein
+// Asset ein PDF ist – robust auch dann, wenn die Datei-Metadaten nicht geladen
+// sind (Issue #19).
+async function blobIsPdf(blob) {
+    if (blob?.type === 'application/pdf') return true;
+    try {
+        const head = await blob.slice(0, 5).text();
+        return head.startsWith('%PDF');
+    } catch {
+        return false;
+    }
 }
 
 async function runExport() {
@@ -546,6 +547,7 @@ async function runExport() {
 
         const row = {
             liednummer2026,
+            choralbuchnummer: lied.melodie?.choralbuchNummer || '',
             titel: lied.titel || '',
             strophen: formatStrophen(lied.text?.strophenEinzeln),
             text_autoren: formatAuthors(lied.text?.authors, lied.text?.copyright),
@@ -555,31 +557,55 @@ async function runExport() {
                 lied.copyright,
             ),
             footer: buildFooter(lied),
-            'pdf-path_1': pdfFilename,
-            'pdf-path_2': lied.notentext_seite2 ? pdfFilename : '',
+            'pdf-path_1': '',
+            'pdf-path_2': '',
         };
 
         const hosts = [];
+        let pdfOk = false;
         try {
-            const svgs = [];
+            // PDF vs. SVG anhand des Datei-Inhalts entscheiden (robust gegenüber
+            // nicht geladenen Datei-Metadaten). PDF-Notenbilder werden direkt
+            // ausgeliefert, SVGs als Übergangs-Fallback nach PDF gebacken (Issue #19).
+            const pageBlobs = [];
             for (const fileId of pageFileIds) {
-                const svgText = await fetchSvgText(fileId);
-                const svg = parseSvgString(svgText);
-                const host = document.createElement('div');
-                host.style.cssText =
-                    'position:absolute;left:-99999px;top:-99999px;visibility:hidden;';
-                host.appendChild(svg);
-                document.body.appendChild(host);
-                hosts.push(host);
-                if (trim_whitespace.value) {
-                    trimSvgToContent(svg, trim_padding.value);
-                }
-                svgs.push(svg);
+                pageBlobs.push(await fetchFileBlob(fileId));
             }
-            const blob = await svgsToPdfBlob(svgs);
-            pdfFolder.file(pdfFilename, blob);
-            exportedIds.push(lied.id);
-            csvRows.push(row);
+            if (await blobIsPdf(pageBlobs[0])) {
+                // Seite 1 und 2 sind getrennte PDF-Assets -> als getrennte Dateien.
+                const twoPages = pageBlobs.length > 1;
+                const name1 = twoPages ? `${filenameBase}_1.pdf` : pdfFilename;
+                pdfFolder.file(name1, pageBlobs[0]);
+                row['pdf-path_1'] = name1;
+                if (twoPages) {
+                    const name2 = `${filenameBase}_2.pdf`;
+                    pdfFolder.file(name2, pageBlobs[1]);
+                    row['pdf-path_2'] = name2;
+                }
+            } else {
+                // Übergangs-Fallback: für noch nicht als PDF neu hochgeladene
+                // Lieder die SVG wie bisher nach PDF backen.
+                const svgs = [];
+                for (const blob of pageBlobs) {
+                    const svgText = await blob.text();
+                    const svg = parseSvgString(svgText);
+                    const host = document.createElement('div');
+                    host.style.cssText =
+                        'position:absolute;left:-99999px;top:-99999px;visibility:hidden;';
+                    host.appendChild(svg);
+                    document.body.appendChild(host);
+                    hosts.push(host);
+                    if (trim_whitespace.value) {
+                        trimSvgToContent(svg, trim_padding.value);
+                    }
+                    svgs.push(svg);
+                }
+                const blob = await svgsToPdfBlob(svgs);
+                pdfFolder.file(pdfFilename, blob);
+                row['pdf-path_1'] = pdfFilename;
+                row['pdf-path_2'] = lied.notentext_seite2 ? pdfFilename : '';
+            }
+            pdfOk = true;
         } catch (e) {
             console.error('Export-Fehler', lied.id, e);
         } finally {
@@ -587,6 +613,11 @@ async function runExport() {
                 if (h.parentNode) h.parentNode.removeChild(h);
             });
         }
+
+        // CSV-Zeile (Metadaten) immer schreiben – auch wenn die PDF-Erzeugung
+        // fehlschlägt, sind die Liedinfos wertvoll; pdf-path bleibt dann leer.
+        csvRows.push(row);
+        if (pdfOk) exportedIds.push(lied.id);
 
         progress.value.done += 1;
     }
@@ -751,6 +782,17 @@ function formatDate(iso) {
             <v-alert v-if="error_msg" class="mt-3" type="error" variant="tonal" density="compact">
                 {{ error_msg }}
             </v-alert>
+            <v-alert
+                v-if="selected_without_pdf.length"
+                class="mt-3"
+                type="warning"
+                variant="tonal"
+                density="compact"
+            >
+                {{ selected_without_pdf.length }} ausgewählte(s) Lied(er) haben noch kein
+                PDF-Notenbild (nur SVG). Diese werden beim Export übergangsweise aus der SVG
+                gebacken – für den endgültigen Export bitte das PDF-Notenbild hochladen.
+            </v-alert>
             <div v-if="exporting" class="mt-3">
                 <v-progress-linear
                     :model-value="(progress.done / Math.max(progress.total, 1)) * 100"
@@ -893,6 +935,24 @@ function formatDate(iso) {
                             >
                                 2 Seiten
                             </v-chip>
+                            <v-tooltip
+                                v-if="notentextNeedsPdf(lied)"
+                                text="Notenbild liegt noch als SVG vor (kein PDF). Beim Export wird es übergangsweise gebacken – bitte als PDF neu hochladen."
+                                location="top"
+                            >
+                                <template #activator="{ props }">
+                                    <v-chip
+                                        v-bind="props"
+                                        size="x-small"
+                                        color="warning"
+                                        variant="tonal"
+                                        prepend-icon="mdi-alert"
+                                        class="ms-1"
+                                    >
+                                        kein PDF
+                                    </v-chip>
+                                </template>
+                            </v-tooltip>
                         </td>
                         <td>
                             <v-chip

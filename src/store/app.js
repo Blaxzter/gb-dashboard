@@ -4,6 +4,7 @@ import axios from '@/assets/js/axiossConfig';
 
 import _ from 'lodash';
 import { status_mapping } from '@/assets/js/utils';
+import { formatAuthors } from '@/assets/js/authorFormat';
 import router from '@/router';
 import { useUserStore } from '@/store/user';
 
@@ -246,18 +247,7 @@ export const useAppStore = defineStore('app', {
             }));
             text = _.map(text, (obj) => ({
                 ...obj,
-                author_name: _.map(
-                    obj.authors,
-                    (elem) =>
-                        (elem.autorPrefix ? elem.autorPrefix + ' ' : '') +
-                        `${elem.vorname} ${elem.nachname}` +
-                        (elem.geburtsjahr || elem.sterbejahr
-                            ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${
-                                  elem.sterbejahr ? ' - ' + elem.sterbejahr : ''
-                              })`
-                            : '') +
-                        (elem.autorSuffix ? ' ' + elem.autorSuffix : ''),
-                ).join(', '),
+                author_name: formatAuthors(obj.authors),
                 strophen_connected: _.map(obj.strophenEinzeln, (elem) =>
                     elem?.strophe?.replaceAll('¬', ''),
                 )?.join('\n\n'),
@@ -311,18 +301,7 @@ export const useAppStore = defineStore('app', {
             }));
             melodie = _.map(melodie, (obj) => ({
                 ...obj,
-                author_name: _.map(
-                    obj.authors,
-                    (elem) =>
-                        (elem.autorPrefix ? elem.autorPrefix + ' ' : '') +
-                        `${elem.vorname} ${elem.nachname}` +
-                        (elem.geburtsjahr || elem.sterbejahr
-                            ? ` (${elem.geburtsjahr ? '*' + elem.geburtsjahr : ''} ${
-                                  elem.sterbejahr ? ' - ' + elem.sterbejahr : ''
-                              })`
-                            : '') +
-                        (elem.autorSuffix ? ' ' + elem.autorSuffix : ''),
-                ).join(', '),
+                author_name: formatAuthors(obj.authors),
                 files: _.map(obj.files_urls, (elem) => file_grouped[elem]),
             }));
             melodie = _.map(melodie, (obj) => ({
@@ -395,6 +374,9 @@ export const useAppStore = defineStore('app', {
                 notentext_mxml_file: obj.notentext_mxml
                     ? file_grouped[obj.notentext_mxml]
                     : null,
+                // SVG-Notentext (Issue #19): die gebackene SVG liegt jetzt in einem
+                // eigenen Feld, das PDF-Notenbild in notentext/notentext_seite2.
+                notentext_svg_file: obj.notentext_svg ? file_grouped[obj.notentext_svg] : null,
 
                 // if undefined then 0, if auftrag exist and any has status not 'done' then 1 otherwise 2
                 text_work_order: textById[obj.textId]?.auftrag
@@ -604,18 +586,56 @@ export const useAppStore = defineStore('app', {
             }
         },
 
-        async updateTextStrophes(textId, strophes, korrekturgelesen = null) {
+        // Korrekturlesung der gesetzten Noten (1. Strophe unter den Noten) – Issue #21.
+        async updateNotenKorrekturlesung(gesangbuchliedId, value) {
             const controller = new AbortController();
             this.currentRequests.push(controller);
+
+            try {
+                const response = await axios.patch(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${gesangbuchliedId}`,
+                    { korrekturlesung_notentext_1: value },
+                    { signal: controller.signal },
+                );
+
+                const index = this.gesangbuchlied.findIndex((g) => g.id === gesangbuchliedId);
+                if (index !== -1) {
+                    this.gesangbuchlied[index].korrekturlesung_notentext_1 = value;
+                }
+
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                return response.data;
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                }
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                throw error;
+            }
+        },
+
+        async updateTextStrophes(textId, strophes, korrektur = null) {
+            const controller = new AbortController();
+            this.currentRequests.push(controller);
+
+            // Korrekturlesungs-Felder, die optional mitgespeichert werden (Issue #20).
+            const KORREKTUR_FELDER = [
+                'korrekturlesung1',
+                'korrekturlesung1_alle_Strophen',
+                'korrekturlesung2',
+            ];
 
             try {
                 const payload = {
                     strophenEinzeln: strophes,
                 };
 
-                // Only include korrekturgelesen if it's explicitly provided
-                if (korrekturgelesen !== null) {
-                    payload.korrekturlesung1 = korrekturgelesen;
+                // Nur die explizit übergebenen Korrekturlesungs-Flags patchen.
+                if (korrektur && typeof korrektur === 'object') {
+                    KORREKTUR_FELDER.forEach((feld) => {
+                        if (korrektur[feld] !== undefined) payload[feld] = korrektur[feld];
+                    });
                 }
 
                 const request = axios.patch(
@@ -630,8 +650,12 @@ export const useAppStore = defineStore('app', {
                 const textIndex = this.text.findIndex((t) => t.id === textId);
                 if (textIndex !== -1) {
                     this.text[textIndex].strophenEinzeln = strophes;
-                    if (korrekturgelesen !== null) {
-                        this.text[textIndex].korrekturlesung1 = korrekturgelesen;
+                    if (korrektur && typeof korrektur === 'object') {
+                        KORREKTUR_FELDER.forEach((feld) => {
+                            if (korrektur[feld] !== undefined) {
+                                this.text[textIndex][feld] = korrektur[feld];
+                            }
+                        });
                     }
                 }
 

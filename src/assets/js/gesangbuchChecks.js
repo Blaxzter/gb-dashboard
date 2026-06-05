@@ -146,6 +146,17 @@ const VERBOTENE_APOSTROPHE = {
     '᾿': 'Koronis (᾿)', // U+1FBD GREEK KORONIS
 };
 
+// „Hochzeichen“ = sämtliche Anführungszeichen- und Apostroph-Varianten (erlaubte
+// wie unerwünschte, öffnend wie schließend). Sie werden beim Titel-Vergleich
+// ignoriert, weil ein Lied-Titel häufig als Zitat in Anführungszeichen steht
+// („Ohne mich könnt ihr nichts tun“), die Strophe denselben Wortlaut aber ohne
+// Anführungszeichen führt. Satzzeichen wie . , ! ? bleiben bewusst erhalten –
+// die sollen beim Vergleich mitzählen.
+const HOCHZEICHEN_REGEX = new RegExp(
+    `[${['„', '“', '’', ...Object.keys(VERBOTENE_DOPPEL_ANFUEHRUNGSZEICHEN), ...Object.keys(VERBOTENE_APOSTROPHE)].join('')}]`,
+    'g',
+);
+
 // Alle KI-Reviews eines Liedes (über alle Strophen hinweg)
 function kiReviews(lied) {
     return strophen(lied).flatMap((s) => (Array.isArray(s?.kiReview) ? s.kiReview : []));
@@ -674,6 +685,61 @@ export const CHECKS = [
     },
 
     {
+        id: 'lied-titel-erste-strophe',
+        category: 'Redaktion',
+        title: 'Titel stimmt mit dem Anfang der 1. Strophe überein',
+        description:
+            'Hinweis (kein Fehler): Genommene Lieder, deren erste Strophe nicht mit dem Liedtitel beginnt. Üblicherweise beginnt die 1. Strophe mit dem Titel (z. B. Titel „Lobe den Herren“). Weicht der Anfang ab, kann ein Tippfehler oder ein vertauschter Titel dahinterstecken. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung, Silbentrennzeichen, Anführungszeichen und Apostrophen („Hochzeichen“), Zeilenumbrüchen und mehrfachen Leerzeichen – der Titel darf also über die erste Notenzeile hinausreichen. Satzzeichen wie Punkt, Komma und Ausrufezeichen werden hingegen mitverglichen. Lieder ohne Titel oder ohne (gefüllte) 1. Strophe werden übersprungen.',
+        run({ genommen }) {
+            // Vergleichsnormalisierung: Unicode (NFC), Silbentrennzeichen entfernen,
+            // Hochzeichen entfernen, Whitespace zusammenfassen, trimmen,
+            // Kleinschreibung.
+            //
+            // Nur Anführungszeichen/Apostrophe werden entfernt (siehe
+            // HOCHZEICHEN_REGEX), weil ein Titel oft als Zitat in Anführungszeichen
+            // steht, die Strophe denselben Wortlaut aber ohne. Satzzeichen wie
+            // . , ! ? bleiben absichtlich erhalten und müssen mit dem Titel
+            // übereinstimmen.
+            const norm = (value) =>
+                String(value || '')
+                    .normalize('NFC')
+                    .split(SILBENTRENNER)
+                    .join('')
+                    .replace(HOCHZEICHEN_REGEX, '')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .toLowerCase();
+            const items = [];
+            genommen.forEach((l) => {
+                const titel = (l.titel || '').trim();
+                if (!titel) return;
+                // Ganze 1. Strophe – Zeilenumbrüche werden ignoriert, weil der
+                // Titel über die erste Notenzeile hinausreichen kann (norm() fasst
+                // jeglichen Whitespace inkl. \n zu einem Leerzeichen zusammen).
+                const strophe1 = verseText(strophen(l)[0]);
+                if (!strophe1.trim()) return;
+                // In code gedacht (Issue #17): strophe1.startsWith(title)
+                if (!norm(strophe1).startsWith(norm(titel))) {
+                    // Für die Anzeige nur den (einzeiligen) Anfang der Strophe zeigen.
+                    const anfang = strophe1.split(SILBENTRENNER).join('').replace(/\s+/g, ' ').trim();
+                    const gekuerzt = anfang.length > 60 ? `${anfang.slice(0, 60)}…` : anfang;
+                    items.push(
+                        songItem(l, `Titel „${titel}“ ≠ Anfang der 1. Strophe „${gekuerzt}“`),
+                    );
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Alle genommenen Lieder beginnen mit ihrem Titel.'
+                    : `${items.length} Lied(er), deren 1. Strophe nicht mit dem Titel beginnt.`,
+                items,
+            );
+        },
+    },
+
+    {
         id: 'leere-strophen',
         category: 'Redaktion',
         title: 'Keine leeren Strophen',
@@ -743,9 +809,9 @@ export const CHECKS = [
     {
         id: 'apostroph-variante',
         category: 'Redaktion',
-        title: 'Nur das Apostroph „’“ in Texten und Titeln',
+        title: 'Nur das Apostroph „’“ in Texten, Titeln und Autorenangaben',
         description:
-            "Zum Verkürzen von Wörtern soll ausschließlich das rechte einfache Anführungszeichen ’ (U+2019) verwendet werden – nicht der gerade Apostroph ('), Akut (´), Gravis (`) o. Ä. Geprüft werden Strophentexte sowie die Titel von Lied, Text und Melodie. Die Varianten lassen sich mit dem Skript 10-normalize-quotation-marks.py automatisch ersetzen.",
+            "Zum Verkürzen von Wörtern soll ausschließlich das rechte einfache Anführungszeichen ’ (U+2019) verwendet werden – nicht der gerade Apostroph ('), Akut (´), Gravis (`) o. Ä. Geprüft werden Strophentexte, die Titel von Lied, Text und Melodie sowie die Autoren-Präfixe und -Suffixe (Issue #25). Die Varianten lassen sich mit dem Skript 10-normalize-quotation-marks.py automatisch ersetzen.",
         run({ genommen }) {
             const verboten = Object.keys(VERBOTENE_APOSTROPHE);
             const enthaltene = (wert) => verboten.filter((ch) => String(wert || '').includes(ch));
@@ -777,6 +843,18 @@ export const CHECKS = [
                 if (betroffeneStrophen) {
                     stellen.push(`${betroffeneStrophen} Strophe(n)`);
                 }
+                // Autoren-Präfixe und -Suffixe von Text und Melodie (Issue #25).
+                let betroffeneAutoren = 0;
+                [...(l.text?.authors || []), ...(l.melodie?.authors || [])].forEach((a) => {
+                    const treffer = [...enthaltene(a?.autorPrefix), ...enthaltene(a?.autorSuffix)];
+                    if (treffer.length) {
+                        betroffeneAutoren++;
+                        treffer.forEach((ch) => gefunden.add(ch));
+                    }
+                });
+                if (betroffeneAutoren) {
+                    stellen.push(`${betroffeneAutoren} Autor-Präfix/-Suffix`);
+                }
                 if (gefunden.size) {
                     const zeichen = [...gefunden].map((ch) => VERBOTENE_APOSTROPHE[ch]).join(', ');
                     items.push(songItem(l, `${stellen.join(', ')} – mit ${zeichen}`));
@@ -786,7 +864,7 @@ export const CHECKS = [
                 items.length === 0,
                 'warning',
                 items.length === 0
-                    ? 'Alle Strophentexte und Titel verwenden nur das Apostroph ’.'
+                    ? 'Alle Strophentexte, Titel und Autorenangaben verwenden nur das Apostroph ’.'
                     : `${items.length} Lied(er) mit abweichenden Apostroph-Varianten.`,
                 items,
             );

@@ -34,6 +34,10 @@ const filter_by_suggestions = ref(false);
 const filter_by_remarks = ref(false);
 const filter_by_korrekturlesung1 = ref(false);
 const filter_by_not_korrekturlesung1 = ref(false);
+const filter_by_korrekturlesung1_alle_strophen = ref(false);
+const filter_by_not_korrekturlesung1_alle_strophen = ref(false);
+const filter_by_korrekturlesung2 = ref(false);
+const filter_by_not_korrekturlesung2 = ref(false);
 const filter_by_text_geaendert = ref(false);
 const filter_by_melodie_geaendert = ref(false);
 const selected_author = ref(null);
@@ -80,6 +84,21 @@ const saveTitle = async (lied) => {
     }
 };
 
+// Korrekturlesung der gesetzten Noten (Issue #21).
+const notenKorrekturSaving = ref({});
+const setNotenKorrekturlesung = async (lied, value) => {
+    notenKorrekturSaving.value[lied.id] = true;
+    try {
+        await store.updateNotenKorrekturlesung(lied.id, value === true);
+    } catch (e) {
+        console.error('Error saving Noten-Korrekturlesung:', e);
+        snackbar_message.value = 'Fehler beim Speichern der Noten-Korrekturlesung.';
+        snackbar.value = true;
+    } finally {
+        notenKorrekturSaving.value[lied.id] = false;
+    }
+};
+
 const route = useRoute();
 const router = useRouter();
 
@@ -107,6 +126,10 @@ const applyFilterFromLink = () => {
         filter_by_remarks.value = false;
         filter_by_korrekturlesung1.value = false;
         filter_by_not_korrekturlesung1.value = false;
+        filter_by_korrekturlesung1_alle_strophen.value = false;
+        filter_by_not_korrekturlesung1_alle_strophen.value = false;
+        filter_by_korrekturlesung2.value = false;
+        filter_by_not_korrekturlesung2.value = false;
         filter_by_text_geaendert.value = false;
         filter_by_melodie_geaendert.value = false;
         selected_author.value = null;
@@ -140,6 +163,20 @@ const applyFilterFromLink = () => {
         }
         if (appliedFilter.filter_by_not_korrekturlesung1 !== undefined) {
             filter_by_not_korrekturlesung1.value = appliedFilter.filter_by_not_korrekturlesung1;
+        }
+        if (appliedFilter.filter_by_korrekturlesung1_alle_strophen !== undefined) {
+            filter_by_korrekturlesung1_alle_strophen.value =
+                appliedFilter.filter_by_korrekturlesung1_alle_strophen;
+        }
+        if (appliedFilter.filter_by_not_korrekturlesung1_alle_strophen !== undefined) {
+            filter_by_not_korrekturlesung1_alle_strophen.value =
+                appliedFilter.filter_by_not_korrekturlesung1_alle_strophen;
+        }
+        if (appliedFilter.filter_by_korrekturlesung2 !== undefined) {
+            filter_by_korrekturlesung2.value = appliedFilter.filter_by_korrekturlesung2;
+        }
+        if (appliedFilter.filter_by_not_korrekturlesung2 !== undefined) {
+            filter_by_not_korrekturlesung2.value = appliedFilter.filter_by_not_korrekturlesung2;
         }
         if (appliedFilter.filter_by_text_geaendert !== undefined) {
             filter_by_text_geaendert.value = appliedFilter.filter_by_text_geaendert;
@@ -240,6 +277,30 @@ const filtered_gesangbuchlieder = computed(() => {
         filtered_gesangbuchlied = _.filter(
             filtered_gesangbuchlied,
             (elem) => elem.text?.korrekturlesung1 !== true,
+        );
+    }
+
+    if (filter_by_korrekturlesung1_alle_strophen.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.text?.korrekturlesung1_alle_Strophen === true,
+        );
+    } else if (filter_by_not_korrekturlesung1_alle_strophen.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.text?.korrekturlesung1_alle_Strophen !== true,
+        );
+    }
+
+    if (filter_by_korrekturlesung2.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.text?.korrekturlesung2 === true,
+        );
+    } else if (filter_by_not_korrekturlesung2.value) {
+        filtered_gesangbuchlied = _.filter(
+            filtered_gesangbuchlied,
+            (elem) => elem.text?.korrekturlesung2 !== true,
         );
     }
 
@@ -491,6 +552,34 @@ const get_color = (category) => {
             >Ohne Korrekturlesung</v-chip
         >
         <v-chip
+            v-if="filter_by_korrekturlesung1_alle_strophen"
+            prepend-icon="mdi-numeric-1-circle"
+            color="success"
+            variant="flat"
+            >Mit 1. Korrekturlesung (alle Strophen)</v-chip
+        >
+        <v-chip
+            v-if="filter_by_not_korrekturlesung1_alle_strophen"
+            prepend-icon="mdi-numeric-1-circle-outline"
+            color="warning"
+            variant="flat"
+            >Ohne 1. Korrekturlesung (alle Strophen)</v-chip
+        >
+        <v-chip
+            v-if="filter_by_korrekturlesung2"
+            prepend-icon="mdi-numeric-2-circle"
+            color="success"
+            variant="flat"
+            >Mit 2. Korrekturlesung (alle Strophen)</v-chip
+        >
+        <v-chip
+            v-if="filter_by_not_korrekturlesung2"
+            prepend-icon="mdi-numeric-2-circle-outline"
+            color="warning"
+            variant="flat"
+            >Ohne 2. Korrekturlesung (alle Strophen)</v-chip
+        >
+        <v-chip
             v-if="filter_by_text_geaendert"
             prepend-icon="mdi-text-box-edit"
             color="primary"
@@ -676,6 +765,17 @@ const get_color = (category) => {
                                             Boolean,
                                         )
                                     "
+                                />
+                            </div>
+                            <div class="d-flex justify-center mt-2">
+                                <v-checkbox
+                                    :model-value="lied.korrekturlesung_notentext_1 === true"
+                                    label="1. Korrekturlesung (gesetzte Noten)"
+                                    color="primary"
+                                    density="compact"
+                                    hide-details
+                                    :disabled="notenKorrekturSaving[lied.id] === true"
+                                    @update:model-value="setNotenKorrekturlesung(lied, $event)"
                                 />
                             </div>
                         </pane>
