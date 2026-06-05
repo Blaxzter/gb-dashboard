@@ -30,4 +30,96 @@ axios.interceptors.request.use(
     },
 );
 
+// --- Token refresh -------------------------------------------------------
+// Directus access tokens are short-lived JWTs (ACCESS_TOKEN_TTL, default 15
+// min). Without refreshing them the user gets silently logged out: the next
+// request after expiry returns 401 and autoLogin() would fall back to the
+// login screen. We transparently exchange the refresh token for a new access
+// token on the first 401 and retry the original request. The refresh token
+// itself lives much longer (REFRESH_TOKEN_TTL, default 7 days).
+
+// A single in-flight refresh shared by all requests that 401 at once, so we
+// only hit /auth/refresh once even if many requests fail simultaneously.
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+    const refresh_token = localStorage.getItem('refresh_token');
+    if (!refresh_token) {
+        throw new Error('No refresh token available');
+    }
+
+    // no_auth so the request interceptor doesn't attach the (expired) token.
+    const response = await axios({
+        method: 'post',
+        url: `${import.meta.env.VITE_BACKEND_URL}/auth/refresh`,
+        data: { refresh_token, mode: 'json' },
+        no_auth: true,
+    });
+
+    const data = response.data.data;
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    if (data.expires) {
+        localStorage.setItem('token_expires_at', String(Date.now() + data.expires));
+    }
+    return data.access_token;
+}
+
+async function handleSessionExpired() {
+    // Refresh token is gone or rejected → the session is truly over. Route
+    // through the store's logout so in-memory state and localStorage stay
+    // consistent (lazy import avoids a circular dependency with user.js).
+    try {
+        const { useUserStore } = await import('@/store/user');
+        useUserStore().logout();
+    } catch {
+        const { default: router } = await import('@/router');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('token_expires_at');
+        localStorage.removeItem('use_static_token');
+        router.replace('/login');
+    }
+}
+
+axios.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        const status = error.response?.status;
+
+        const useStaticToken = localStorage.getItem('use_static_token') === 'true';
+
+        // Only attempt a refresh for genuine 401s on normal authenticated
+        // requests. Skip: non-401 errors, login/refresh calls (no_auth),
+        // already-retried requests, and alias logins on the static token
+        // (which never expires and has no refresh token).
+        if (
+            status !== 401 ||
+            !originalRequest ||
+            originalRequest.no_auth ||
+            originalRequest._retry ||
+            useStaticToken
+        ) {
+            return Promise.reject(error);
+        }
+
+        originalRequest._retry = true;
+
+        try {
+            if (!refreshPromise) {
+                refreshPromise = refreshAccessToken().finally(() => {
+                    refreshPromise = null;
+                });
+            }
+            const newToken = await refreshPromise;
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            return axios(originalRequest);
+        } catch (refreshError) {
+            await handleSessionExpired();
+            return Promise.reject(refreshError);
+        }
+    },
+);
+
 export default axios;

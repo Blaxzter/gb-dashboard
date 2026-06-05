@@ -6,6 +6,14 @@ import router from '@/router';
 import { useAppStore } from '@/store/app';
 import moment from 'moment';
 
+// Kleiner-Kreis users get the extended ("Ansicht") view on by default. Once a
+// user flips the toggle, that choice is persisted as 'true'/'false' and wins;
+// only the absence of a stored value falls back to the on-by-default.
+function resolveKleinerKreisAnsicht() {
+    const stored = localStorage.getItem('kleiner_kreis_ansicht');
+    return stored === null ? true : stored === 'true';
+}
+
 const useUserStore = defineStore('user', {
     state: () => ({
         user: null,
@@ -72,8 +80,7 @@ const useUserStore = defineStore('user', {
                     if (kleinerKreisUsers.includes(username)) {
                         this.kleiner_kreis = true;
                         localStorage.setItem('kleiner_kreis', 'true');
-                        this.kleiner_kreis_ansicht =
-                            localStorage.getItem('kleiner_kreis_ansicht') === 'true';
+                        this.kleiner_kreis_ansicht = resolveKleinerKreisAnsicht();
                     }
 
                     this.set_user_data(authData, response.data.data, remember_me, isAliasLogin);
@@ -109,8 +116,11 @@ const useUserStore = defineStore('user', {
             // Clear localStorage
             localStorage.removeItem('username');
             localStorage.removeItem('kleiner_kreis');
-            localStorage.removeItem('kleiner_kreis_ansicht');
+            // Keep 'kleiner_kreis_ansicht': a user who switched the view off
+            // should stay off after re-login. Missing key => default on.
             localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('token_expires_at');
             localStorage.removeItem('use_static_token');
 
             // Navigate to login
@@ -128,8 +138,10 @@ const useUserStore = defineStore('user', {
                 return;
             }
 
-            this.kleiner_kreis_ansicht = localStorage.getItem('kleiner_kreis_ansicht') === 'true';
             this.kleiner_kreis = localStorage.getItem('kleiner_kreis') === 'true';
+            this.kleiner_kreis_ansicht = this.kleiner_kreis
+                ? resolveKleinerKreisAnsicht()
+                : false;
 
             this.user = {
                 username: username,
@@ -153,6 +165,19 @@ const useUserStore = defineStore('user', {
 
             localStorage.setItem('access_token', response_data.access_token);
             localStorage.setItem('use_static_token', useStaticToken ? 'true' : 'false');
+
+            // Persist the refresh token + absolute expiry so the axios
+            // interceptor can transparently refresh the short-lived access
+            // token instead of dropping the user back to the login screen.
+            if (response_data.refresh_token) {
+                localStorage.setItem('refresh_token', response_data.refresh_token);
+            }
+            if (response_data.expires) {
+                localStorage.setItem(
+                    'token_expires_at',
+                    String(Date.now() + response_data.expires),
+                );
+            }
 
             if (remember_me) {
                 localStorage.setItem('username', authData.username);
