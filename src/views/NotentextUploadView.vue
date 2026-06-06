@@ -7,6 +7,7 @@ import { scanSvgBake, computeSvgEquality } from '@/assets/js/svgCompare.js';
 import { analyzePdfAlignment } from '@/assets/js/pdfAlign.js';
 import { applyCorrections } from '@/assets/js/lyricsAlign.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
+import PdfCompareDialog from '@/components/upload/PdfCompareDialog.vue';
 import LyricsAlignDialog from '@/components/upload/LyricsAlignDialog.vue';
 
 const store = useAppStore();
@@ -15,6 +16,14 @@ const compare_dialog = ref(false);
 const compare_file = ref(null);
 const compare_title = ref('');
 const compare_existing_url = ref('');
+
+// PDF-Vergleich: ein neu hochgeladenes PDF-Notenbild gegen den bereits auf dem
+// Lied gespeicherten Notentext (Seite 1 / Seite 2) stellen.
+const pdf_compare_dialog = ref(false);
+const pdf_compare_new_file = ref(null);
+const pdf_compare_title = ref('');
+const pdf_compare_targets = ref([]);
+const pdf_compare_initial_key = ref('');
 
 const align_dialog = ref(false);
 const align_file = ref(null);
@@ -57,6 +66,64 @@ function existingFileUrlFor(item) {
     if (!item || item.kind !== 'svg') return '';
     const id = existingFileIdFor(item);
     return id ? `${import.meta.env.VITE_BACKEND_URL}/assets/${id}` : '';
+}
+
+// Asset-URL für ein bereits hochgeladenes File-Objekt. PDFs bekommen die
+// .pdf-Endung (wie getPdfUrl in MediaComponent), damit der Content-Type stimmt.
+function assetUrlForFile(file) {
+    if (!file?.id) return '';
+    const base = `${import.meta.env.VITE_BACKEND_URL}/assets/${file.id}`;
+    return file.type === 'application/pdf' ? `${base}.pdf` : base;
+}
+
+// Vorhandene Notentext-Dateien (Seite 1 / Seite 2) des gematchten Lieds, gegen
+// die ein neu hochgeladenes PDF verglichen werden kann. Leeres Array, wenn das
+// Lied noch keinen Notentext hat oder das Item kein PDF ist.
+function existingPdfTargetsFor(item) {
+    if (!item || item.kind !== 'pdf' || !item.liedId) return [];
+    const lied = lookupLied(item.liedId);
+    if (!lied) return [];
+    const targets = [];
+    if (lied.notentext_file) {
+        targets.push({
+            key: 'seite1',
+            label: 'Seite 1',
+            url: assetUrlForFile(lied.notentext_file),
+            isPdf: lied.notentext_file.type === 'application/pdf',
+            name: lied.notentext_file.filename_download || lied.notentext_file.title || '',
+        });
+    }
+    if (lied.notentext_seite2_file) {
+        targets.push({
+            key: 'seite2',
+            label: 'Seite 2',
+            url: assetUrlForFile(lied.notentext_seite2_file),
+            isPdf: lied.notentext_seite2_file.type === 'application/pdf',
+            name:
+                lied.notentext_seite2_file.filename_download ||
+                lied.notentext_seite2_file.title ||
+                '',
+        });
+    }
+    return targets;
+}
+
+function canComparePdf(item) {
+    return existingPdfTargetsFor(item).length > 0;
+}
+
+function openPdfCompareDialog(item) {
+    const targets = existingPdfTargetsFor(item);
+    if (!targets.length) return;
+    pdf_compare_new_file.value = item.file;
+    pdf_compare_title.value = item.name;
+    pdf_compare_targets.value = targets;
+    // Standardmäßig gegen die Seite vergleichen, in die dieses PDF geschrieben
+    // würde (Seite 1/2 laut item.page) — sofern dort etwas liegt.
+    const preferredKey = item.page === 2 ? 'seite2' : 'seite1';
+    pdf_compare_initial_key.value =
+        targets.find((t) => t.key === preferredKey)?.key || targets[0].key;
+    pdf_compare_dialog.value = true;
 }
 
 function openAlignDialog(item) {
@@ -1549,6 +1616,16 @@ async function shareSummary() {
                                 Mit hochgeladener Version vergleichen
                             </v-btn>
                             <v-btn
+                                v-if="item.kind === 'pdf' && canComparePdf(item)"
+                                size="x-small"
+                                variant="tonal"
+                                color="primary"
+                                prepend-icon="mdi-file-compare"
+                                @click="openPdfCompareDialog(item)"
+                            >
+                                Mit vorhandenem vergleichen
+                            </v-btn>
+                            <v-btn
                                 size="x-small"
                                 color="error"
                                 variant="tonal"
@@ -1593,6 +1670,22 @@ async function shareSummary() {
                                 size="small"
                                 :disabled="item.status === 'uploading'"
                                 @click="openCompareDialog(item)"
+                            />
+                        </template>
+                    </v-tooltip>
+                    <v-tooltip
+                        v-if="item.kind === 'pdf' && canComparePdf(item)"
+                        text="Mit vorhandenem Notentext (Seite 1/2) vergleichen"
+                        location="top"
+                    >
+                        <template #activator="{ props }">
+                            <v-btn
+                                v-bind="props"
+                                icon="mdi-file-compare"
+                                variant="text"
+                                size="small"
+                                :disabled="item.status === 'uploading'"
+                                @click="openPdfCompareDialog(item)"
                             />
                         </template>
                     </v-tooltip>
@@ -1721,6 +1814,14 @@ async function shareSummary() {
         :file="compare_file"
         :title="compare_title"
         :existing-url="compare_existing_url"
+    />
+
+    <PdfCompareDialog
+        v-model="pdf_compare_dialog"
+        :new-file="pdf_compare_new_file"
+        :title="pdf_compare_title"
+        :targets="pdf_compare_targets"
+        :initial-key="pdf_compare_initial_key"
     />
 
     <LyricsAlignDialog
