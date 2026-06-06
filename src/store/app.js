@@ -379,6 +379,12 @@ export const useAppStore = defineStore('app', {
                 // SVG-Notentext (Issue #19): die gebackene SVG liegt jetzt in einem
                 // eigenen Feld, das PDF-Notenbild in notentext/notentext_seite2.
                 notentext_svg_file: obj.notentext_svg ? file_grouped[obj.notentext_svg] : null,
+                // Finale-Quelldatei (.musx/.mus) im eigenen Feld finale_file.
+                finale_file_file: obj.finale_file ? file_grouped[obj.finale_file] : null,
+                // MIDI-Trio (Vorspiel / Standard-Strophe / Letzte Strophe).
+                midi_intro_file: obj.midi_intro ? file_grouped[obj.midi_intro] : null,
+                midi_main_file: obj.midi_main ? file_grouped[obj.midi_main] : null,
+                midi_outro_file: obj.midi_outro ? file_grouped[obj.midi_outro] : null,
 
                 // if undefined then 0, if auftrag exist and any has status not 'done' then 1 otherwise 2
                 text_work_order: textById[obj.textId]?.auftrag
@@ -412,9 +418,9 @@ export const useAppStore = defineStore('app', {
                         ? `Melodie: ${melodieById[obj.melodieId]?.author_name}`
                         : ''),
                 // if equal to title replace with ...
-                gesangbuch_titel: `${
-                    obj?.liednummer2000 ? '(' + obj?.liednummer2000 + ') ' : ''
-                }${obj?.titel}`,
+                gesangbuch_titel: `${obj?.titel}${
+                    obj?.liednummer2000 ? ' (' + obj?.liednummer2000 + ')' : ''
+                }`,
                 text_titel: textById[obj.textId]?.titel,
                 melodie_titel: melodieById[obj.melodieId]?.titel,
                 // bewertung kleiner kreis
@@ -615,9 +621,9 @@ export const useAppStore = defineStore('app', {
                 if (index !== -1) {
                     const lied = this.gesangbuchlied[index];
                     lied.titel = titel;
-                    lied.gesangbuch_titel = `${
-                        lied.liednummer2000 ? '(' + lied.liednummer2000 + ') ' : ''
-                    }${titel}`;
+                    lied.gesangbuch_titel = `${titel}${
+                        lied.liednummer2000 ? ' (' + lied.liednummer2000 + ')' : ''
+                    }`;
                 }
 
                 this.currentRequests = this.currentRequests.filter((c) => c !== controller);

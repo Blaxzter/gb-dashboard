@@ -385,16 +385,42 @@ function firstVerseText(lied) {
 const SVG_EXT_RE = /\.svg$/i;
 const MXL_EXT_RE = /\.(mxl|musicxml)$/i;
 const PDF_EXT_RE = /\.pdf$/i;
+// Finale-Quelldateien: .musx (Finale 2014+) und das ältere .mus.
+const FINALE_EXT_RE = /\.(musx|mus)$/i;
+// MIDI-Dateien: .mid und .midi.
+const MIDI_EXT_RE = /\.midi?$/i;
 
 function detectKind(name) {
     if (SVG_EXT_RE.test(name)) return 'svg';
     if (MXL_EXT_RE.test(name)) return 'mxl';
     if (PDF_EXT_RE.test(name)) return 'pdf';
+    if (FINALE_EXT_RE.test(name)) return 'finale';
+    if (MIDI_EXT_RE.test(name)) return 'midi';
     return null;
 }
 
+// MIDI-Trio-Varianten: Vorspiel / Standard-Strophe / Letzte Strophe.
+const MIDI_VARIANTS = ['intro', 'main', 'outro'];
+const MIDI_VARIANT_ORDER = { intro: 0, main: 1, outro: 2 };
+
+function midiVariantLabel(v) {
+    return { intro: 'Vorspiel', main: 'Strophe', outro: 'Ausleitung' }[v] || v;
+}
+
 function parseFilename(name) {
-    let base = name.replace(SVG_EXT_RE, '').replace(MXL_EXT_RE, '').replace(PDF_EXT_RE, '');
+    let base = name
+        .replace(SVG_EXT_RE, '')
+        .replace(MXL_EXT_RE, '')
+        .replace(PDF_EXT_RE, '')
+        .replace(FINALE_EXT_RE, '')
+        .replace(MIDI_EXT_RE, '');
+    // MIDI-Trio: _intro / _main / _outro im Dateinamen wählt den Ziel-Slot.
+    let midiVariant = null;
+    const midiMatch = base.match(/[\s_\-]+(intro|main|outro)$/i);
+    if (midiMatch) {
+        midiVariant = midiMatch[1].toLowerCase();
+        base = base.slice(0, base.length - midiMatch[0].length);
+    }
     let page = 1;
     // Finale convention: ...001 / ...002 page suffix (also _001, -001 etc.)
     const finalePageMatch = base.match(/[\s_\-]?(\d{3})$/);
@@ -429,7 +455,7 @@ function parseFilename(name) {
         liednummer = numMatch[1];
         base = base.slice(numMatch[0].length);
     }
-    return { base, normalizedBase: normalize(base), liednummer, page };
+    return { base, normalizedBase: normalize(base), liednummer, page, midiVariant };
 }
 
 function scoreLied(lied, parsed, query) {
@@ -577,8 +603,10 @@ async function addFiles(files) {
                 name: file.name,
                 previewUrl,
                 parsed,
-                // Seite betrifft nur das PDF-Notenbild; SVG hat ein eigenes Feld.
-                page: kind === 'mxl' ? null : parsed.page,
+                // Seite betrifft nur das PDF-Notenbild; SVG/MXL/Finale/MIDI haben eigene Felder.
+                page: kind === 'mxl' || kind === 'finale' || kind === 'midi' ? null : parsed.page,
+                // MIDI-Trio-Slot (Vorspiel/Strophe/Ausleitung); ohne Suffix -> Strophe.
+                midiVariant: kind === 'midi' ? parsed.midiVariant || 'main' : null,
                 liedId: autoMatch?.id || null,
                 suggestions,
                 status: 'unmatched',
@@ -671,6 +699,16 @@ function togglePage(item) {
     refreshItemStatus(item);
 }
 
+function setMidiVariant(item, variant) {
+    // Intro/Main/Outro betrifft nur MIDI (midi_intro / midi_main / midi_outro).
+    if (item.kind !== 'midi' || !MIDI_VARIANTS.includes(variant)) return;
+    if (['uploading', 'done'].includes(item.status)) return;
+    if (item.midiVariant === variant) return;
+    item.midiVariant = variant;
+    item.conflictChoice = null;
+    refreshItemStatus(item);
+}
+
 function applyConflictChoice(item, choice) {
     item.conflictChoice = choice;
     if (choice === 'swap') {
@@ -698,6 +736,8 @@ function lookupLied(id) {
 function liedHasField(lied, item) {
     if (!lied) return false;
     if (item.kind === 'mxl') return !!lied.notentext_mxml;
+    if (item.kind === 'finale') return !!lied.finale_file;
+    if (item.kind === 'midi') return !!lied[`midi_${item.midiVariant || 'main'}`];
     // SVG -> eigenes Feld (Issue #19); PDF -> notentext / notentext_seite2
     if (item.kind === 'svg') return !!lied.notentext_svg;
     return item.page === 2 ? !!lied.notentext_seite2 : !!lied.notentext;
@@ -706,6 +746,15 @@ function liedHasField(lied, item) {
 function fieldFor(item) {
     if (item.kind === 'mxl') {
         return { field: 'notentext_mxml', fileField: 'notentext_mxml_file' };
+    }
+    // Finale-Quelldatei (.musx/.mus) landet in finale_file.
+    if (item.kind === 'finale') {
+        return { field: 'finale_file', fileField: 'finale_file_file' };
+    }
+    // MIDI-Trio: je nach Variante in midi_intro / midi_main / midi_outro.
+    if (item.kind === 'midi') {
+        const v = item.midiVariant || 'main';
+        return { field: `midi_${v}`, fileField: `midi_${v}_file` };
     }
     // Die gebackene SVG landet in notentext_svg, das PDF-Notenbild in
     // notentext / notentext_seite2 (Issue #19).
@@ -747,12 +796,25 @@ async function bakeFileToBlob(file, options = {}) {
 // Directus folder these uploads land in. When unset, files go to the instance
 // default (root) — keeps local dev working against a Directus without this folder.
 const NOTENTEXT_FOLDER_ID = import.meta.env.VITE_NOTENTEXT_FOLDER_ID;
+// Finale-Quelldateien (.musx/.mus) bekommen einen eigenen Ordner, getrennt von
+// den Notenbildern (SVG/PDF/MXL). Per Env überschreibbar, sonst fester Ordner.
+const FINALE_FOLDER_ID =
+    import.meta.env.VITE_FINALE_FOLDER_ID || 'b3a03c46-937e-4560-8233-3badf8dac706';
+// MIDI-Dateien (.mid/.midi) bekommen ebenfalls einen eigenen Ordner.
+const MIDI_FOLDER_ID =
+    import.meta.env.VITE_MIDI_FOLDER_ID || 'd0d76c68-87fe-4c23-a799-753d38f584c5';
 
-async function uploadBlob(blob, filename, displayName) {
+function folderForItem(item) {
+    if (item.kind === 'finale') return FINALE_FOLDER_ID;
+    if (item.kind === 'midi') return MIDI_FOLDER_ID;
+    return NOTENTEXT_FOLDER_ID;
+}
+
+async function uploadBlob(blob, filename, displayName, folderId) {
     const formData = new FormData();
     formData.append('title', displayName);
     // Metadata fields must precede `file` so Directus applies them to the upload.
-    if (NOTENTEXT_FOLDER_ID) formData.append('folder', NOTENTEXT_FOLDER_ID);
+    if (folderId) formData.append('folder', folderId);
     formData.append('file', blob, filename);
     const resp = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/files`, formData);
     return resp.data.data;
@@ -807,9 +869,14 @@ async function processItem(item) {
             });
             item.bakedCount = bakedCount;
             item.totalTexts = totalTexts;
-            uploaded = await uploadBlob(blob, item.file.name, item.name);
+            uploaded = await uploadBlob(blob, item.file.name, item.name, folderForItem(item));
         } else {
-            uploaded = await uploadBlob(item.file, item.file.name, item.name);
+            uploaded = await uploadBlob(
+                item.file,
+                item.file.name,
+                item.name,
+                folderForItem(item),
+            );
         }
         item.uploadedFileId = uploaded.id;
         const { field, fileField } = fieldFor(item);
@@ -903,6 +970,11 @@ function sortItemsForGroup(items) {
     return [...items].sort((a, b) => {
         if (a.kind !== b.kind) return a.kind === 'svg' ? -1 : 1;
         if (a.kind === 'svg') return (a.page || 0) - (b.page || 0) || a.uid - b.uid;
+        if (a.kind === 'midi') {
+            const oa = MIDI_VARIANT_ORDER[a.midiVariant] ?? 9;
+            const ob = MIDI_VARIANT_ORDER[b.midiVariant] ?? 9;
+            return oa - ob || a.uid - b.uid;
+        }
         return a.uid - b.uid;
     });
 }
@@ -994,7 +1066,7 @@ watch(queue, () => {
 }, { deep: true });
 
 watch(
-    () => queue.value.map((q) => `${q.liedId}|${q.page}`).join(','),
+    () => queue.value.map((q) => `${q.liedId}|${q.page}|${q.midiVariant}`).join(','),
     () => refreshAllStatuses(),
 );
 
@@ -1043,7 +1115,15 @@ function buildSummaryText() {
         done.forEach((q) => {
             const lied = lookupLied(q.liedId);
             const kindLabel =
-                q.kind === 'mxl' ? 'MusicXML' : q.kind === 'svg' ? 'SVG' : `Seite ${q.page}`;
+                q.kind === 'mxl'
+                    ? 'MusicXML'
+                    : q.kind === 'svg'
+                        ? 'SVG'
+                        : q.kind === 'finale'
+                            ? 'Finale'
+                            : q.kind === 'midi'
+                                ? `MIDI ${midiVariantLabel(q.midiVariant)}`
+                                : `Seite ${q.page}`;
             lines.push(
                 `  • Lied ${lied?.liednummer2026 || lied?.liednummer2000 || '–'} „${lied?.titel || ''}" – ${kindLabel} (${q.name})`,
             );
@@ -1128,14 +1208,16 @@ async function shareSummary() {
                 >
                     <v-icon size="40" color="primary">mdi-cloud-upload-outline</v-icon>
                     <div class="text-subtitle-1 mt-2">
-                        SVG-, PDF- und MXL-Dateien hier ablegen oder klicken zum Auswählen
+                        SVG-, PDF-, MXL-, Finale- (.musx/.mus) und MIDI-Dateien (.mid) hier ablegen
+                        oder klicken zum Auswählen
                     </div>
                     <div class="text-caption text-medium-emphasis">
                         Mehrere Dateien auf einmal möglich. Liednummer und „_seite2"/„_2" im
                         Dateinamen werden erkannt. Das PDF-Notenbild wird als Notentext
                         gespeichert (Seite 1/2), die SVG zusätzlich gebacken als
                         Bearbeitungs-Vorlage. Liegen SVG und PDF zum selben Lied vor, kann die SVG
-                        auf Knopfdruck am PDF-Layout ausgerichtet werden.
+                        auf Knopfdruck am PDF-Layout ausgerichtet werden. Bei MIDI-Dateien wählt
+                        „_intro"/„_main"/„_outro" den Slot (Vorspiel/Strophe/Ausleitung).
                     </div>
                 </div>
             </div>
@@ -1172,7 +1254,7 @@ async function shareSummary() {
             <input
                 ref="file_input"
                 type="file"
-                accept=".svg,image/svg+xml,.mxl,.musicxml,.pdf,application/pdf"
+                accept=".svg,image/svg+xml,.mxl,.musicxml,.pdf,application/pdf,.musx,.mus,.mid,.midi,audio/midi,audio/x-midi"
                 multiple
                 style="display: none"
                 @change="onPickFiles"
@@ -1349,6 +1431,16 @@ async function shareSummary() {
                         <v-icon size="40" color="error">mdi-file-pdf-box</v-icon>
                         <div class="text-caption text-medium-emphasis mt-1">PDF</div>
                     </template>
+                    <template v-else-if="item.kind === 'finale'">
+                        <v-icon size="40" color="purple">mdi-file-music-outline</v-icon>
+                        <div class="text-caption text-medium-emphasis mt-1">Finale</div>
+                    </template>
+                    <template v-else-if="item.kind === 'midi'">
+                        <v-icon size="40" color="teal">mdi-piano</v-icon>
+                        <div class="text-caption text-medium-emphasis mt-1">
+                            MIDI · {{ midiVariantLabel(item.midiVariant) }}
+                        </div>
+                    </template>
                 </div>
 
                 <div class="d-flex flex-column ga-1 flex-grow-1" style="min-width: 0;">
@@ -1381,6 +1473,37 @@ async function shareSummary() {
                         >
                             SVG
                         </v-chip>
+                        <v-chip
+                            v-else-if="item.kind === 'finale'"
+                            size="x-small"
+                            variant="tonal"
+                            color="purple"
+                            prepend-icon="mdi-file-music-outline"
+                        >
+                            Finale
+                        </v-chip>
+                        <template v-else-if="item.kind === 'midi'">
+                            <v-chip
+                                size="x-small"
+                                variant="tonal"
+                                color="teal"
+                                prepend-icon="mdi-piano"
+                            >
+                                MIDI
+                            </v-chip>
+                            <v-btn-toggle
+                                :model-value="item.midiVariant"
+                                mandatory
+                                density="compact"
+                                variant="outlined"
+                                :disabled="['uploading', 'done'].includes(item.status)"
+                                @update:model-value="(v) => v && setMidiVariant(item, v)"
+                            >
+                                <v-btn value="intro" size="x-small">Vorspiel</v-btn>
+                                <v-btn value="main" size="x-small">Strophe</v-btn>
+                                <v-btn value="outro" size="x-small">Ausleitung</v-btn>
+                            </v-btn-toggle>
+                        </template>
                         <template v-else>
                             <v-chip
                                 v-if="!showPageToggle(item, group)"
@@ -1564,6 +1687,13 @@ async function shareSummary() {
                             </template>
                             <template v-else-if="item.kind === 'svg'">
                                 Lied hat bereits eine SVG-Notentext-Datei. Was tun?
+                            </template>
+                            <template v-else-if="item.kind === 'finale'">
+                                Lied hat bereits eine Finale-Datei. Was tun?
+                            </template>
+                            <template v-else-if="item.kind === 'midi'">
+                                Lied hat bereits eine MIDI-Datei für
+                                {{ midiVariantLabel(item.midiVariant) }}. Was tun?
                             </template>
                             <template v-else>
                                 Lied hat bereits einen Notentext für Seite {{ item.page }}. Was tun?
