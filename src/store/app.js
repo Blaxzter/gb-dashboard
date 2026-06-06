@@ -29,6 +29,7 @@ export const useAppStore = defineStore('app', {
         melodie_file: [],
         gesangbuchlied_kategorie: [],
         file: [],
+        export_log: [],
         currentRequests: [],
     }),
     getters: {
@@ -51,6 +52,7 @@ export const useAppStore = defineStore('app', {
         melodie_files: (state) => state.melodie_file,
         gesangbuchlied_kategories: (state) => state.gesangbuchlied_kategorie,
         files: (state) => state.file,
+        export_logs: (state) => state.export_log,
 
         arbeitskreis_by_id: (state) => {
             return (id) => _.find(state.auftrag, (o) => o.id === id);
@@ -506,6 +508,50 @@ export const useAppStore = defineStore('app', {
             );
             console.log('Data loaded');
             this.data_loaded = true;
+
+            // Export-Log (Issue #22) separat & graceful nachladen – ein Fehlen der
+            // Collection darf den App-Start nicht blockieren.
+            this.loadExportLog();
+        },
+
+        // Lädt das Export-Log (Issue #22). Graceful: existiert die Collection in
+        // Directus noch nicht (404/403), bleibt das Log leer, statt zu crashen.
+        async loadExportLog() {
+            try {
+                const resp = await axios.get(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/export_log?limit=-1`,
+                );
+                this.export_log = resp.data.data || [];
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                    return;
+                }
+                console.warn(
+                    'Export-Log konnte nicht geladen werden (Collection vorhanden?)',
+                    error?.response?.status || error,
+                );
+                this.export_log = [];
+            }
+        },
+
+        // Schreibt eine Export-Log-Zeile (Issue #22) und hängt das Ergebnis lokal
+        // an. data_created/user_created setzt Directus serverseitig – nicht mitsenden.
+        async addNotentextExport(payload) {
+            const resp = await axios.post(
+                `${import.meta.env.VITE_BACKEND_URL}/items/export_log`,
+                payload,
+            );
+            const created = resp.data.data;
+            this.export_log.push(created);
+            return created;
+        },
+
+        // Löscht eine Export-Log-Zeile (Issue #22) und entfernt sie lokal.
+        async deleteNotentextExport(id) {
+            await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/items/export_log/${id}`);
+            this.export_log = this.export_log.filter((entry) => entry.id !== id);
         },
 
         updateGesangbuchlied(gesangbuchlied) {
@@ -626,9 +672,16 @@ export const useAppStore = defineStore('app', {
                 'korrekturlesung2',
             ];
 
+            // Zeitpunkt der Textänderung – wird mitgespeichert, damit der
+            // Notentext-Export erkennt, welche Lieder seit dem letzten Export
+            // geänderten Text haben (Issue #22). Akzeptiert: leichtes
+            // Over-Triggering bei reinen kiReview-Saves.
+            const textChangedAt = new Date().toISOString();
+
             try {
                 const payload = {
                     strophenEinzeln: strophes,
+                    text_changed_at: textChangedAt,
                 };
 
                 // Nur die explizit übergebenen Korrekturlesungs-Flags patchen.
@@ -650,6 +703,7 @@ export const useAppStore = defineStore('app', {
                 const textIndex = this.text.findIndex((t) => t.id === textId);
                 if (textIndex !== -1) {
                     this.text[textIndex].strophenEinzeln = strophes;
+                    this.text[textIndex].text_changed_at = textChangedAt;
                     if (korrektur && typeof korrektur === 'object') {
                         KORREKTUR_FELDER.forEach((feld) => {
                             if (korrektur[feld] !== undefined) {

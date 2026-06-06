@@ -164,6 +164,8 @@ export default {
                     {
                         anmerkung: this.$refs.song_data.text_anmerkung,
                         strophenEinzeln: this.selected_song?.text?.strophenEinzeln,
+                        // Textänderung mitstempeln (Issue #22).
+                        text_changed_at: new Date().toISOString(),
                     },
                 );
             } else {

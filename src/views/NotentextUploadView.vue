@@ -691,10 +691,13 @@ async function uploadBlob(blob, filename, displayName) {
     return resp.data.data;
 }
 
-async function patchLiedField(liedId, field, fileId) {
+async function patchLiedField(liedId, field, fileId, extraFields = null) {
+    const payload = { [field]: fileId };
+    // Optionale Zusatzfelder (z. B. notentext_uploaded_at für Issue #22).
+    if (extraFields && typeof extraFields === 'object') Object.assign(payload, extraFields);
     const resp = await axios.patch(
         `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied/${liedId}`,
-        { [field]: fileId },
+        payload,
     );
     return resp.data.data;
 }
@@ -743,13 +746,26 @@ async function processItem(item) {
         }
         item.uploadedFileId = uploaded.id;
         const { field, fileField } = fieldFor(item);
-        await patchLiedField(item.liedId, field, uploaded.id);
+        // Beim Hochladen eines PDF-Notenbilds (Seite 1/2) den Upload-Zeitpunkt
+        // mitschreiben, damit der Notentext-Export erkennt, welche Lieder seit
+        // dem letzten Export neue Noten erhalten haben (Issue #22). SVG ->
+        // notentext_svg bumpt notentext_uploaded_at NICHT.
+        const notesUploadedAt = item.kind === 'pdf' ? new Date().toISOString() : null;
+        await patchLiedField(
+            item.liedId,
+            field,
+            uploaded.id,
+            notesUploadedAt ? { notentext_uploaded_at: notesUploadedAt } : null,
+        );
         // sync local store
         store.file.push(uploaded);
         const idx = store.gesangbuchlied.findIndex((l) => l.id === item.liedId);
         if (idx !== -1) {
             store.gesangbuchlied[idx][field] = uploaded.id;
             store.gesangbuchlied[idx][fileField] = uploaded;
+            if (notesUploadedAt) {
+                store.gesangbuchlied[idx].notentext_uploaded_at = notesUploadedAt;
+            }
         }
         item.status = 'done';
     } catch (e) {

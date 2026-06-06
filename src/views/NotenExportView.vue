@@ -10,9 +10,6 @@ import JSZip from 'jszip';
 import { formatYearRange, formatAuthors } from '@/assets/js/authorFormat';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
-const HISTORY_KEY = 'notenexport_history';
-const MAX_HISTORY = 20;
-
 const store = useAppStore();
 const route = useRoute();
 const router = useRouter();
@@ -31,8 +28,6 @@ const progress = ref({ done: 0, total: 0, current: '' });
 const error_msg = ref('');
 const snackbar = ref(false);
 const snackbar_message = ref('');
-
-const history = ref([]);
 
 // Lied-Detail-Dialog: Klick auf "Detail" öffnet das Lied direkt in dieser View.
 // Die URL wird dabei auf /notentext-export/:id angepasst, damit ein geöffnetes
@@ -73,23 +68,93 @@ watch(detail_dialog, (is_open) => {
 });
 
 onMounted(() => {
-    try {
-        const stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        if (Array.isArray(stored)) history.value = stored;
-    } catch {
-        history.value = [];
-    }
+    // Export-Log (Issue #22) frisch laden – die Historie ist serverseitig und
+    // wird zwischen allen Nutzern geteilt.
+    store.loadExportLog();
     openDetailFromRoute();
 });
 
 watch(() => store.gesangbuchlieder, openDetailFromRoute);
 
-watch(history, (v) => localStorage.setItem(HISTORY_KEY, JSON.stringify(v)), { deep: true });
+// --- Export-Historie & Änderungs-Erkennung (Issue #22) ---------------------
+// Die Historie kommt jetzt aus der Directus-Collection export_log (kein
+// localStorage mehr). Veraltet = Inhalt wurde NACH dem letzten Export geändert.
+
+// Zeitstempel einer Export-Log-Zeile defensiv auslesen (Directus-Default heißt
+// data_created; Fallbacks für abweichende Schema-Benennung).
+function exportLogTimestamp(entry) {
+    return entry?.data_created || entry?.date_created || entry?.exportiert_am || null;
+}
+
+// true, wenn Zeitpunkt a strikt nach b liegt (robust über Formatgrenzen hinweg).
+function isAfter(a, b) {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+    return ta > tb;
+}
+
+// Pro Lied-ID der späteste Export-Zeitpunkt über alle Log-Zeilen.
+const last_export_by_id = computed(() => {
+    const map = new Map();
+    (store.export_log || []).forEach((entry) => {
+        const ts = exportLogTimestamp(entry);
+        if (!ts) return;
+        (entry.gesangbuchlied_ids || []).forEach((id) => {
+            const prev = map.get(id);
+            if (!prev || isAfter(ts, prev)) map.set(id, ts);
+        });
+    });
+    return map;
+});
 
 const previously_exported_ids = computed(() => {
     const set = new Set();
-    history.value.forEach((entry) => (entry.songIds || []).forEach((id) => set.add(id)));
+    (store.export_log || []).forEach((entry) =>
+        (entry.gesangbuchlied_ids || []).forEach((id) => set.add(id)),
+    );
     return set;
+});
+
+function lastExportOf(lied) {
+    return last_export_by_id.value.get(lied.id) || null;
+}
+
+// Zeitpunkt der letzten Noten-Änderung: explizites Feld, sonst Upload-Datum der
+// PDF-Notenbild-Datei (Fallback).
+function notesChangedAt(lied) {
+    return lied.notentext_uploaded_at || lied.notentext_file?.uploaded_on || null;
+}
+
+function textChangedAt(lied) {
+    return lied.text?.text_changed_at || null;
+}
+
+// Veraltet nur, wenn es einen vorherigen Export gibt UND der Inhalt danach
+// geändert wurde. Lieder ohne vorherigen Export gelten als "neu", nicht veraltet.
+function notesStale(lied) {
+    const le = lastExportOf(lied);
+    const ca = notesChangedAt(lied);
+    return !!le && !!ca && isAfter(ca, le);
+}
+
+function textStale(lied) {
+    const le = lastExportOf(lied);
+    const ca = textChangedAt(lied);
+    return !!le && !!ca && isAfter(ca, le);
+}
+
+// Server-Export-Historie als absteigend sortierte Anzeige-Liste.
+const history = computed(() => {
+    const rows = (store.export_log || []).map((entry) => ({
+        id: entry.id,
+        timestamp: exportLogTimestamp(entry),
+        songCount: entry.anzahl ?? (entry.gesangbuchlied_ids?.length || 0),
+        filter: entry.filter || null,
+        user: entry.user_created || null,
+    }));
+    rows.sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
+    return rows;
 });
 
 const all_lieder = computed(() => store.gesangbuchlieder);
@@ -170,6 +235,25 @@ const selected_without_pdf = computed(() =>
         (l) => l.notentext && selected_ids.value.has(l.id) && notentextNeedsPdf(l),
     ),
 );
+
+// Ausgewählte, exportierbare Lieder, die seit dem letzten Export geändert wurden
+// (Issue #22). Grundlage für die Summary-Warnung über der Tabelle.
+const selected_stale = computed(() =>
+    filtered_lieder.value.filter(
+        (l) =>
+            l.notentext &&
+            selected_ids.value.has(l.id) &&
+            (notesStale(l) || textStale(l)),
+    ),
+);
+const selected_stale_notes = computed(
+    () => selected_stale.value.filter((l) => notesStale(l)).length,
+);
+const selected_stale_text = computed(
+    () => selected_stale.value.filter((l) => textStale(l)).length,
+);
+// Aufklappbare Detailliste der veränderten Lieder unter der Summary-Warnung.
+const stale_details_open = ref(false);
 
 function isSelected(id) {
     return selected_ids.value.has(id);
@@ -655,28 +739,53 @@ async function runExport() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 
-    history.value = [
-        {
-            timestamp: new Date().toISOString(),
-            filter: meta.filter,
-            songCount: exportedIds.length,
-            failedCount: meta.counts.failed,
-            songIds: exportedIds,
-        },
-        ...history.value,
-    ].slice(0, MAX_HISTORY);
+    // Export-Log in Directus schreiben (Issue #22) – nur die erfolgreich
+    // exportierten IDs. data_created/user_created setzt der Server. Schlägt das
+    // Schreiben fehl (z. B. Collection fehlt), bleibt der Download trotzdem gültig.
+    if (exportedIds.length) {
+        try {
+            await store.addNotentextExport({
+                gesangbuchlied_ids: exportedIds,
+                anzahl: exportedIds.length,
+                filter: meta.filter,
+            });
+        } catch (e) {
+            console.error('Export-Log konnte nicht gespeichert werden', e);
+        }
+    }
 
     snackbar_message.value = `Export fertig: ${exportedIds.length} PDF(s), ${meta.counts.failed} Fehler`;
     snackbar.value = true;
     exporting.value = false;
 }
 
-function clearHistory() {
-    history.value = [];
+// --- Export-Log löschen (mit Bestätigungsdialog) ---------------------------
+const delete_dialog = ref(false);
+const delete_target = ref(null);
+const deleting = ref(false);
+
+function askDeleteExport(entry) {
+    delete_target.value = entry;
+    delete_dialog.value = true;
 }
 
-function removeHistoryEntry(idx) {
-    history.value.splice(idx, 1);
+async function confirmDeleteExport() {
+    const entry = delete_target.value;
+    if (!entry) return;
+    deleting.value = true;
+    try {
+        await store.deleteNotentextExport(entry.id);
+        snackbar_message.value = 'Export-Eintrag gelöscht.';
+        snackbar.value = true;
+        delete_dialog.value = false;
+        delete_target.value = null;
+    } catch (e) {
+        console.error('Export-Eintrag konnte nicht gelöscht werden', e);
+        snackbar_message.value = 'Löschen fehlgeschlagen.';
+        snackbar.value = true;
+    } finally {
+        deleting.value = false;
+    }
 }
 
 function formatDate(iso) {
@@ -815,55 +924,130 @@ function formatDate(iso) {
             <v-expansion-panel-title>
                 <div class="d-flex align-center ga-2">
                     <v-icon>mdi-history</v-icon>
-                    <span>Eigene Export-Historie ({{ history.length }})</span>
+                    <span>Export-Historie ({{ history.length }})</span>
                 </div>
             </v-expansion-panel-title>
             <v-expansion-panel-text>
                 <div v-if="history.length === 0" class="text-medium-emphasis">
-                    Noch keine Exporte in diesem Browser.
+                    Noch keine Exporte.
                 </div>
                 <div v-else>
                     <v-list density="compact">
-                        <v-list-item v-for="(h, idx) in history" :key="idx">
+                        <v-list-item v-for="h in history" :key="h.id">
                             <template #prepend>
                                 <v-icon size="small">mdi-folder-zip</v-icon>
                             </template>
                             <v-list-item-title>
-                                {{ formatDate(h.timestamp) }} — {{ h.songCount }} PDF(s)
-                                <span v-if="h.failedCount" class="text-error">
-                                    ({{ h.failedCount }} Fehler)
-                                </span>
+                                {{ formatDate(h.timestamp) }} — {{ h.songCount }} Lied(er)
                             </v-list-item-title>
                             <v-list-item-subtitle>
                                 Filter: {{ h.filter?.status || '–' }}
                                 <span v-if="h.filter?.search">, „{{ h.filter.search }}"</span>
                             </v-list-item-subtitle>
                             <template #append>
-                                <v-btn
-                                    icon="mdi-close"
-                                    size="small"
-                                    variant="text"
-                                    @click="removeHistoryEntry(idx)"
-                                />
+                                <v-tooltip text="Diesen Export-Eintrag löschen" location="left">
+                                    <template #activator="{ props }">
+                                        <v-btn
+                                            v-bind="props"
+                                            icon="mdi-delete"
+                                            size="small"
+                                            variant="text"
+                                            color="error"
+                                            @click="askDeleteExport(h)"
+                                        />
+                                    </template>
+                                </v-tooltip>
                             </template>
                         </v-list-item>
                     </v-list>
-                    <div class="d-flex">
-                        <v-spacer />
-                        <v-btn
-                            size="small"
-                            variant="text"
-                            color="error"
-                            prepend-icon="mdi-delete"
-                            @click="clearHistory"
-                        >
-                            Historie löschen
-                        </v-btn>
-                    </div>
                 </div>
             </v-expansion-panel-text>
         </v-expansion-panel>
     </v-expansion-panels>
+
+    <!-- Summary-Warnung: ausgewählte Lieder, die seit dem letzten Export geändert
+         wurden (Issue #22). -->
+    <v-alert
+        v-if="selected_stale.length"
+        class="mb-4"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        prepend-icon="mdi-update"
+    >
+        <div class="d-flex align-center flex-wrap ga-2">
+            <span>
+                {{ selected_stale.length }} ausgewählte Lieder seit dem letzten Export geändert
+                (Noten: {{ selected_stale_notes }}, Text: {{ selected_stale_text }}). Diese
+                sollten neu weitergegeben werden.
+            </span>
+            <v-spacer />
+            <v-btn
+                size="small"
+                variant="text"
+                :append-icon="stale_details_open ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                @click="stale_details_open = !stale_details_open"
+            >
+                {{ stale_details_open ? 'Details ausblenden' : 'Details anzeigen' }}
+            </v-btn>
+        </div>
+        <v-expand-transition>
+            <div v-if="stale_details_open" class="mt-2">
+                <v-divider class="mb-1" />
+                <v-list density="compact" bg-color="transparent" class="py-0">
+                    <v-list-item v-for="lied in selected_stale" :key="lied.id" class="px-0">
+                        <v-list-item-title class="d-flex align-center flex-wrap ga-2">
+                            <span class="font-weight-medium">
+                                {{ lied.liednummer2026 || lied.liednummer2000 || '–' }} ·
+                                {{ lied.titel }}
+                            </span>
+                            <v-chip
+                                v-if="notesStale(lied)"
+                                size="x-small"
+                                color="warning"
+                                variant="tonal"
+                                prepend-icon="mdi-music-note"
+                            >
+                                Noten geändert
+                            </v-chip>
+                            <v-chip
+                                v-if="textStale(lied)"
+                                size="x-small"
+                                color="warning"
+                                variant="tonal"
+                                prepend-icon="mdi-text"
+                            >
+                                Text geändert
+                            </v-chip>
+                        </v-list-item-title>
+                        <v-list-item-subtitle class="mt-1">
+                            <span>Letzter Export: {{ formatDate(lastExportOf(lied)) }}</span>
+                            <span v-if="notesStale(lied)">
+                                · Noten geändert: {{ formatDate(notesChangedAt(lied)) }}
+                            </span>
+                            <span v-if="textStale(lied)">
+                                · Text geändert: {{ formatDate(textChangedAt(lied)) }}
+                            </span>
+                        </v-list-item-subtitle>
+                        <template #append>
+                            <v-tooltip text="Detailansicht öffnen" location="left">
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        icon="mdi-eye"
+                                        size="small"
+                                        variant="text"
+                                        color="primary"
+                                        @click="openDetail(lied)"
+                                    />
+                                </template>
+                            </v-tooltip>
+                        </template>
+                    </v-list-item>
+                </v-list>
+            </div>
+        </v-expand-transition>
+    </v-alert>
 
     <v-card>
         <v-card-text class="pa-0">
@@ -883,7 +1067,7 @@ function formatDate(iso) {
                         <th style="width: 80px">Nr.</th>
                         <th>Titel</th>
                         <th style="width: 140px">notentext</th>
-                        <th style="width: 100px">vorher</th>
+                        <th style="width: 220px">Export-Status</th>
                         <th style="width: 72px">Detail</th>
                     </tr>
                 </thead>
@@ -955,15 +1139,51 @@ function formatDate(iso) {
                             </v-tooltip>
                         </td>
                         <td>
-                            <v-chip
-                                v-if="previously_exported_ids.has(lied.id)"
-                                size="x-small"
-                                color="info"
-                                variant="tonal"
-                                prepend-icon="mdi-history"
-                            >
-                                exportiert
-                            </v-chip>
+                            <div class="d-flex flex-column align-start ga-1 py-1">
+                                <v-chip
+                                    v-if="previously_exported_ids.has(lied.id)"
+                                    size="x-small"
+                                    color="info"
+                                    variant="tonal"
+                                    prepend-icon="mdi-history"
+                                >
+                                    exportiert
+                                </v-chip>
+                                <v-tooltip
+                                    v-if="lied.notentext && notesStale(lied)"
+                                    :text="`Noten geändert am ${formatDate(notesChangedAt(lied))} – nach dem letzten Export (${formatDate(lastExportOf(lied))}).`"
+                                    location="top"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-chip
+                                            v-bind="props"
+                                            size="x-small"
+                                            color="warning"
+                                            variant="tonal"
+                                            prepend-icon="mdi-music-note"
+                                        >
+                                            Noten geändert seit Export
+                                        </v-chip>
+                                    </template>
+                                </v-tooltip>
+                                <v-tooltip
+                                    v-if="lied.notentext && textStale(lied)"
+                                    :text="`Text geändert am ${formatDate(textChangedAt(lied))} – nach dem letzten Export (${formatDate(lastExportOf(lied))}).`"
+                                    location="top"
+                                >
+                                    <template #activator="{ props }">
+                                        <v-chip
+                                            v-bind="props"
+                                            size="x-small"
+                                            color="warning"
+                                            variant="tonal"
+                                            prepend-icon="mdi-text"
+                                        >
+                                            Text geändert seit Export
+                                        </v-chip>
+                                    </template>
+                                </v-tooltip>
+                            </div>
                         </td>
                         <td>
                             <v-tooltip text="Detailansicht öffnen" location="left">
@@ -1001,6 +1221,43 @@ function formatDate(iso) {
             @close="detail_dialog = false"
             @switch-song="switchDetailSong"
         />
+    </v-dialog>
+
+    <!-- Bestätigungsdialog: Export-Eintrag löschen -->
+    <v-dialog v-model="delete_dialog" width="440" :persistent="deleting">
+        <v-card>
+            <v-card-title class="d-flex align-center ga-2">
+                <v-icon color="error">mdi-delete-alert</v-icon>
+                Export-Eintrag löschen?
+            </v-card-title>
+            <v-card-text>
+                <p>Dieser Eintrag aus der Export-Historie wird endgültig gelöscht.</p>
+                <p v-if="delete_target" class="text-medium-emphasis mt-2">
+                    {{ formatDate(delete_target.timestamp) }} — {{ delete_target.songCount }}
+                    Lied(er)
+                </p>
+                <p class="text-caption text-medium-emphasis mt-2">
+                    Hinweis: Die Historie ist geteilt – der Eintrag verschwindet für alle. Die
+                    Änderungs-Erkennung („seit Export geändert") greift danach auf den nächst-
+                    älteren Export dieses Liedes zurück.
+                </p>
+            </v-card-text>
+            <v-card-actions>
+                <v-spacer />
+                <v-btn variant="text" :disabled="deleting" @click="delete_dialog = false">
+                    Abbrechen
+                </v-btn>
+                <v-btn
+                    color="error"
+                    variant="flat"
+                    prepend-icon="mdi-delete"
+                    :loading="deleting"
+                    @click="confirmDeleteExport"
+                >
+                    Löschen
+                </v-btn>
+            </v-card-actions>
+        </v-card>
     </v-dialog>
 
     <v-snackbar v-model="snackbar" :timeout="3500">
