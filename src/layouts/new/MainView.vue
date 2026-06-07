@@ -39,6 +39,10 @@ import FooterBar from '@/layouts/new/FooterBar.vue';
 .nav-sheet {
     position: sticky;
     top: 80px;
+    /* Bei niedrigen Viewports innerhalb der Seitenleiste scrollen, statt unten
+       aus dem sichtbaren Bereich zu laufen. */
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
 }
 
 .content-sheet {

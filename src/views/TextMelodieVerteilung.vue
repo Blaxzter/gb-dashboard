@@ -134,12 +134,17 @@
     </v-container>
 
     <v-dialog v-model="song_dialog" width="700">
-        <GesangbuchLiedComponent :selected-song="selected_song" @close="song_dialog = false" />
+        <GesangbuchLiedComponent
+            v-if="selected_song"
+            :selected-song="selected_song"
+            @close="song_dialog = false"
+        />
     </v-dialog>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
     Chart as ChartJS,
     Title,
@@ -158,6 +163,9 @@ import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComp
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const { gesangbuchlieder } = storeToRefs(useAppStore());
+
+const route = useRoute();
+const router = useRouter();
 
 const showChart = ref(true);
 const showFilter = ref(false);
@@ -210,12 +218,51 @@ onMounted(() => {
     if (savedShowFilter !== null) {
         showFilter.value = JSON.parse(savedShowFilter);
     }
+
+    openFromRoute();
 });
 
 const openSongDialog = (song) => {
     selected_song.value = song;
     song_dialog.value = true;
 };
+
+// Geöffnete Detailansicht an die URL koppeln, damit ein geöffnetes Lied
+// verlinkbar ist und beim Neuladen wiederhergestellt wird (Muster aus der
+// Korrektur-Ansicht, issue #13 -> hier issue #31). Pfad-Param :id = geöffnetes Lied.
+watch(song_dialog, (is_open) => {
+    if (is_open) {
+        if (selected_song.value && String(route.params.id) !== String(selected_song.value.id)) {
+            router.replace({
+                name: 'TextMelodieVerteilung',
+                params: { id: String(selected_song.value.id) },
+            });
+        }
+    } else {
+        selected_song.value = null;
+        if (route.params.id != null) {
+            router.replace({ name: 'TextMelodieVerteilung' });
+        }
+    }
+});
+
+// Dialog aus der URL wiederherstellen, sobald die Lieder verfügbar sind –
+// z. B. nach Reload oder über einen geteilten Link. Zusätzlich die Melodie-
+// Gruppe des Liedes aufklappen, damit der Kontext hinter dem Dialog sichtbar ist.
+const openFromRoute = () => {
+    const id = route.params.id;
+    if (id == null || id === '' || song_dialog.value) return;
+    const idNum = parseInt(id, 10);
+    const lied = gesangbuchlieder.value.find((l) => l.id === idNum);
+    if (!lied) return;
+    if (lied.melodie?.id != null && !expanded.value.includes(lied.melodie.id)) {
+        expanded.value = [lied.melodie.id];
+    }
+    selected_song.value = lied;
+    song_dialog.value = true;
+};
+
+watch(gesangbuchlieder, openFromRoute);
 
 const rowClick = (row, item) => {
     console.log(row, item);

@@ -1,34 +1,46 @@
 <template>
-    <v-list :rounded="rounded ? 'lg' : 'none'" :lines="false" nav>
-        <v-list-item
-            v-for="(item, i) in filtered_list"
-            :key="i"
-            :to="item.route"
-            :class="{ 'mb-3': item.marginButton }"
-        >
-            <template v-if="item.icon" #prepend>
-                <v-icon :icon="item.icon" />
-            </template>
+    <v-list
+        :rounded="rounded ? 'lg' : 'none'"
+        :lines="false"
+        nav
+        density="compact"
+        color="primary"
+        class="menu-list"
+    >
+        <template v-for="(section, sIndex) in visibleSections" :key="section.title || 'main'">
+            <v-divider v-if="sIndex > 0" class="my-1" />
+            <v-list-subheader v-if="section.title" class="menu-subheader text-uppercase">
+                {{ section.title }}
+            </v-list-subheader>
 
-            <v-list-item-title class="text-wrap">
-                <span :class="{ 'text-subtitle-1': !item.icon }" v-html="item.name"> </span>
-            </v-list-item-title>
-        </v-list-item>
-        <v-divider class="my-2" />
-        <v-list-item link variant="flat" @click="logout">
+            <v-list-item v-for="item in section.items" :key="item.route" :to="item.route">
+                <template #prepend>
+                    <v-icon :icon="item.icon" />
+                </template>
+                <v-list-item-title class="text-wrap">
+                    <span v-html="item.name" />
+                </v-list-item-title>
+            </v-list-item>
+        </template>
+
+        <v-divider class="my-1" />
+
+        <v-list-item link @click="logout">
             <template #prepend>
                 <v-icon class="text-red">mdi-logout</v-icon>
             </template>
-
-            <v-list-item-title class="text-wrap">
-                <span class="text-red"> Logout </span>
-            </v-list-item-title>
+            <v-list-item-title class="text-red">Logout</v-list-item-title>
         </v-list-item>
     </v-list>
 </template>
 
 <script>
 import { useUserStore } from '@/store/user';
+
+const notentextRoles = (import.meta.env.VITE_NOTENTEXT_ROLES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 export default {
     name: 'MenuList',
@@ -40,130 +52,102 @@ export default {
     },
     data: () => ({
         userStore: useUserStore(),
-        links: [
+        // Menüeinträge nach Bereichen gruppiert. `public: false` => nur im
+        // Kleiner-Kreis-Modus sichtbar. `requiredRoles` schränkt einzelne Einträge
+        // zusätzlich auf bestimmte Rollen ein.
+        sections: [
             {
-                name: 'Dashboard',
-                route: '/dashboard',
-                icon: 'mdi-home',
-                marginButton: true,
                 public: true,
+                items: [
+                    { name: 'Dashboard', route: '/dashboard', icon: 'mdi-home' },
+                    { name: 'Kalender', route: '/kalender', icon: 'mdi-calendar-month' },
+                    { name: 'Gesangbuch<wbr>lieder', route: '/gesangbuchlieder', icon: 'mdi-music' },
+                    {
+                        name: 'Neue Lieder &amp; Melodien',
+                        route: '/neue-lieder',
+                        icon: 'mdi-new-box',
+                    },
+                    { name: 'Fokusmodus', route: '/fokusmodus', icon: 'mdi-microphone-variant' },
+                    {
+                        name: 'Arbeitsaufträge',
+                        route: '/arbeitsauftraege',
+                        icon: 'mdi-file-document-outline',
+                    },
+                ],
             },
             {
-                name: 'Kalender',
-                route: '/kalender',
-                icon: 'mdi-calendar-month',
-                marginButton: true,
+                title: 'Hochladen',
                 public: true,
+                items: [
+                    {
+                        name: 'Lied/Text/Melodie <wbr>hochladen',
+                        route: '/gesangbuchliedhochladen',
+                        icon: 'mdi-upload',
+                    },
+                    {
+                        name: 'Änderung eintragen',
+                        route: '/aenderunghochladen',
+                        icon: 'mdi-pencil',
+                    },
+                ],
             },
             {
-                name: 'Gesangbuch<wbr>lieder',
-                route: '/gesangbuchlieder',
-                icon: 'mdi-music',
-                marginButton: true,
-                public: true,
-            },
-            {
-                name: 'Fokusmodus',
-                route: '/fokusmodus',
-                icon: 'mdi-microphone-variant',
-                marginButton: true,
-                public: true,
-            },
-            {
-                name: 'Arbeitsaufträge',
-                route: '/arbeitsauftraege',
-                icon: 'mdi-file-document-outline',
-                marginButton: true,
-                public: true,
-            },
-            {
-                name: 'Hochladen',
-                route: '',
-                icon: null,
-                marginButton: false,
-                public: true,
-            },
-            {
-                name: 'Lied/Text/Melodie <wbr>hochladen',
-                route: '/gesangbuchliedhochladen',
-                icon: 'mdi-upload',
-                marginButton: false,
-                public: true,
-            },
-            {
-                name: 'Änderung eintragen',
-                route: '/aenderunghochladen',
-                icon: 'mdi-pencil',
-                marginButton: true,
-                public: true,
-            },
-            {
-                name: 'Kleiner Kreis',
-                route: '',
-                icon: null,
-                marginButton: false,
+                title: 'Kleiner Kreis',
                 public: false,
-            },
-            {
-                name: 'Doppelte Einträge',
-                route: '/doppelteeintraege',
-                icon: 'mdi-content-copy',
-                marginButton: true,
-                public: false,
-            },
-            {
-                name: 'Verlorene Einträge',
-                route: '/missing-match',
-                icon: 'mdi-select-search',
-                marginButton: true,
-                public: false,
-            },
-            {
-                name: 'Text Melodie Verteilung',
-                route: '/text-melodie-verteilung',
-                icon: 'mdi-chart-bar',
-                marginButton: true,
-                public: false,
-            },
-            {
-                name: 'Checks &amp; Validierung',
-                route: '/checks',
-                icon: 'mdi-clipboard-check',
-                marginButton: true,
-                public: false,
-            },
-            {
-                name: 'Notentext-Export',
-                route: '/notentext-export',
-                icon: 'mdi-file-music',
-                marginButton: true,
-                public: false,
-            },
-            {
-                name: 'Notentext-Hochladen',
-                route: '/notentext-hochladen',
-                icon: 'mdi-cloud-upload',
-                marginButton: true,
-                public: false,
-                requiredRoles: (import.meta.env.VITE_NOTENTEXT_ROLES || '')
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
+                items: [
+                    {
+                        name: 'Doppelte Einträge',
+                        route: '/doppelteeintraege',
+                        icon: 'mdi-content-copy',
+                    },
+                    {
+                        name: 'Verlorene Einträge',
+                        route: '/missing-match',
+                        icon: 'mdi-select-search',
+                    },
+                    {
+                        name: 'Text Melodie Verteilung',
+                        route: '/text-melodie-verteilung',
+                        icon: 'mdi-chart-bar',
+                    },
+                    {
+                        name: 'Checks &amp; Validierung',
+                        route: '/checks',
+                        icon: 'mdi-clipboard-check',
+                    },
+                    {
+                        name: 'Notentext-Export',
+                        route: '/notentext-export',
+                        icon: 'mdi-file-music',
+                    },
+                    {
+                        name: 'Notentext-Hochladen',
+                        route: '/notentext-hochladen',
+                        icon: 'mdi-cloud-upload',
+                        requiredRoles: notentextRoles,
+                    },
+                ],
             },
         ],
     }),
     computed: {
-        filtered_list() {
-            return this.links.filter((item) => {
-                const visibleByKreis = item.public
-                    ? true
-                    : this.isKleinerKreis && this.isKleinerKreisAnsicht;
-                if (!visibleByKreis) return false;
-                if (item.requiredRoles && item.requiredRoles.length > 0) {
-                    return this.userStore.has_role(item.requiredRoles);
-                }
-                return true;
-            });
+        visibleSections() {
+            return this.sections
+                .map((section) => {
+                    const sectionVisible =
+                        section.public || (this.isKleinerKreis && this.isKleinerKreisAnsicht);
+                    if (!sectionVisible) return null;
+
+                    const items = section.items.filter((item) =>
+                        item.requiredRoles && item.requiredRoles.length > 0
+                            ? this.userStore.has_role(item.requiredRoles)
+                            : true,
+                    );
+                    if (items.length === 0) return null;
+
+                    return { ...section, items };
+                })
+                .filter(Boolean);
         },
         isKleinerKreis() {
             return this.userStore.is_kleiner_kreis;
@@ -180,4 +164,17 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped lang="scss">
+.menu-list {
+    padding-block: 4px;
+}
+
+:deep(.menu-subheader) {
+    min-height: 26px;
+    padding-block: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+}
+</style>
