@@ -11,149 +11,240 @@
 
         <!-- 1. Statistik-Übersicht -->
         <v-row class="mb-8">
-            <v-col v-for="card in statCards" :key="card.key" cols="12" md="4">
-                <v-card variant="tonal" :color="card.color" class="h-100">
-                    <v-card-text>
-                        <div class="d-flex align-center mb-1">
-                            <v-icon :icon="card.icon" class="me-2" />
-                            <span class="text-subtitle-1 font-weight-medium">{{ card.title }}</span>
-                        </div>
-                        <div class="d-flex align-baseline ga-2">
-                            <span class="text-h3 font-weight-bold">{{ card.stat.neu }}</span>
-                            <span class="text-medium-emphasis">von {{ card.stat.total }} neu</span>
-                        </div>
-                        <v-progress-linear
+            <v-col v-for="card in statCards" :key="card.key" cols="12" sm="4">
+                <v-card variant="tonal" :color="card.color" class="h-100" rounded="lg">
+                    <v-card-text class="d-flex align-center ga-4">
+                        <v-progress-circular
                             :model-value="percent(card.stat)"
+                            :size="76"
+                            :width="7"
                             :color="card.color"
-                            height="6"
-                            rounded
-                            class="mt-2"
-                        />
-                        <div class="text-caption text-medium-emphasis mt-1">
-                            {{ percent(card.stat) }}% neu · {{ card.stat.total - card.stat.neu }} alt
+                        >
+                            <span class="text-subtitle-2 font-weight-bold">
+                                {{ percent(card.stat) }}%
+                            </span>
+                        </v-progress-circular>
+                        <div>
+                            <div class="d-flex align-center mb-1">
+                                <v-icon :icon="card.icon" size="small" class="me-1" />
+                                <span class="text-overline">{{ card.title }}</span>
+                            </div>
+                            <div class="text-h4 font-weight-bold">{{ card.stat.neu }}</div>
+                            <div class="text-caption text-medium-emphasis">
+                                von {{ card.stat.total }} insgesamt
+                            </div>
                         </div>
                     </v-card-text>
                 </v-card>
             </v-col>
         </v-row>
 
-        <!-- 2. Neue Texte mit bekannter (alter) Melodie -->
-        <section class="mb-10">
-            <div class="text-h5 mb-1">Neue Texte mit bekannter Melodie</div>
-            <p class="text-body-2 text-medium-emphasis mb-3">
-                Diese Lieder haben einen neuen Text, aber eine bereits bekannte Melodie aus dem
-                Gesangbuch 2000 – sie sind dadurch besonders leicht zu erlernen.
-                <strong>{{ neueTexteMitBekannterMelodie.length }}</strong> Lieder.
-            </p>
-            <v-data-table
-                :headers="textHeaders"
-                :items="neueTexteMitBekannterMelodie"
-                item-value="id"
-                :items-per-page="25"
-                density="comfortable"
-                hover
-                @click:row="(_e, { item }) => openSong(item)"
-            >
-                <template #[`item.geaendert`]="{ item }">
-                    <v-chip
-                        v-if="item.textGeaendert"
-                        size="x-small"
-                        color="primary"
-                        prepend-icon="mdi-text-box-edit"
-                    >
-                        Text überarbeitet
+        <!-- 2.-4. Übersichten in Tabs, damit die drei Bereiche nicht gestapelt erscheinen -->
+        <v-card variant="flat" rounded="lg" border>
+            <v-tabs v-model="tab" color="primary" bg-color="transparent" grow show-arrows>
+                <v-tab value="texte">
+                    <v-icon start>mdi-text-box-check-outline</v-icon>
+                    <span class="text-none">Bekannte Melodie</span>
+                    <v-chip size="x-small" class="ms-2" variant="tonal">
+                        {{ neueTexteMitBekannterMelodie.length }}
                     </v-chip>
-                    <v-chip v-else size="x-small" color="success" prepend-icon="mdi-new-box">
-                        Neuer Text
+                </v-tab>
+                <v-tab value="melodien">
+                    <v-icon start>mdi-music-box-multiple-outline</v-icon>
+                    <span class="text-none">Melodie, mehrere Texte</span>
+                    <v-chip size="x-small" class="ms-2" variant="tonal">
+                        {{ neueMelodienMitTexten.length }}
                     </v-chip>
-                </template>
-                <template #no-data> Keine neuen Texte mit bekannter Melodie gefunden. </template>
-            </v-data-table>
-        </section>
+                </v-tab>
+                <v-tab value="ueberarbeitet">
+                    <v-icon start>mdi-pencil-outline</v-icon>
+                    <span class="text-none">Überarbeitet</span>
+                    <v-chip size="x-small" class="ms-2" variant="tonal">
+                        {{ ueberarbeiteteAlteLieder.length }}
+                    </v-chip>
+                </v-tab>
+            </v-tabs>
 
-        <!-- 3. Neue Melodien mit vielen zugeordneten Texten -->
-        <section class="mb-10">
-            <div class="text-h5 mb-1">Neue Melodien mit mehreren Texten</div>
-            <p class="text-body-2 text-medium-emphasis mb-3">
-                Lernt man eine dieser neuen Melodien, kann man gleich mehrere Lieder mit
-                verschiedenen Texten abdecken. Sortiert nach Anzahl der zugeordneten Texte.
-            </p>
-            <v-data-table
-                v-model:expanded="expanded"
-                :headers="melodieHeaders"
-                :items="neueMelodienMitTexten"
-                item-value="id"
-                :items-per-page="25"
-                :sort-by="[{ key: 'textCount', order: 'desc' }]"
-                show-expand
-                density="comfortable"
-            >
-                <template #[`item.textCount`]="{ item }">
-                    <v-chip size="small" color="primary" variant="flat">
-                        {{ item.textCount }}
-                    </v-chip>
-                </template>
-                <template #expanded-row="{ columns, item }">
-                    <tr>
-                        <td :colspan="columns.length">
-                            <div class="d-flex flex-wrap ga-2 pa-2">
-                                <div
-                                    v-for="song in item.songs"
-                                    :key="song.id"
-                                    class="border rounded pa-1 song-selection-button"
-                                    style="box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px"
-                                    @click="openSong(song)"
+            <v-divider />
+
+            <v-window v-model="tab">
+                <!-- Neue Texte mit bekannter (alter) Melodie -->
+                <v-window-item value="texte">
+                    <div class="pa-4">
+                        <p class="text-body-2 text-medium-emphasis mb-4">
+                            Neuer Text auf einer bereits bekannten Melodie aus dem Gesangbuch 2000 –
+                            diese Lieder lassen sich besonders schnell mitsingen.
+                        </p>
+                        <v-row v-if="neueTexteMitBekannterMelodie.length" dense>
+                            <v-col
+                                v-for="lied in neueTexteMitBekannterMelodie"
+                                :key="lied.id"
+                                cols="12"
+                                sm="6"
+                                md="4"
+                            >
+                                <v-card
+                                    variant="outlined"
+                                    rounded="lg"
+                                    hover
+                                    class="h-100"
+                                    @click="openSong(lied)"
                                 >
-                                    {{ song.titel || '<keine Angabe>' }}
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                </template>
-                <template #no-data> Keine neuen Melodien mit mehreren Texten gefunden. </template>
-            </v-data-table>
-        </section>
-
-        <!-- 4. Alte Lieder mit Überarbeitung -->
-        <section class="mb-6">
-            <div class="text-h5 mb-1">Überarbeitete Lieder aus dem Gesangbuch 2000</div>
-            <p class="text-body-2 text-medium-emphasis mb-3">
-                Diese Lieder waren bereits im Gesangbuch 2000 enthalten, haben aber eine
-                Text- oder Melodieüberarbeitung erfahren.
-                <strong>{{ ueberarbeiteteAlteLieder.length }}</strong> Lieder.
-            </p>
-            <v-data-table
-                :headers="ueberarbeitetHeaders"
-                :items="ueberarbeiteteAlteLieder"
-                item-value="id"
-                :items-per-page="25"
-                density="comfortable"
-                hover
-                @click:row="(_e, { item }) => openSong(item)"
-            >
-                <template #[`item.aenderung`]="{ item }">
-                    <div class="d-flex ga-1">
-                        <v-chip
-                            v-if="item.textGeaendert"
-                            size="x-small"
-                            color="primary"
-                            prepend-icon="mdi-text-box-edit"
-                        >
-                            Text
-                        </v-chip>
-                        <v-chip
-                            v-if="item.melodieGeaendert"
-                            size="x-small"
-                            color="primary"
-                            prepend-icon="mdi-music-box"
-                        >
-                            Melodie
-                        </v-chip>
+                                    <v-card-item>
+                                        <template #append>
+                                            <v-chip
+                                                size="x-small"
+                                                :color="lied.textGeaendert ? 'primary' : 'success'"
+                                                variant="tonal"
+                                            >
+                                                {{ lied.textGeaendert ? 'Text neu gefasst' : 'Neuer Text' }}
+                                            </v-chip>
+                                        </template>
+                                        <v-card-title class="text-body-1 text-wrap">
+                                            {{ lied.titel }}
+                                        </v-card-title>
+                                    </v-card-item>
+                                    <v-card-text
+                                        class="pt-0 d-flex align-center text-medium-emphasis"
+                                    >
+                                        <v-icon size="small" class="me-1">
+                                            mdi-music-clef-treble
+                                        </v-icon>
+                                        <span class="text-truncate">{{ lied.melodie_titel }}</span>
+                                    </v-card-text>
+                                </v-card>
+                            </v-col>
+                        </v-row>
+                        <v-alert v-else type="info" variant="tonal" density="comfortable">
+                            Keine neuen Texte mit bekannter Melodie gefunden.
+                        </v-alert>
                     </div>
-                </template>
-                <template #no-data> Keine überarbeiteten Lieder gefunden. </template>
-            </v-data-table>
-        </section>
+                </v-window-item>
+
+                <!-- Neue Melodien mit mehreren zugeordneten Texten -->
+                <v-window-item value="melodien">
+                    <div class="pa-4">
+                        <p class="text-body-2 text-medium-emphasis mb-4">
+                            Wer eine dieser neuen Melodien lernt, kann gleich mehrere Lieder singen.
+                            Die Zahl zeigt, wie viele Texte auf der Melodie liegen – sortiert nach
+                            dem größten Nutzen.
+                        </p>
+                        <v-row v-if="neueMelodienMitTexten.length" dense>
+                            <v-col
+                                v-for="melodie in neueMelodienMitTexten"
+                                :key="melodie.id"
+                                cols="12"
+                                md="6"
+                            >
+                                <v-card variant="outlined" rounded="lg" class="h-100">
+                                    <v-card-item>
+                                        <template #prepend>
+                                            <v-avatar
+                                                color="deep-purple"
+                                                variant="tonal"
+                                                size="44"
+                                            >
+                                                <span class="text-h6 font-weight-bold">
+                                                    {{ melodie.textCount }}
+                                                </span>
+                                            </v-avatar>
+                                        </template>
+                                        <v-card-title class="text-body-1 text-wrap">
+                                            {{ melodie.melodie_titel }}
+                                        </v-card-title>
+                                        <v-card-subtitle>
+                                            {{ melodie.textCount }} Texte auf dieser Melodie
+                                        </v-card-subtitle>
+                                    </v-card-item>
+                                    <v-card-text class="pt-1">
+                                        <div class="d-flex flex-wrap ga-1">
+                                            <v-chip
+                                                v-for="song in melodie.songs"
+                                                :key="song.id"
+                                                size="small"
+                                                variant="tonal"
+                                                label
+                                                @click="openSong(song)"
+                                            >
+                                                {{ song.titel || '<keine Angabe>' }}
+                                            </v-chip>
+                                        </div>
+                                    </v-card-text>
+                                </v-card>
+                            </v-col>
+                        </v-row>
+                        <v-alert v-else type="info" variant="tonal" density="comfortable">
+                            Keine neuen Melodien mit mehreren Texten gefunden.
+                        </v-alert>
+                    </div>
+                </v-window-item>
+
+                <!-- Überarbeitete Lieder aus dem Gesangbuch 2000 -->
+                <v-window-item value="ueberarbeitet">
+                    <div class="pa-4">
+                        <p class="text-body-2 text-medium-emphasis mb-4">
+                            Diese Lieder gab es schon im Gesangbuch 2000, ihr Text oder ihre Melodie
+                            wurde jedoch überarbeitet.
+                        </p>
+                        <v-row v-if="ueberarbeiteteAlteLieder.length" dense>
+                            <v-col
+                                v-for="lied in ueberarbeiteteAlteLieder"
+                                :key="lied.id"
+                                cols="12"
+                                sm="6"
+                                md="4"
+                            >
+                                <v-card
+                                    variant="outlined"
+                                    rounded="lg"
+                                    hover
+                                    class="h-100"
+                                    @click="openSong(lied)"
+                                >
+                                    <v-card-item>
+                                        <template #prepend>
+                                            <v-chip
+                                                size="small"
+                                                variant="tonal"
+                                                color="blue-grey"
+                                            >
+                                                GB {{ lied.liednummer2000 }}
+                                            </v-chip>
+                                        </template>
+                                        <v-card-title class="text-body-1 text-wrap">
+                                            {{ lied.titel }}
+                                        </v-card-title>
+                                    </v-card-item>
+                                    <v-card-text class="pt-0 d-flex ga-1">
+                                        <v-chip
+                                            v-if="lied.textGeaendert"
+                                            size="x-small"
+                                            color="primary"
+                                            variant="tonal"
+                                            prepend-icon="mdi-text-box-edit-outline"
+                                        >
+                                            Text
+                                        </v-chip>
+                                        <v-chip
+                                            v-if="lied.melodieGeaendert"
+                                            size="x-small"
+                                            color="deep-purple"
+                                            variant="tonal"
+                                            prepend-icon="mdi-music-box"
+                                        >
+                                            Melodie
+                                        </v-chip>
+                                    </v-card-text>
+                                </v-card>
+                            </v-col>
+                        </v-row>
+                        <v-alert v-else type="info" variant="tonal" density="comfortable">
+                            Keine überarbeiteten Lieder gefunden.
+                        </v-alert>
+                    </div>
+                </v-window-item>
+            </v-window>
+        </v-card>
     </v-container>
 
     <v-dialog v-model="song_dialog" width="700">
@@ -176,6 +267,8 @@ const { gesangbuchlieder } = storeToRefs(useAppStore());
 
 const route = useRoute();
 const router = useRouter();
+
+const tab = ref('texte');
 
 // Nur angenommene Lieder betrachten (Bewertung "Rein"). Nicht angenommene Lieder
 // werden verworfen und sollen die Neu-/Alt-Statistik nicht verfälschen – konsistent
@@ -313,26 +406,6 @@ const ueberarbeiteteAlteLieder = computed(() =>
         .sort((a, b) => (a.liednummer2000 ?? 0) - (b.liednummer2000 ?? 0)),
 );
 
-const textHeaders = [
-    { title: 'Titel', key: 'titel' },
-    { title: 'Melodie', key: 'melodie_titel' },
-    { title: '', key: 'geaendert', sortable: false, align: 'end' },
-];
-
-const melodieHeaders = [
-    { title: 'Texte', key: 'textCount', align: 'center', width: '90px' },
-    { title: 'Melodie', key: 'melodie_titel' },
-    { title: '', key: 'data-table-expand' },
-];
-
-const ueberarbeitetHeaders = [
-    { title: 'GB 2000', key: 'liednummer2000', width: '110px' },
-    { title: 'Titel', key: 'titel' },
-    { title: 'Änderung', key: 'aenderung', sortable: false, align: 'end' },
-];
-
-const expanded = ref([]);
-
 // Detailansicht (Lied-Dialog), an die URL gekoppelt (Deep-Link, Muster wie in der
 // Text-Melodie-Verteilung). Pfad-Param :id = geöffnetes Lied.
 const song_dialog = ref(false);
@@ -370,13 +443,3 @@ const openFromRoute = () => {
 onMounted(openFromRoute);
 watch(gesangbuchlieder, openFromRoute);
 </script>
-
-<style scoped lang="scss">
-.song-selection-button {
-    cursor: pointer;
-
-    &:hover {
-        background-color: #f5f5f5;
-    }
-}
-</style>
