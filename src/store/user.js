@@ -14,6 +14,15 @@ function resolveKleinerKreisAnsicht() {
     return stored === null ? true : stored === 'true';
 }
 
+// Directus roles whose members get Kleiner-Kreis features, regardless of which
+// account they logged in with. This complements the legacy VITE_KLEINER_KREIS_USERS
+// e-mail list: assigning a user to e.g. "Super-Editor" or "Administrator" in the
+// backend is enough to unlock the view, no per-e-mail config needed.
+const kleinerKreisRoles = (import.meta.env.VITE_KLEINER_KREIS_ROLES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 const useUserStore = defineStore('user', {
     state: () => ({
         user: null,
@@ -23,7 +32,11 @@ const useUserStore = defineStore('user', {
     getters: {
         get_user: (state) => state.user,
         is_logged_in: (state) => state.user !== null,
-        is_kleiner_kreis: (state) => state.kleiner_kreis,
+        // Kleiner-Kreis either via the legacy shared-account e-mail list
+        // (state.kleiner_kreis) or via the user's Directus role.
+        is_kleiner_kreis: (state) =>
+            state.kleiner_kreis ||
+            (!!state.user?.role && kleinerKreisRoles.includes(state.user.role)),
         is_kleiner_kreis_ansicht: (state) => state.kleiner_kreis_ansicht,
         has_role: (state) => (roleNames) => {
             const required = Array.isArray(roleNames) ? roleNames : [roleNames];
@@ -40,6 +53,16 @@ const useUserStore = defineStore('user', {
             );
         },
 
+        // Apply the Kleiner-Kreis "Ansicht" default once we know whether the
+        // user qualifies (via the e-mail list or their Directus role). On by
+        // default; a value the user previously stored wins. Must run after
+        // fetchMe() so the role is available to the is_kleiner_kreis getter.
+        syncKleinerKreisAnsicht() {
+            this.kleiner_kreis_ansicht = this.is_kleiner_kreis
+                ? resolveKleinerKreisAnsicht()
+                : false;
+        },
+
         login(authData, remember_me) {
             const appstore = useAppStore();
 
@@ -51,16 +74,23 @@ const useUserStore = defineStore('user', {
             const specialUserAlias = import.meta.env.VITE_SPECIAL_USER_ALIAS;
             const specialUserName = import.meta.env.VITE_SPECIAL_USER_NAME;
 
-            // Alias logins share a Directus account; route them through the shared
+            // Alias logins share a Directus account; route them through a shared
             // static token to avoid session-overwrite conflicts. Real e-mail logins
-            // use their own per-user token.
-            const isAliasLogin =
-                authData.username === defaultUserAlias ||
-                authData.username === specialUserAlias;
+            // use their own per-user token. The two aliases are backed by two
+            // different remote accounts, so each gets its own static token: the
+            // special (Kleiner-AK) alias uses VITE_SPECIAL_AUTH_TOKEN, the default
+            // alias uses VITE_AUTH_TOKEN. 'static_token_kind' records which.
+            const isDefaultAlias = authData.username === defaultUserAlias;
+            const isSpecialAlias = authData.username === specialUserAlias;
+            const staticTokenKind = isSpecialAlias
+                ? 'special'
+                : isDefaultAlias
+                  ? 'default'
+                  : null;
 
-            if (authData.username === defaultUserAlias) {
+            if (isDefaultAlias) {
                 username = defaultUserName;
-            } else if (authData.username === specialUserAlias) {
+            } else if (isSpecialAlias) {
                 username = specialUserName;
             }
 
@@ -74,19 +104,24 @@ const useUserStore = defineStore('user', {
                 no_auth: true,
             })
                 .then((response) => {
-                    // Use environment variable for kleiner_kreis users
-                    const kleinerKreisUsers = import.meta.env.VITE_KLEINER_KREIS_USERS.split(',');
+                    // Legacy shared-account e-mail list for kleiner_kreis users.
+                    // Role-based membership is resolved later, after fetchMe.
+                    const kleinerKreisUsers = (import.meta.env.VITE_KLEINER_KREIS_USERS || '')
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
 
                     if (kleinerKreisUsers.includes(username)) {
                         this.kleiner_kreis = true;
                         localStorage.setItem('kleiner_kreis', 'true');
-                        this.kleiner_kreis_ansicht = resolveKleinerKreisAnsicht();
                     }
 
-                    this.set_user_data(authData, response.data.data, remember_me, isAliasLogin);
+                    this.set_user_data(authData, response.data.data, remember_me, staticTokenKind);
                     return this.fetchMe();
                 })
                 .then(() => {
+                    // fetchMe has resolved the role, so is_kleiner_kreis is final.
+                    this.syncKleinerKreisAnsicht();
                     appstore.loadData();
                 })
                 .catch((error) => {
@@ -122,6 +157,7 @@ const useUserStore = defineStore('user', {
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('token_expires_at');
             localStorage.removeItem('use_static_token');
+            localStorage.removeItem('static_token_kind');
 
             // Navigate to login
             router.replace('/login');
@@ -139,9 +175,6 @@ const useUserStore = defineStore('user', {
             }
 
             this.kleiner_kreis = localStorage.getItem('kleiner_kreis') === 'true';
-            this.kleiner_kreis_ansicht = this.kleiner_kreis
-                ? resolveKleinerKreisAnsicht()
-                : false;
 
             this.user = {
                 username: username,
@@ -155,16 +188,25 @@ const useUserStore = defineStore('user', {
                 return;
             }
 
+            // Role is known now; apply the Ansicht default for Kleiner-Kreis
+            // users (whether by e-mail list or by Directus role).
+            this.syncKleinerKreisAnsicht();
+
             console.log('Auto login successful');
             appstore.loadData();
         },
-        set_user_data(authData, response_data, remember_me, useStaticToken) {
+        set_user_data(authData, response_data, remember_me, staticTokenKind) {
             this.user = {
                 username: authData.username,
             };
 
             localStorage.setItem('access_token', response_data.access_token);
-            localStorage.setItem('use_static_token', useStaticToken ? 'true' : 'false');
+            localStorage.setItem('use_static_token', staticTokenKind ? 'true' : 'false');
+            if (staticTokenKind) {
+                localStorage.setItem('static_token_kind', staticTokenKind);
+            } else {
+                localStorage.removeItem('static_token_kind');
+            }
 
             // Persist the refresh token + absolute expiry so the axios
             // interceptor can transparently refresh the short-lived access

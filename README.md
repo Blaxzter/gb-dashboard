@@ -86,22 +86,43 @@ There are two user accounts used for logging into the GB-Dashboard:
 
 There is no registration process; all users share these accounts for simplicity. However, logging into Directus with the same user credentials can cause sessions to overwrite each other, leading to users being logged out unexpectedly. This session overwrite issue is the reason we use a shared authentication token instead of the more secure method of individual logins.
 
-### Setting up the Shared Token
+Each alias is backed by its own Directus account on the remote, so each alias uses its own static token:
 
-1. **Generate a static authentication token in Directus**:
+- **AK-Gesangbuch** → `VITE_AUTH_TOKEN`
+- **Kleiner-AK** → `VITE_SPECIAL_AUTH_TOKEN` (falls back to `VITE_AUTH_TOKEN` if left empty)
+
+### Setting up the Shared Tokens
+
+1. **Generate a static authentication token in Directus** (once per account):
     - Log in to your Directus instance as an admin.
     - Navigate to **Settings** > **Roles & Permissions**.
-    - Select the role associated with the user accounts.
+    - Select the role associated with the user account.
     - Go to the **Tokens** tab and create a new static token.
 
-2. **Set the token in the frontend environment variable**:
+2. **Obfuscate each token** so it is not a plain, grep-able string in the built bundle:
+    ```
+    npm run obfuscate-token -- YOUR_AK_GESANGBUCH_TOKEN
+    npm run obfuscate-token -- YOUR_KLEINER_AK_TOKEN
+    ```
+    Each command prints an `obf:...` value.
+
+    > **Note:** this is deterrence only, **not** real security. Because the frontend
+    > talks to Directus directly, the decoded token still travels in the
+    > `Authorization` header and can be read from the browser's network tab. The
+    > obfuscation only keeps the token from appearing verbatim in the JS source. To
+    > make the token genuinely secret it must move behind a server-side proxy. A
+    > plain (un-obfuscated) token in the `.env` still works if you accept that.
+
+3. **Set the tokens in the frontend environment variables**:
     - Open your `.env` file.
-    - Set `VITE_AUTH_TOKEN` to the token you generated:
+    - Set `VITE_AUTH_TOKEN` to the obfuscated **AK-Gesangbuch** token
+      and `VITE_SPECIAL_AUTH_TOKEN` to the obfuscated **Kleiner-AK** token:
       ```
-      VITE_AUTH_TOKEN=YOUR_SHARED_TOKEN
+      VITE_AUTH_TOKEN=obf:...
+      VITE_SPECIAL_AUTH_TOKEN=obf:...
       ```
 
-By using this shared token, all users can authenticate with the application simultaneously without causing session conflicts in Directus. While this approach is less secure than individual logins, it prevents users from being logged out due to session overwrites.
+By using these shared tokens, all users can authenticate with the application simultaneously without causing session conflicts in Directus. While this approach is less secure than individual logins, it prevents users from being logged out due to session overwrites.
 
 It shouldn't be difficult to implement individual logins in the future, but for now, this shared token system is the most practical solution.
 

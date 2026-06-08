@@ -1,21 +1,37 @@
 import axios from 'axios';
 
+import { deobfuscateToken } from '@/assets/js/obfuscation';
+
 axios.interceptors.request.use(
     (config) => {
         let token = localStorage.getItem('access_token');
 
-        // Only fall back to the shared static token for alias logins
+        // Only fall back to a shared static token for alias logins
         // (AK-Gesangbuch / Kleiner-AK) where multiple humans share one
         // Directus account and individual sessions would overwrite each other.
         // Real per-user logins keep their own JWT.
+        //
+        // The two aliases map to two different Directus accounts on the remote,
+        // so each has its own static token: the Kleiner-AK alias uses
+        // VITE_SPECIAL_AUTH_TOKEN, every other alias uses VITE_AUTH_TOKEN. If no
+        // special token is configured we fall back to the default one so
+        // existing single-token setups keep working unchanged.
         const useStaticToken = localStorage.getItem('use_static_token') === 'true';
-        const staticToken = import.meta.env.VITE_AUTH_TOKEN;
-        if (
-            useStaticToken &&
-            staticToken &&
-            staticToken !== 'CHANGE_THIS_AFTER_DIRECTUS_STARTED'
-        ) {
-            token = staticToken;
+        if (useStaticToken) {
+            const placeholder = 'CHANGE_THIS_AFTER_DIRECTUS_STARTED';
+            // Tokens are stored obfuscated ("obf:..." prefix) in the env so they
+            // aren't plain text in the bundle; decode them here before use.
+            // Plain values (incl. the placeholder) pass through untouched.
+            const defaultToken = deobfuscateToken(import.meta.env.VITE_AUTH_TOKEN);
+            const specialToken = deobfuscateToken(import.meta.env.VITE_SPECIAL_AUTH_TOKEN);
+            const useSpecial =
+                localStorage.getItem('static_token_kind') === 'special' &&
+                specialToken &&
+                specialToken !== placeholder;
+            const staticToken = useSpecial ? specialToken : defaultToken;
+            if (staticToken && staticToken !== placeholder) {
+                token = staticToken;
+            }
         }
 
         if (token && config.no_auth === undefined) {
@@ -78,6 +94,7 @@ async function handleSessionExpired() {
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('token_expires_at');
         localStorage.removeItem('use_static_token');
+        localStorage.removeItem('static_token_kind');
         router.replace('/login');
     }
 }

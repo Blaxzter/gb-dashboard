@@ -9,7 +9,8 @@
         "preview": "vite preview",
         "lint": "eslint . --fix",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "obfuscate-token": "node scripts/obfuscate-token.mjs"
     },
     "dependencies": {
         "@mdi/font": "7.4.47",
