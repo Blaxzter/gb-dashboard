@@ -288,7 +288,7 @@
             </v-expand-transition>
         </template>
 
-        <template #[`item.gesangbuch_titel`]="{ value }">
+        <template #[`item.gesangbuch_titel`]="{ item, value }">
             <span v-if="value !== 'null'">
                 {{ value }}
             </span>
@@ -296,6 +296,24 @@
                 <!--  <keine Angaben>      -->
                 &lt;keine Angaben&gt;
             </span>
+            <v-tooltip
+                v-if="item.liednummer2026 && item.liednummer2026 !== 'null'"
+                text="Liednummer Gesangbuch 2026"
+                location="bottom"
+            >
+                <template #activator="{ props }">
+                    <v-chip
+                        v-bind="props"
+                        size="x-small"
+                        color="primary"
+                        variant="tonal"
+                        class="ml-2"
+                    >
+                        <v-icon start icon="mdi-book-music-outline" size="x-small" />
+                        {{ item.liednummer2026 }}
+                    </v-chip>
+                </template>
+            </v-tooltip>
         </template>
         <template #[`item.text_titel`]="{ item }">
             <v-tooltip v-if="item.titel === item.text_titel" text="Wie Liedtitel" location="bottom">

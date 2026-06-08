@@ -22,6 +22,29 @@
                         <v-icon class="me-2"> mdi-content-copy </v-icon>
 
                         {{ selectedSong?.gesangbuch_titel }}
+
+                        <v-tooltip
+                            v-if="
+                                selectedSong?.liednummer2026 &&
+                                selectedSong?.liednummer2026 !== 'null'
+                            "
+                            text="Liednummer Gesangbuch 2026"
+                            location="bottom"
+                        >
+                            <template #activator="{ props: chipProps }">
+                                <v-chip
+                                    v-bind="chipProps"
+                                    size="small"
+                                    color="primary"
+                                    variant="tonal"
+                                    class="ml-2"
+                                    @click.stop
+                                >
+                                    <v-icon start icon="mdi-book-music-outline" size="small" />
+                                    {{ selectedSong?.liednummer2026 }}
+                                </v-chip>
+                            </template>
+                        </v-tooltip>
                     </div>
                 </template>
             </v-tooltip>
