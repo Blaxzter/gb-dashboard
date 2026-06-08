@@ -90,6 +90,14 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/CorrectionView.vue'),
             },
             {
+                path: 'autoren-datencheck/:id?',
+                name: 'AutorenDatencheck',
+                component: () =>
+                    import(
+                        /* webpackChunkName: "home" */ '@/views/AutorenDatencheckView.vue'
+                    ),
+            },
+            {
                 path: 'autoren-mailing',
                 name: 'AutorenMailing',
                 component: () =>

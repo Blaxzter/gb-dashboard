@@ -116,6 +116,11 @@ export default {
                         icon: 'mdi-clipboard-check',
                     },
                     {
+                        name: 'Autoren-Datencheck',
+                        route: '/autoren-datencheck',
+                        icon: 'mdi-account-search',
+                    },
+                    {
                         name: 'Notentext-Export',
                         route: '/notentext-export',
                         icon: 'mdi-file-music',
