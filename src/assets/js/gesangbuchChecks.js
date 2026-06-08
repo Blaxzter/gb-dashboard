@@ -157,6 +157,15 @@ const HOCHZEICHEN_REGEX = new RegExp(
     'g',
 );
 
+// Wiederholungszeichen: Die musikalischen Marken „|:“ (Anfang) und „:|“ (Ende)
+// umschließen wiederholte Liedabschnitte (z. B. „… der heut schließt auf sein
+// Himmelreich |: und schenkt uns seinen Sohn. :|“). Sie gehören nicht zum
+// eigentlichen Liedtext und werden – wie die Hochzeichen – vor dem Titel-Vergleich
+// entfernt. Andernfalls beginnt eine 1. Strophe wie „|: Komm, Heilger Geist, mit
+// deiner Kraft …“ vermeintlich nicht mit ihrem Titel und löst einen Fehlalarm aus
+// (Issue #34).
+const WIEDERHOLUNGSZEICHEN_REGEX = /\|:|:\|/g;
+
 // Alle KI-Reviews eines Liedes (über alle Strophen hinweg)
 function kiReviews(lied) {
     return strophen(lied).flatMap((s) => (Array.isArray(s?.kiReview) ? s.kiReview : []));
@@ -689,23 +698,25 @@ export const CHECKS = [
         category: 'Redaktion',
         title: 'Titel stimmt mit dem Anfang der 1. Strophe überein',
         description:
-            'Hinweis (kein Fehler): Genommene Lieder, deren erste Strophe nicht mit dem Liedtitel beginnt. Üblicherweise beginnt die 1. Strophe mit dem Titel (z. B. Titel „Lobe den Herren“). Weicht der Anfang ab, kann ein Tippfehler oder ein vertauschter Titel dahinterstecken. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung, Silbentrennzeichen, Anführungszeichen und Apostrophen („Hochzeichen“), Zeilenumbrüchen und mehrfachen Leerzeichen – der Titel darf also über die erste Notenzeile hinausreichen. Satzzeichen wie Punkt, Komma und Ausrufezeichen werden hingegen mitverglichen. Lieder ohne Titel oder ohne (gefüllte) 1. Strophe werden übersprungen.',
+            'Hinweis (kein Fehler): Genommene Lieder, deren erste Strophe nicht mit dem Liedtitel beginnt. Üblicherweise beginnt die 1. Strophe mit dem Titel (z. B. Titel „Lobe den Herren“). Weicht der Anfang ab, kann ein Tippfehler oder ein vertauschter Titel dahinterstecken. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung, Silbentrennzeichen, Anführungszeichen und Apostrophen („Hochzeichen“), Wiederholungszeichen (|: :|), Zeilenumbrüchen und mehrfachen Leerzeichen – der Titel darf also über die erste Notenzeile hinausreichen. Satzzeichen wie Punkt, Komma und Ausrufezeichen werden hingegen mitverglichen. Lieder ohne Titel oder ohne (gefüllte) 1. Strophe werden übersprungen.',
         run({ genommen }) {
             // Vergleichsnormalisierung: Unicode (NFC), Silbentrennzeichen entfernen,
-            // Hochzeichen entfernen, Whitespace zusammenfassen, trimmen,
-            // Kleinschreibung.
+            // Hochzeichen entfernen, Wiederholungszeichen entfernen, Whitespace
+            // zusammenfassen, trimmen, Kleinschreibung.
             //
             // Nur Anführungszeichen/Apostrophe werden entfernt (siehe
             // HOCHZEICHEN_REGEX), weil ein Titel oft als Zitat in Anführungszeichen
             // steht, die Strophe denselben Wortlaut aber ohne. Satzzeichen wie
             // . , ! ? bleiben absichtlich erhalten und müssen mit dem Titel
-            // übereinstimmen.
+            // übereinstimmen. Wiederholungszeichen (|: :|) gehören zur Notation,
+            // nicht zum Text, und werden entfernt (Issue #34).
             const norm = (value) =>
                 String(value || '')
                     .normalize('NFC')
                     .split(SILBENTRENNER)
                     .join('')
                     .replace(HOCHZEICHEN_REGEX, '')
+                    .replace(WIEDERHOLUNGSZEICHEN_REGEX, '')
                     .replace(/\s+/g, ' ')
                     .trim()
                     .toLowerCase();
@@ -721,7 +732,11 @@ export const CHECKS = [
                 // In code gedacht (Issue #17): strophe1.startsWith(title)
                 if (!norm(strophe1).startsWith(norm(titel))) {
                     // Für die Anzeige nur den (einzeiligen) Anfang der Strophe zeigen.
-                    const anfang = strophe1.split(SILBENTRENNER).join('').replace(/\s+/g, ' ').trim();
+                    const anfang = strophe1
+                        .split(SILBENTRENNER)
+                        .join('')
+                        .replace(/\s+/g, ' ')
+                        .trim();
                     const gekuerzt = anfang.length > 60 ? `${anfang.slice(0, 60)}…` : anfang;
                     items.push(
                         songItem(l, `Titel „${titel}“ ≠ Anfang der 1. Strophe „${gekuerzt}“`),
