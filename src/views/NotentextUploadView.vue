@@ -6,6 +6,7 @@ import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
 import { scanSvgBake, computeSvgEquality } from '@/assets/js/svgCompare.js';
 import { analyzePdfAlignment } from '@/assets/js/pdfAlign.js';
 import { applyCorrections } from '@/assets/js/lyricsAlign.js';
+import { isRein, isGenommen } from '@/assets/js/gesangbuchChecks.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
 import PdfCompareDialog from '@/components/upload/PdfCompareDialog.vue';
 import LyricsAlignDialog from '@/components/upload/LyricsAlignDialog.vue';
@@ -270,6 +271,15 @@ ensureAllFonts().catch((e) => {
 
 const AUTO_MATCH_THRESHOLD = 0.75;
 
+// Auto-Matching-Pool: nur fertige Lieder fürs Gesangbuch 2026 – Status
+// "Bewertet und genommen" (isGenommen) UND Bewertung kleiner Kreis = "Rein"
+// (isRein), wie in NotenExport/AutorenMailing usw. So werden Notenbilder nicht
+// automatisch Entwürfen, "nicht rein" bewerteten oder noch offenen Liedern
+// zugeordnet. Die manuelle Auswahl (Autocomplete) bleibt über alle Lieder offen.
+const matchableLieder = computed(() =>
+    store.gesangbuchlieder.filter((l) => isGenommen(l) && isRein(l)),
+);
+
 const queue = ref([]); // [{ uid, file, name, page, liedId, suggestions, status, conflictChoice, errorMessage, fileId }]
 const bake_on_upload = ref(true);
 const dropbox_collapsed = ref(false);
@@ -491,7 +501,7 @@ function scoreLied(lied, parsed, query) {
 }
 
 async function rankLiederAsync(parsed, onProgress) {
-    const all = store.gesangbuchlieder;
+    const all = matchableLieder.value;
     const query = parsed.normalizedBase;
     const scored = [];
     const CHUNK = 25;
@@ -547,7 +557,7 @@ async function addFiles(files) {
     if (arr.length === 0) return;
     // SVG, PDF und MXL werden allesamt eigenständige Queue-Items (Issue #19 –
     // PDFs sind nicht mehr nur Layout-Referenz, sondern das Notenbild selbst).
-    const candidateTotal = store.gesangbuchlieder.length;
+    const candidateTotal = matchableLieder.value.length;
     console.log('[matching] starting', { files: arr.length, candidates: candidateTotal });
     matching_progress.value = {
         active: true,

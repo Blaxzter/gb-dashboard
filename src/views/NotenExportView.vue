@@ -240,20 +240,175 @@ const selected_without_pdf = computed(() =>
 // (Issue #22). Grundlage für die Summary-Warnung über der Tabelle.
 const selected_stale = computed(() =>
     filtered_lieder.value.filter(
-        (l) =>
-            l.notentext &&
-            selected_ids.value.has(l.id) &&
-            (notesStale(l) || textStale(l)),
+        (l) => l.notentext && selected_ids.value.has(l.id) && (notesStale(l) || textStale(l)),
     ),
 );
 const selected_stale_notes = computed(
     () => selected_stale.value.filter((l) => notesStale(l)).length,
 );
-const selected_stale_text = computed(
-    () => selected_stale.value.filter((l) => textStale(l)).length,
-);
+const selected_stale_text = computed(() => selected_stale.value.filter((l) => textStale(l)).length);
 // Aufklappbare Detailliste der veränderten Lieder unter der Summary-Warnung.
 const stale_details_open = ref(false);
+
+// --- Issue #33: Lücken-Warnung im Download-Bereich -------------------------
+// Janosch lädt zusammenhängende Liedblöcke herunter, um sie zu setzen. Fehlt
+// mitten im Bereich eine aufsteigende Liednummer (z. B. weil das Lied noch
+// keinen Notentext hat und damit nicht exportierbar ist), soll die UI früh
+// warnen – sonst beginnt er mit einem unvollständigen Bereich.
+function liednummerOf(lied) {
+    return parseInt(lied?.liednummer2026 || lied?.liednummer2000, 10);
+}
+
+// Die Lieder, die tatsächlich exportiert/heruntergeladen werden (im Filter, mit
+// Notentext und ausgewählt) – identische Auswahl wie in runExport().
+const export_candidates = computed(() =>
+    filtered_lieder.value.filter((l) => !!l.notentext && selected_ids.value.has(l.id)),
+);
+
+// Min/Max-Liednummer des Download-Bereichs (>= 2 Nummern nötig für eine Lücke).
+const selection_range = computed(() => {
+    const nums = new Set();
+    for (const lied of export_candidates.value) {
+        const n = liednummerOf(lied);
+        if (Number.isFinite(n)) nums.add(n);
+    }
+    if (nums.size < 2) return null;
+    return { min: Math.min(...nums), max: Math.max(...nums), nums };
+});
+
+function gapReason(lied) {
+    if (!lied) return 'keine Liednummer vergeben';
+    if (!lied.notentext) return 'ohne Notentext';
+    return 'nicht im Download';
+}
+
+// Anzeige (Farbe/Icon) je Lücken-Grund.
+function reasonMeta(reason) {
+    if (reason === 'ohne Notentext') return { color: 'warning', icon: 'mdi-music-note-off' };
+    return { color: 'grey', icon: 'mdi-help' };
+}
+
+// Farbe/Icon eines Lücken-Segments richtet sich nach dem Hauptgrund
+// ("ohne Notentext" hat Vorrang, da das der relevante Handlungsfall ist).
+function segMeta(seg) {
+    const reason = seg.reasons['ohne Notentext'] ? 'ohne Notentext' : Object.keys(seg.reasons)[0];
+    return reasonMeta(reason);
+}
+
+// Gründe eines Segments als Text – bei Mehrfach-Lücken mit Anzahl ("6× …").
+function gapReasonsText(seg) {
+    return Object.entries(seg.reasons)
+        .map(([reason, cnt]) => (seg.count === 1 ? reason : `${cnt}× ${reason}`))
+        .join(', ');
+}
+
+// Tooltip eines Lücken-Chips: bei Einzel-Lücken Titel + Grund (+ Detail-Hinweis),
+// bei Bereichen die Gründe-Aufschlüsselung.
+function gapTooltip(seg) {
+    if (seg.count === 1) {
+        const parts = [];
+        if (seg.titel) parts.push(seg.titel);
+        parts.push(gapReasonsText(seg));
+        if (seg.lied) parts.push('Detailansicht öffnen');
+        return parts.join(' · ');
+    }
+    return `Nr. ${seg.from}–${seg.to}: ${gapReasonsText(seg)}`;
+}
+
+function onGapChip(seg) {
+    if (seg.count === 1 && seg.lied) openDetail(seg.lied);
+}
+
+function gapRangeLabel(g) {
+    return g.count === 1 ? `Nr. ${g.from}` : `Nr. ${g.from}–${g.to} (${g.count})`;
+}
+
+// Erstes Lied je Liednummer – Nachschlagewerk für die Lücken-Berechnung.
+const lieder_by_nummer = computed(() => {
+    const map = new Map();
+    for (const lied of all_lieder.value) {
+        const n = liednummerOf(lied);
+        if (Number.isFinite(n) && !map.has(n)) map.set(n, lied);
+    }
+    return map;
+});
+
+// Fehlende Liednummern zwischen min und max des Download-Bereichs, zu
+// zusammenhängenden Segmenten gebündelt. So wird aus einer großen Lücke (z. B.
+// 300 noch nicht gesetzte Lieder) ein Eintrag "Nr. 200–499" statt 300 Zeilen.
+// Einzel-Lücken behalten Titel + Lied (für den Detail-Button).
+const selection_gaps = computed(() => {
+    const range = selection_range.value;
+    if (!range) return [];
+    const { min, max, nums } = range;
+
+    const byNummer = lieder_by_nummer.value;
+
+    const segments = [];
+    let current = null;
+    for (let n = min + 1; n < max; n++) {
+        if (nums.has(n)) {
+            current = null; // Lücke endet an einer ausgewählten Nummer
+            continue;
+        }
+        const lied = byNummer.get(n) || null;
+        const reason = gapReason(lied);
+        if (current) {
+            current.to = n;
+            current.count += 1;
+            current.reasons[reason] = (current.reasons[reason] || 0) + 1;
+            // Titel/Lied nur für Einzel-Lücken anbieten (Detail-Button).
+            current.titel = null;
+            current.lied = null;
+        } else {
+            current = {
+                from: n,
+                to: n,
+                count: 1,
+                reasons: { [reason]: 1 },
+                titel: lied?.titel || null,
+                lied,
+            };
+            segments.push(current);
+        }
+    }
+    return segments;
+});
+
+// Gesamtzahl fehlender Liednummern (Summe über alle Segmente).
+const gap_total = computed(() => selection_gaps.value.reduce((sum, g) => sum + g.count, 0));
+
+// Detailliste auf eine handhabbare Länge begrenzen.
+const GAP_SEGMENT_LIMIT = 50;
+const visible_gaps = computed(() => selection_gaps.value.slice(0, GAP_SEGMENT_LIMIT));
+const hidden_gap_count = computed(() =>
+    Math.max(0, selection_gaps.value.length - GAP_SEGMENT_LIMIT),
+);
+
+// Aufklappbare Detailliste der fehlenden Liednummern.
+const gap_details_open = ref(false);
+
+// Lücken zwischen direkt aufeinanderfolgenden sichtbaren Tabellenzeilen. Damit
+// wird in der Liste selbst sichtbar, wo eine aufsteigende Liednummer
+// übersprungen wird (z. B. ein Lied ohne Notentext, das vom Filter ausgeblendet
+// ist). Map: lied.id der oberen Zeile -> Lücken-Info für die Markierung darunter.
+const row_gaps = computed(() => {
+    const rows = filtered_lieder.value;
+    const byNummer = lieder_by_nummer.value;
+    const map = new Map();
+    for (let i = 0; i < rows.length - 1; i++) {
+        const a = liednummerOf(rows[i]);
+        const b = liednummerOf(rows[i + 1]);
+        if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a + 1) continue;
+        const reasons = {};
+        for (let n = a + 1; n < b; n++) {
+            const reason = gapReason(byNummer.get(n) || null);
+            reasons[reason] = (reasons[reason] || 0) + 1;
+        }
+        map.set(rows[i].id, { from: a + 1, to: b - 1, count: b - a - 1, reasons });
+    }
+    return map;
+});
 
 function isSelected(id) {
     return selected_ids.value.has(id);
@@ -598,9 +753,7 @@ async function blobIsPdf(blob) {
 
 async function runExport() {
     error_msg.value = '';
-    const candidates = filtered_lieder.value.filter(
-        (l) => !!l.notentext && selected_ids.value.has(l.id),
-    );
+    const candidates = export_candidates.value;
     if (candidates.length === 0) {
         error_msg.value = 'Keine Lieder ausgewählt.';
         return;
@@ -978,8 +1131,8 @@ function formatDate(iso) {
         <div class="d-flex align-center flex-wrap ga-2">
             <span>
                 {{ selected_stale.length }} ausgewählte Lieder seit dem letzten Export geändert
-                (Noten: {{ selected_stale_notes }}, Text: {{ selected_stale_text }}). Diese
-                sollten neu weitergegeben werden.
+                (Noten: {{ selected_stale_notes }}, Text: {{ selected_stale_text }}). Diese sollten
+                neu weitergegeben werden.
             </span>
             <v-spacer />
             <v-btn
@@ -1049,6 +1202,72 @@ function formatDate(iso) {
         </v-expand-transition>
     </v-alert>
 
+    <!-- Lücken-Warnung: fehlende, aufsteigende Liednummern im ausgewählten
+         Download-Bereich (Issue #33). Z. B. wenn ein Lied im Bereich noch keinen
+         Notentext hat und deshalb nicht mit exportiert werden kann. -->
+    <v-alert
+        v-if="selection_gaps.length"
+        class="mb-4"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        icon="mdi-format-list-numbered"
+    >
+        <div class="d-flex align-center flex-wrap ga-2">
+            <span>
+                Lücke im Download-Bereich (Nr. {{ selection_range?.min }}–{{
+                    selection_range?.max
+                }}): {{ gap_total }} fehlende Liednummer(n) in {{ selection_gaps.length }} Lücke(n).
+                Bitte prüfen, bevor mit dem Setzen begonnen wird.
+            </span>
+            <v-spacer />
+            <v-btn
+                size="small"
+                variant="text"
+                :append-icon="gap_details_open ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                @click="gap_details_open = !gap_details_open"
+            >
+                {{ gap_details_open ? 'Details ausblenden' : 'Details anzeigen' }}
+            </v-btn>
+        </div>
+        <v-expand-transition>
+            <div v-if="gap_details_open" class="mt-2">
+                <v-divider class="mb-2" />
+                <div class="d-flex flex-wrap ga-2">
+                    <v-tooltip
+                        v-for="seg in visible_gaps"
+                        :key="seg.from"
+                        location="top"
+                        :text="gapTooltip(seg)"
+                    >
+                        <template #activator="{ props }">
+                            <v-chip
+                                v-bind="props"
+                                size="small"
+                                :color="segMeta(seg).color"
+                                variant="tonal"
+                                :prepend-icon="segMeta(seg).icon"
+                                :link="seg.count === 1 && !!seg.lied"
+                                @click="onGapChip(seg)"
+                            >
+                                <template v-if="seg.count === 1">
+                                    Nr. {{ seg.from
+                                    }}<span v-if="seg.titel"> · {{ seg.titel }}</span>
+                                </template>
+                                <template v-else>
+                                    Nr. {{ seg.from }}–{{ seg.to }} ({{ seg.count }})
+                                </template>
+                            </v-chip>
+                        </template>
+                    </v-tooltip>
+                    <v-chip v-if="hidden_gap_count" size="small" variant="text" color="grey">
+                        … +{{ hidden_gap_count }} weitere
+                    </v-chip>
+                </div>
+            </div>
+        </v-expand-transition>
+    </v-alert>
+
     <v-card>
         <v-card-text class="pa-0">
             <v-table density="compact" hover>
@@ -1072,86 +1291,57 @@ function formatDate(iso) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="lied in filtered_lieder" :key="lied.id">
-                        <td
-                            class="select-cell"
-                            :class="{ 'select-cell--disabled': !lied.notentext }"
-                            @click="onRowCheckboxClick(lied.id, $event)"
-                            @mousedown.prevent
-                        >
-                            <v-checkbox
-                                :model-value="isSelected(lied.id)"
-                                :disabled="!lied.notentext"
-                                readonly
-                                hide-details
-                                density="compact"
-                                tabindex="-1"
-                            />
-                        </td>
-                        <td>{{ lied.liednummer2026 || lied.liednummer2000 || '–' }}</td>
-                        <td>{{ lied.titel }}</td>
-                        <td>
-                            <v-chip
-                                v-if="lied.notentext"
-                                size="x-small"
-                                color="success"
-                                variant="tonal"
-                                prepend-icon="mdi-check"
+                    <template v-for="lied in filtered_lieder" :key="lied.id">
+                        <tr>
+                            <td
+                                class="select-cell"
+                                :class="{ 'select-cell--disabled': !lied.notentext }"
+                                @click="onRowCheckboxClick(lied.id, $event)"
+                                @mousedown.prevent
                             >
-                                gesetzt
-                            </v-chip>
-                            <v-chip
-                                v-else
-                                size="x-small"
-                                color="grey"
-                                variant="tonal"
-                                prepend-icon="mdi-close"
-                            >
-                                fehlt
-                            </v-chip>
-                            <v-chip
-                                v-if="lied.notentext_seite2"
-                                size="x-small"
-                                color="info"
-                                variant="tonal"
-                                prepend-icon="mdi-numeric-2-box"
-                                class="ms-1"
-                            >
-                                2 Seiten
-                            </v-chip>
-                            <v-tooltip
-                                v-if="notentextNeedsPdf(lied)"
-                                text="Notenbild liegt noch als SVG vor (kein PDF). Beim Export wird es übergangsweise gebacken – bitte als PDF neu hochladen."
-                                location="top"
-                            >
-                                <template #activator="{ props }">
-                                    <v-chip
-                                        v-bind="props"
-                                        size="x-small"
-                                        color="warning"
-                                        variant="tonal"
-                                        prepend-icon="mdi-alert"
-                                        class="ms-1"
-                                    >
-                                        kein PDF
-                                    </v-chip>
-                                </template>
-                            </v-tooltip>
-                        </td>
-                        <td>
-                            <div class="d-flex flex-column align-start ga-1 py-1">
+                                <v-checkbox
+                                    :model-value="isSelected(lied.id)"
+                                    :disabled="!lied.notentext"
+                                    readonly
+                                    hide-details
+                                    density="compact"
+                                    tabindex="-1"
+                                />
+                            </td>
+                            <td>{{ lied.liednummer2026 || lied.liednummer2000 || '–' }}</td>
+                            <td>{{ lied.titel }}</td>
+                            <td>
                                 <v-chip
-                                    v-if="previously_exported_ids.has(lied.id)"
+                                    v-if="lied.notentext"
+                                    size="x-small"
+                                    color="success"
+                                    variant="tonal"
+                                    prepend-icon="mdi-check"
+                                >
+                                    gesetzt
+                                </v-chip>
+                                <v-chip
+                                    v-else
+                                    size="x-small"
+                                    color="grey"
+                                    variant="tonal"
+                                    prepend-icon="mdi-close"
+                                >
+                                    fehlt
+                                </v-chip>
+                                <v-chip
+                                    v-if="lied.notentext_seite2"
                                     size="x-small"
                                     color="info"
                                     variant="tonal"
-                                    prepend-icon="mdi-history"
+                                    prepend-icon="mdi-numeric-2-box"
+                                    class="ms-1"
                                 >
-                                    exportiert
+                                    2 Seiten
                                 </v-chip>
                                 <v-tooltip
-                                    v-if="lied.notentext && notesStale(lied)"
-                                    :text="`Noten geändert am ${formatDate(notesChangedAt(lied))} – nach dem letzten Export (${formatDate(lastExportOf(lied))}).`"
+                                    v-if="notentextNeedsPdf(lied)"
+                                    text="Notenbild liegt noch als SVG vor (kein PDF). Beim Export wird es übergangsweise gebacken – bitte als PDF neu hochladen."
                                     location="top"
                                 >
                                     <template #activator="{ props }">
@@ -1160,46 +1350,104 @@ function formatDate(iso) {
                                             size="x-small"
                                             color="warning"
                                             variant="tonal"
-                                            prepend-icon="mdi-music-note"
+                                            prepend-icon="mdi-alert"
+                                            class="ms-1"
                                         >
-                                            Noten geändert seit Export
+                                            kein PDF
                                         </v-chip>
                                     </template>
                                 </v-tooltip>
-                                <v-tooltip
-                                    v-if="lied.notentext && textStale(lied)"
-                                    :text="`Text geändert am ${formatDate(textChangedAt(lied))} – nach dem letzten Export (${formatDate(lastExportOf(lied))}).`"
-                                    location="top"
-                                >
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column align-start ga-1 py-1">
+                                    <v-chip
+                                        v-if="previously_exported_ids.has(lied.id)"
+                                        size="x-small"
+                                        color="info"
+                                        variant="tonal"
+                                        prepend-icon="mdi-history"
+                                    >
+                                        exportiert
+                                    </v-chip>
+                                    <v-tooltip
+                                        v-if="lied.notentext && notesStale(lied)"
+                                        :text="`Noten geändert am ${formatDate(notesChangedAt(lied))} – nach dem letzten Export (${formatDate(lastExportOf(lied))}).`"
+                                        location="top"
+                                    >
+                                        <template #activator="{ props }">
+                                            <v-chip
+                                                v-bind="props"
+                                                size="x-small"
+                                                color="warning"
+                                                variant="tonal"
+                                                prepend-icon="mdi-music-note"
+                                            >
+                                                Noten geändert seit Export
+                                            </v-chip>
+                                        </template>
+                                    </v-tooltip>
+                                    <v-tooltip
+                                        v-if="lied.notentext && textStale(lied)"
+                                        :text="`Text geändert am ${formatDate(textChangedAt(lied))} – nach dem letzten Export (${formatDate(lastExportOf(lied))}).`"
+                                        location="top"
+                                    >
+                                        <template #activator="{ props }">
+                                            <v-chip
+                                                v-bind="props"
+                                                size="x-small"
+                                                color="warning"
+                                                variant="tonal"
+                                                prepend-icon="mdi-text"
+                                            >
+                                                Text geändert seit Export
+                                            </v-chip>
+                                        </template>
+                                    </v-tooltip>
+                                </div>
+                            </td>
+                            <td>
+                                <v-tooltip text="Detailansicht öffnen" location="left">
                                     <template #activator="{ props }">
-                                        <v-chip
+                                        <v-btn
                                             v-bind="props"
-                                            size="x-small"
-                                            color="warning"
-                                            variant="tonal"
-                                            prepend-icon="mdi-text"
-                                        >
-                                            Text geändert seit Export
-                                        </v-chip>
+                                            icon="mdi-eye"
+                                            size="small"
+                                            variant="text"
+                                            color="primary"
+                                            @click="openDetail(lied)"
+                                        />
                                     </template>
                                 </v-tooltip>
-                            </div>
-                        </td>
-                        <td>
-                            <v-tooltip text="Detailansicht öffnen" location="left">
-                                <template #activator="{ props }">
-                                    <v-btn
-                                        v-bind="props"
-                                        icon="mdi-eye"
-                                        size="small"
-                                        variant="text"
-                                        color="primary"
-                                        @click="openDetail(lied)"
-                                    />
-                                </template>
-                            </v-tooltip>
-                        </td>
-                    </tr>
+                            </td>
+                        </tr>
+                        <tr v-if="row_gaps.get(lied.id)" class="gap-indicator-row">
+                            <td class="gap-indicator-spacer"></td>
+                            <td colspan="5">
+                                <div class="d-flex align-center flex-wrap ga-2 py-1">
+                                    <v-icon size="small" color="warning">
+                                        mdi-arrow-expand-vertical
+                                    </v-icon>
+                                    <span class="text-caption text-warning font-weight-medium">
+                                        Lücke: {{ gapRangeLabel(row_gaps.get(lied.id)) }} fehlt
+                                    </span>
+                                    <v-chip
+                                        v-for="(cnt, reason) in row_gaps.get(lied.id).reasons"
+                                        :key="reason"
+                                        size="x-small"
+                                        :color="reasonMeta(reason).color"
+                                        variant="tonal"
+                                        :prepend-icon="reasonMeta(reason).icon"
+                                    >
+                                        {{
+                                            row_gaps.get(lied.id).count === 1
+                                                ? reason
+                                                : `${cnt}× ${reason}`
+                                        }}
+                                    </v-chip>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                     <tr v-if="filtered_lieder.length === 0">
                         <td colspan="6" class="text-center text-medium-emphasis py-4">
                             Keine Lieder im aktuellen Filter.
@@ -1275,5 +1523,16 @@ function formatDate(iso) {
 }
 .select-cell--disabled {
     cursor: not-allowed;
+}
+/* Lücken-Markierung zwischen zwei Tabellenzeilen (Issue #33). */
+.gap-indicator-row td {
+    background: rgba(var(--v-theme-warning), 0.08);
+    border-top: 1px dashed rgba(var(--v-theme-warning), 0.6);
+}
+.gap-indicator-row:hover td {
+    background: rgba(var(--v-theme-warning), 0.08) !important;
+}
+.gap-indicator-spacer {
+    width: 56px;
 }
 </style>
