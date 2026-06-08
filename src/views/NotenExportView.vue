@@ -171,15 +171,15 @@ const filtered_lieder = computed(() => {
                 return false;
             if (q) {
                 const hay = `${lied.titel || ''} ${lied.liednummer2000 || ''} ${
-                    lied.liednummer2026 || ''
+                    resolved2026(lied) || ''
                 }`.toLowerCase();
                 if (!hay.includes(q)) return false;
             }
             return true;
         })
         .sort((a, b) => {
-            const an = parseInt(a.liednummer2026 || a.liednummer2000) || 99999;
-            const bn = parseInt(b.liednummer2026 || b.liednummer2000) || 99999;
+            const an = liednummerOf(a) || 99999;
+            const bn = liednummerOf(b) || 99999;
             if (an !== bn) return an - bn;
             return (a.titel || '').localeCompare(b.titel || '');
         });
@@ -255,8 +255,32 @@ const stale_details_open = ref(false);
 // mitten im Bereich eine aufsteigende Liednummer (z. B. weil das Lied noch
 // keinen Notentext hat und damit nicht exportierbar ist), soll die UI früh
 // warnen – sonst beginnt er mit einem unvollständigen Bereich.
+
+// id -> eigene liednummer2026 (Nachschlag für die Auflösung über die deutsche
+// Liedfassung, identisch zur Map im Export).
+const liednummer2026_by_id = computed(() => {
+    const map = {};
+    for (const l of all_lieder.value) {
+        if (l && l.id != null && l.liednummer2026) map[l.id] = l.liednummer2026;
+    }
+    return map;
+});
+
+// 2026er Liednummer wie beim Export auflösen: eigene Nummer, sonst die der
+// deutschen Liedfassung (deutscheLiedfassung). liednummer2000 ist Legacy und
+// wird bewusst NICHT als Liednummer herangezogen – Lieder ohne 2026-Nummer
+// haben schlicht (noch) keine Nummer (Issue #33).
+function resolved2026(lied) {
+    return resolveLiednummer2026(lied, liednummer2026_by_id.value);
+}
+
+// Anzeige-Nummer (String, '–' wenn keine) bzw. Sortier-/Lücken-Nummer (Integer,
+// NaN wenn keine). Beide ausschließlich auf Basis der 2026-Nummer.
+function displayNummer(lied) {
+    return resolved2026(lied) || '–';
+}
 function liednummerOf(lied) {
-    return parseInt(lied?.liednummer2026 || lied?.liednummer2000, 10);
+    return parseInt(resolved2026(lied), 10);
 }
 
 // Die Lieder, die tatsächlich exportiert/heruntergeladen werden (im Filter, mit
@@ -762,13 +786,6 @@ async function runExport() {
     exporting.value = true;
     progress.value = { done: 0, total: candidates.length, current: '' };
 
-    const liednummer2026ById = {};
-    all_lieder.value.forEach((l) => {
-        if (l && l.id != null && l.liednummer2026) {
-            liednummer2026ById[l.id] = l.liednummer2026;
-        }
-    });
-
     const zip = new JSZip();
     const pdfFolder = zip.folder('pdf');
     const csvRows = [];
@@ -776,7 +793,7 @@ async function runExport() {
 
     for (const lied of candidates) {
         progress.value.current = lied.titel || `#${lied.id}`;
-        const liednummer2026 = resolveLiednummer2026(lied, liednummer2026ById);
+        const liednummer2026 = resolved2026(lied);
         const filenameBase = `${liednummer2026 || lied.liednummer2000 || lied.id}_${safeFilename(lied.titel)}`;
         const pdfFilename = `${filenameBase}.pdf`;
         const pageFileIds = [lied.notentext];
@@ -1151,7 +1168,7 @@ function formatDate(iso) {
                     <v-list-item v-for="lied in selected_stale" :key="lied.id" class="px-0">
                         <v-list-item-title class="d-flex align-center flex-wrap ga-2">
                             <span class="font-weight-medium">
-                                {{ lied.liednummer2026 || lied.liednummer2000 || '–' }} ·
+                                {{ displayNummer(lied) }} ·
                                 {{ lied.titel }}
                             </span>
                             <v-chip
@@ -1308,7 +1325,7 @@ function formatDate(iso) {
                                     tabindex="-1"
                                 />
                             </td>
-                            <td>{{ lied.liednummer2026 || lied.liednummer2000 || '–' }}</td>
+                            <td>{{ displayNummer(lied) }}</td>
                             <td>{{ lied.titel }}</td>
                             <td>
                                 <v-chip

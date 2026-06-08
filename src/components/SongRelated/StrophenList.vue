@@ -210,6 +210,38 @@
                         <div class="ki-review-rejected-text">
                             {{ firstLine(review.reviewErgebnis) }}
                         </div>
+                        <v-menu :close-on-content-click="false" location="bottom end">
+                            <template #activator="{ props }">
+                                <v-btn
+                                    icon="mdi-eye-outline"
+                                    size="x-small"
+                                    variant="text"
+                                    color="info"
+                                    title="KI-Review anzeigen"
+                                    class="ki-review-eye"
+                                    v-bind="props"
+                                />
+                            </template>
+                            <v-card max-width="500" class="pa-3">
+                                <div class="d-flex align-start ga-2">
+                                    <v-icon
+                                        icon="mdi-robot-outline"
+                                        size="small"
+                                        color="info"
+                                        class="mt-1"
+                                    />
+                                    <div style="font-size: 0.9rem; white-space: pre-wrap">
+                                        {{ review.reviewErgebnis }}
+                                    </div>
+                                </div>
+                                <div
+                                    v-if="review.anmerkungDurchMensch"
+                                    class="text-caption mt-3 ms-8"
+                                >
+                                    <strong>Anmerkung:</strong> {{ review.anmerkungDurchMensch }}
+                                </div>
+                            </v-card>
+                        </v-menu>
                     </div>
                     <!-- Full view -->
                     <template v-else>
@@ -694,6 +726,17 @@ export default {
 .ki-review-rejected:hover {
     opacity: 1;
     filter: grayscale(0);
+}
+
+.ki-review-eye {
+    display: none;
+}
+
+/* Show on row hover, and keep visible while the menu is open so it
+   doesn't lose its anchor (aria-expanded is set by Vuetify's activator). */
+.ki-review-rejected:hover .ki-review-eye,
+.ki-review-eye[aria-expanded='true'] {
+    display: inline-flex;
 }
 
 .ki-review-rejected-text {
