@@ -733,5 +733,49 @@ export const useAppStore = defineStore('app', {
                 throw error;
             }
         },
+
+        // Autoren-Lebensdaten (Geburts-/Sterbejahr) in den Live-Datensatz schreiben.
+        // Wird vom Autoren-Datenabgleich (KI-Review, Issue #32) genutzt: der Kleine
+        // Kreis übernimmt einen ausgewählten Kandidaten / Vorschlag / manuelle Jahre.
+        // Patcht nur die beiden vorhandenen Felder und aktualisiert den lokalen Store
+        // (inkl. der abgeleiteten name/author_str), damit die UI sofort den neuen
+        // Stand zeigt.
+        async updateAutorLebensdaten(autorId, { geburtsjahr = null, sterbejahr = null }) {
+            const controller = new AbortController();
+            this.currentRequests.push(controller);
+
+            try {
+                const response = await axios.patch(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/autor/${autorId}`,
+                    { geburtsjahr, sterbejahr },
+                    { signal: controller.signal },
+                );
+
+                const index = this.author.findIndex((a) => a.id === autorId);
+                if (index !== -1) {
+                    const a = this.author[index];
+                    a.geburtsjahr = geburtsjahr;
+                    a.sterbejahr = sterbejahr;
+                    const years =
+                        geburtsjahr || sterbejahr
+                            ? ` (${geburtsjahr ? '*' + geburtsjahr : ''}${
+                                  sterbejahr ? ' - ' + sterbejahr : ''
+                              })`
+                            : '';
+                    a.name = `${a.vorname} ${a.nachname}${years}`;
+                    a.author_str = `${a.vorname} ${a.nachname}${years}`;
+                }
+
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                return response.data;
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                }
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                throw error;
+            }
+        },
     },
 });
