@@ -429,7 +429,18 @@ const row_gaps = computed(() => {
             const reason = gapReason(byNummer.get(n) || null);
             reasons[reason] = (reasons[reason] || 0) + 1;
         }
-        map.set(rows[i].id, { from: a + 1, to: b - 1, count: b - a - 1, reasons });
+        // Bei einer Einzel-Lücke den Liedtitel mitführen (Issue #35): "Nr. 69
+        // fehlt" allein sagt nicht, um welches Lied es geht. Titel/Lied nur für
+        // count === 1, da ein Bereich keinen einzelnen Titel hat.
+        const singleLied = b - a - 1 === 1 ? byNummer.get(a + 1) || null : null;
+        map.set(rows[i].id, {
+            from: a + 1,
+            to: b - 1,
+            count: b - a - 1,
+            reasons,
+            titel: singleLied?.titel || null,
+            lied: singleLied,
+        });
     }
     return map;
 });
@@ -1445,7 +1456,17 @@ function formatDate(iso) {
                                         mdi-arrow-expand-vertical
                                     </v-icon>
                                     <span class="text-caption text-warning font-weight-medium">
-                                        Lücke: {{ gapRangeLabel(row_gaps.get(lied.id)) }} fehlt
+                                        Lücke: {{ gapRangeLabel(row_gaps.get(lied.id)) }}
+                                        <template v-if="row_gaps.get(lied.id).titel">
+                                            ·
+                                            <a
+                                                class="gap-title-link"
+                                                @click="openDetail(row_gaps.get(lied.id).lied)"
+                                            >
+                                                {{ row_gaps.get(lied.id).titel }}
+                                            </a>
+                                        </template>
+                                        fehlt
                                     </span>
                                     <v-chip
                                         v-for="(cnt, reason) in row_gaps.get(lied.id).reasons"
@@ -1551,5 +1572,14 @@ function formatDate(iso) {
 }
 .gap-indicator-spacer {
     width: 56px;
+}
+/* Klickbarer Liedtitel in der Einzel-Lücken-Markierung (Issue #35). */
+.gap-title-link {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.gap-title-link:hover {
+    text-decoration: none;
 }
 </style>
