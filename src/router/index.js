@@ -112,6 +112,7 @@ const routes = [
             {
                 path: 'notentext-export/:id?',
                 name: 'NotentextExport',
+                meta: { requiredRoles: notentextRoles },
                 component: () =>
                     import(/* webpackChunkName: "noten-export" */ '@/views/NotenExportView.vue'),
             },

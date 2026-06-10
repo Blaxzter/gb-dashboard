@@ -124,6 +124,7 @@ export default {
                         name: 'Notentext-Export',
                         route: '/notentext-export',
                         icon: 'mdi-file-music',
+                        requiredRoles: notentextRoles,
                     },
                     {
                         name: 'Notentext-Hochladen',

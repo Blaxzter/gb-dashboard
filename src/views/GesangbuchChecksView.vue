@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
+import { useUserStore } from '@/store/user';
 import { runChecks, isGenommen } from '@/assets/js/gesangbuchChecks.js';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 import CheckCategory from '@/components/checks/CheckCategory.vue';
@@ -9,6 +10,17 @@ import CheckCategory from '@/components/checks/CheckCategory.vue';
 const store = useAppStore();
 const route = useRoute();
 const router = useRouter();
+
+// Der Notentext-Export ist wie das Notentext-Hochladen auf bestimmte Rollen
+// beschränkt (VITE_NOTENTEXT_ROLES) – Button nur für Berechtigte anzeigen.
+const notentextRoles = (import.meta.env.VITE_NOTENTEXT_ROLES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+const userStore = useUserStore();
+const can_export = computed(
+    () => notentextRoles.length === 0 || userStore.has_role(notentextRoles),
+);
 
 const only_problems = ref(false);
 
@@ -149,6 +161,7 @@ function collapseAll() {
                     Alle zuklappen
                 </v-btn>
                 <v-btn
+                    v-if="can_export"
                     color="primary"
                     variant="tonal"
                     prepend-icon="mdi-file-music"
