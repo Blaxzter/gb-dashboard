@@ -31,6 +31,10 @@ const useUserStore = defineStore('user', {
     }),
     getters: {
         get_user: (state) => state.user,
+        // Directus-ID des angemeldeten Nutzers (für user_created-Filter, z. B. die
+        // nach Nutzer gefilterte Export-Historie). null, solange fetchMe noch nicht
+        // gelaufen ist. Alias-Logins teilen sich ein Konto -> gleiche ID.
+        user_id: (state) => state.user?.id ?? null,
         is_logged_in: (state) => state.user !== null,
         // Kleiner-Kreis either via the legacy shared-account e-mail list
         // (state.kleiner_kreis) or via the user's Directus role.
@@ -132,10 +136,19 @@ const useUserStore = defineStore('user', {
             const response = await axios({
                 method: 'get',
                 url: `${import.meta.env.VITE_BACKEND_URL}/users/me`,
-                params: { fields: 'role.name,role.id' },
+                params: { fields: 'id,first_name,last_name,email,role.name,role.id' },
             });
-            const role = response.data?.data?.role?.name ?? null;
-            this.user = { ...(this.user ?? {}), role };
+            const data = response.data?.data ?? {};
+            const role = data.role?.name ?? null;
+            // id wird für den user_created-Filter der Export-Historie benötigt.
+            this.user = {
+                ...(this.user ?? {}),
+                id: data.id ?? this.user?.id ?? null,
+                first_name: data.first_name ?? null,
+                last_name: data.last_name ?? null,
+                email: data.email ?? null,
+                role,
+            };
         },
         logout() {
             const appStore = useAppStore();

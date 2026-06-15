@@ -550,6 +550,15 @@ export const useAppStore = defineStore('app', {
                 payload,
             );
             const created = resp.data.data;
+            // user_created stammt serverseitig vom aktuellen Nutzer. Liefert die
+            // Antwort das Feld nicht mit (z. B. eingeschränkte Feld-Leserechte),
+            // stempeln wir die ID des aktuellen Nutzers nach, damit der neue
+            // Eintrag sofort in der nach Nutzer gefilterten Historie auftaucht –
+            // ohne Reload abwarten zu müssen.
+            if (created && created.user_created == null) {
+                const userStore = useUserStore();
+                if (userStore.user_id) created.user_created = userStore.user_id;
+            }
             this.export_log.push(created);
             return created;
         },

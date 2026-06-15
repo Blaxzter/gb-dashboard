@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import _ from 'lodash';
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
+import { useUserStore } from '@/store/user.js';
 import { jsPDF } from 'jspdf';
 import 'svg2pdf.js';
 import JSZip from 'jszip';
@@ -11,6 +12,7 @@ import { formatYearRange, formatAuthors } from '@/assets/js/authorFormat';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
 const store = useAppStore();
+const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -68,8 +70,9 @@ watch(detail_dialog, (is_open) => {
 });
 
 onMounted(() => {
-    // Export-Log (Issue #22) frisch laden – die Historie ist serverseitig und
-    // wird zwischen allen Nutzern geteilt.
+    // Export-Log (Issue #22) frisch laden. Es liegt serverseitig (geteilte
+    // Collection), wird in dieser View aber pro Nutzer gefiltert: angezeigt werden
+    // nur die eigenen Exporte (user_created == aktueller Nutzer).
     store.loadExportLog();
     openDetailFromRoute();
 });
@@ -94,10 +97,31 @@ function isAfter(a, b) {
     return ta > tb;
 }
 
-// Pro Lied-ID der späteste Export-Zeitpunkt über alle Log-Zeilen.
+// Erstellenden Nutzer einer Export-Log-Zeile auslesen. Directus liefert
+// user_created je nach Abfrage als UUID-String oder als aufgelöstes Objekt.
+function exportLogUserId(entry) {
+    const u = entry?.user_created;
+    if (u && typeof u === 'object') return u.id ?? null;
+    return u ?? null;
+}
+
+const current_user_id = computed(() => userStore.user_id);
+
+// Pro Nutzer gefiltertes Export-Log: Grundlage für Historie, „bereits
+// exportiert"-Markierung und die „seit Export geändert"-Erkennung – alles bezieht
+// sich auf die eigenen Exporte. Ist die eigene Directus-ID (noch) nicht bekannt
+// (fetchMe nicht gelaufen), wird nicht gefiltert (alles zeigen statt nichts).
+const my_export_log = computed(() => {
+    const me = current_user_id.value;
+    const rows = store.export_log || [];
+    if (!me) return rows;
+    return rows.filter((entry) => exportLogUserId(entry) === me);
+});
+
+// Pro Lied-ID der späteste Export-Zeitpunkt über die eigenen Log-Zeilen.
 const last_export_by_id = computed(() => {
     const map = new Map();
-    (store.export_log || []).forEach((entry) => {
+    my_export_log.value.forEach((entry) => {
         const ts = exportLogTimestamp(entry);
         if (!ts) return;
         (entry.gesangbuchlied_ids || []).forEach((id) => {
@@ -110,7 +134,7 @@ const last_export_by_id = computed(() => {
 
 const previously_exported_ids = computed(() => {
     const set = new Set();
-    (store.export_log || []).forEach((entry) =>
+    my_export_log.value.forEach((entry) =>
         (entry.gesangbuchlied_ids || []).forEach((id) => set.add(id)),
     );
     return set;
@@ -144,14 +168,14 @@ function textStale(lied) {
     return !!le && !!ca && isAfter(ca, le);
 }
 
-// Server-Export-Historie als absteigend sortierte Anzeige-Liste.
+// Eigene Export-Historie als absteigend sortierte Anzeige-Liste.
 const history = computed(() => {
-    const rows = (store.export_log || []).map((entry) => ({
+    const rows = my_export_log.value.map((entry) => ({
         id: entry.id,
         timestamp: exportLogTimestamp(entry),
         songCount: entry.anzahl ?? (entry.gesangbuchlied_ids?.length || 0),
         filter: entry.filter || null,
-        user: entry.user_created || null,
+        user: exportLogUserId(entry),
     }));
     rows.sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
     return rows;
@@ -1523,9 +1547,9 @@ function formatDate(iso) {
                     Lied(er)
                 </p>
                 <p class="text-caption text-medium-emphasis mt-2">
-                    Hinweis: Die Historie ist geteilt – der Eintrag verschwindet für alle. Die
-                    Änderungs-Erkennung („seit Export geändert") greift danach auf den nächst-
-                    älteren Export dieses Liedes zurück.
+                    Hinweis: Angezeigt werden nur deine eigenen Exporte. Die Änderungs-Erkennung
+                    („seit Export geändert") greift danach auf deinen nächst-älteren Export dieses
+                    Liedes zurück.
                 </p>
             </v-card-text>
             <v-card-actions>
