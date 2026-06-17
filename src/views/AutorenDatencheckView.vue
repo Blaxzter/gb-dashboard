@@ -181,7 +181,7 @@
                             color="success"
                             size="large"
                             prepend-icon="mdi-check-circle"
-                            title="Lokal als erledigt markiert"
+                            title="Als erledigt markiert"
                         >
                             {{ doneCount }} erledigt
                         </v-chip>
@@ -274,15 +274,25 @@
                                     @click="selectAuthor(rec.autor_id)"
                                 >
                                     <template #prepend>
-                                        <v-avatar
-                                            size="34"
-                                            variant="tonal"
-                                            :color="vmeta(rec.verdict).color"
+                                        <v-badge
+                                            :model-value="isDone(rec.autor_id)"
+                                            color="success"
+                                            icon="mdi-check"
+                                            location="bottom end"
+                                            offset-x="3"
+                                            offset-y="3"
+                                            bordered
                                         >
-                                            <v-icon size="small">{{
-                                                vmeta(rec.verdict).icon
-                                            }}</v-icon>
-                                        </v-avatar>
+                                            <v-avatar
+                                                size="34"
+                                                variant="tonal"
+                                                :color="vmeta(rec.verdict).color"
+                                            >
+                                                <v-icon size="small">{{
+                                                    vmeta(rec.verdict).icon
+                                                }}</v-icon>
+                                            </v-avatar>
+                                        </v-badge>
                                     </template>
                                     <v-list-item-title class="text-body-2 font-weight-medium">
                                         {{ rec.vorname }} {{ rec.nachname }}
@@ -292,14 +302,6 @@
                                     </v-list-item-subtitle>
                                     <template #append>
                                         <div class="d-flex flex-column align-end ga-1">
-                                            <v-icon
-                                                v-if="isDone(rec.autor_id)"
-                                                color="success"
-                                                size="small"
-                                                title="Erledigt (lokal)"
-                                            >
-                                                mdi-check-circle
-                                            </v-icon>
                                             <v-chip
                                                 size="x-small"
                                                 :color="confidenceColor(rec.confidence)"
@@ -768,6 +770,32 @@
                                 Keine Kandidaten in den geprüften Quellen gefunden.
                             </v-alert>
                         </v-card-text>
+
+                        <v-divider />
+
+                        <!-- Erledigt-Markierung ganz unten rechts: abschließende Aktion,
+                             nachdem der Autor geprüft wurde. Nutzerübergreifend gespeichert. -->
+                        <v-card-actions>
+                            <v-spacer />
+                            <v-btn
+                                :color="isDone(selectedRecord.autor_id) ? 'success' : undefined"
+                                :variant="isDone(selectedRecord.autor_id) ? 'flat' : 'tonal'"
+                                :prepend-icon="
+                                    isDone(selectedRecord.autor_id)
+                                        ? 'mdi-check-circle'
+                                        : 'mdi-checkbox-marked-circle-outline'
+                                "
+                                :loading="savingDone"
+                                title="Nutzerübergreifend gespeichert"
+                                @click="toggleDone(selectedRecord.autor_id)"
+                            >
+                                {{
+                                    isDone(selectedRecord.autor_id)
+                                        ? 'Erledigt'
+                                        : 'Als erledigt markieren'
+                                }}
+                            </v-btn>
+                        </v-card-actions>
                     </v-card>
 
                     <v-card
@@ -891,7 +919,7 @@ const route = useRoute();
 const router = useRouter();
 const { mdAndUp } = useDisplay();
 const appStore = useAppStore();
-const { authors, gesangbuchlieder } = storeToRefs(appStore);
+const { authors, gesangbuchlieder, settingsData } = storeToRefs(appStore);
 
 const reviewData = ref([]);
 const loading = ref(true);
@@ -925,10 +953,16 @@ const snackbar = ref({ show: false, color: 'success', text: '' });
 const INTRO_SEEN_KEY = 'autoren_datencheck_intro_seen';
 const helpOpen = ref(false);
 
-// Lokaler „Erledigt“-Status – nur im Browser gespeichert, kein Backend. Hilft
-// dabei, die Liste systematisch abzuarbeiten.
-const DONE_KEY = 'autoren_datencheck_done';
-const doneIds = ref([]);
+// „Erledigt“-Status – nutzerübergreifend in Directus persistiert
+// (settings.autoren_check, Issue #32), damit der Kleine Kreis die Liste gemeinsam
+// systematisch abarbeiten kann. Das JSON-„Tags“-Feld speichert Strings, daher
+// alle Vergleiche/Schreibvorgänge über String(id) normalisieren.
+const doneIds = computed(() => {
+    const v = settingsData.value?.autoren_check;
+    return Array.isArray(v) ? v.map(String) : [];
+});
+// Verhindert überlappende PATCHes auf den Singleton während ein Speichern läuft.
+const savingDone = ref(false);
 
 // --- Helpers --------------------------------------------------------------
 const confPct = (c) => (c == null ? '–' : `${Math.round(c * 100)}%`);
@@ -1429,33 +1463,38 @@ async function applyYears(targetKey, b, d, { clearNulls = false } = {}) {
     }
 }
 
-// --- Lokaler Erledigt-Status -------------------------------------------------
-const isDone = (id) => doneIds.value.includes(id);
-function loadDone() {
-    try {
-        const stored = JSON.parse(localStorage.getItem(DONE_KEY) || '[]');
-        if (Array.isArray(stored)) doneIds.value = stored;
-    } catch {
-        doneIds.value = [];
-    }
-}
-function toggleDone(id) {
-    const i = doneIds.value.indexOf(id);
-    if (i >= 0) {
-        doneIds.value.splice(i, 1);
-        return;
-    }
+// --- Erledigt-Status (in Directus persistiert) -------------------------------
+const isDone = (id) => doneIds.value.includes(String(id));
+async function toggleDone(id) {
+    if (savingDone.value) return;
+    const key = String(id);
+    const wasDone = doneIds.value.includes(key);
+    const next = wasDone ? doneIds.value.filter((x) => x !== key) : [...doneIds.value, key];
+
     // Beim Markieren: wenn Erledigte ausgeblendet sind und der aktuell gewählte
     // Autor erledigt wird, gleich zum nächsten offenen springen (Durcharbeiten).
+    // Den Nachfolger anhand der NOCH ungefilterten Liste bestimmen (vor dem Save).
     let nextId = null;
-    if (hideDone.value && id === selectedId.value) {
+    if (!wasDone && hideDone.value && id === selectedId.value) {
         const list = filtered.value;
         const idx = list.findIndex((r) => r.autor_id === id);
         const rest = list.filter((r) => r.autor_id !== id);
         nextId = (rest[idx] || rest[idx - 1] || rest[0])?.autor_id ?? null;
     }
-    doneIds.value.push(id);
-    if (nextId != null) selectAuthor(nextId);
+
+    savingDone.value = true;
+    try {
+        await appStore.updateAutorenCheck(next);
+        if (nextId != null) selectAuthor(nextId);
+    } catch (e) {
+        snackbar.value = {
+            show: true,
+            color: 'error',
+            text: 'Erledigt-Status konnte nicht gespeichert werden.',
+        };
+    } finally {
+        savingDone.value = false;
+    }
 }
 
 // --- Inline-Bearbeitung der Live-Jahre (Stift im Jahres-Vergleich) --------
@@ -1556,11 +1595,7 @@ watch(authors, () => {
     if (selectedId.value == null && reviewData.value.length) restoreOrDefaultSelection();
 });
 
-// Erledigt-Status nur lokal persistieren.
-watch(doneIds, (v) => localStorage.setItem(DONE_KEY, JSON.stringify(v)), { deep: true });
-
 onMounted(() => {
-    loadDone();
     // Beim allerersten Öffnen den Erklär-Dialog zeigen (genau einmal pro Browser).
     if (localStorage.getItem(INTRO_SEEN_KEY) !== '1') {
         helpOpen.value = true;
@@ -1572,9 +1607,18 @@ onMounted(loadReview);
 </script>
 
 <style scoped lang="scss">
-/* Lokal als erledigt markierte Autoren in der Liste dezent abdunkeln. */
+/* Als erledigt markierte Autoren in der Liste dezent hervorheben: leichter
+   Grünschleier + grüner Akzentstreifen links (per inset-Shadow, damit er der
+   abgerundeten Ecke folgt) + durchgestrichener Name. Die aktive Auswahl behält
+   ihre Primär-Hervorhebung (daher :not(--active)). */
 .autor-done:not(.v-list-item--active) {
-    opacity: 0.5;
+    opacity: 0.82;
+    background: rgba(var(--v-theme-success), 0.07);
+    box-shadow: inset 3px 0 0 0 rgb(var(--v-theme-success));
+}
+.autor-done:not(.v-list-item--active) :deep(.v-list-item-title) {
+    text-decoration: line-through;
+    text-decoration-color: rgba(var(--v-theme-success), 0.55);
 }
 
 /* Bearbeiten-Stift in der oberen rechten Ecke des Jahres-Vergleichs. */

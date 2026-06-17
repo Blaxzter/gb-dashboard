@@ -128,10 +128,12 @@
                     die keine Person sind, ist das Bearbeiten der Jahre bewusst gesperrt.
                 </p>
                 <p class="text-body-2 mt-2 mb-0">
-                    Unten an jeder Autoren-Karte hakst du mit <strong>„Als erledigt markieren“</strong>
-                    geprüfte Autoren ab. Diese Markierung wird nur <strong>lokal in deinem
-                    Browser</strong> gespeichert (kein Backend) und hilft beim systematischen
-                    Durcharbeiten – über den Schalter „Erledigte ausblenden“ blendest du sie aus.
+                    Unten rechts in der Detailansicht hakst du mit <strong>„Als erledigt
+                    markieren“</strong> geprüfte Autoren ab. Diese Markierung wird
+                    <strong>zentral gespeichert und für alle geteilt</strong> – so sieht das ganze
+                    Team, welche Autoren schon abgearbeitet sind. Das hilft beim systematischen
+                    Durcharbeiten; über den Schalter „Erledigte ausblenden“ blendest du erledigte
+                    Autoren aus.
                 </p>
             </v-card-text>
 

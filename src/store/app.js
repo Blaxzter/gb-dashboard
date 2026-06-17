@@ -30,6 +30,11 @@ export const useAppStore = defineStore('app', {
         gesangbuchlied_kategorie: [],
         file: [],
         export_log: [],
+        // Globale, in Directus persistierte Einstellungen (Singleton-Collection
+        // „settings"). Aktuell: autoren_check = Liste der im Autoren-Datencheck als
+        // erledigt markierten Autor-IDs (Issue #32). Wird nutzerübergreifend geteilt,
+        // damit der Kleine Kreis die Liste gemeinsam abarbeiten kann.
+        settings: {},
         currentRequests: [],
     }),
     getters: {
@@ -53,6 +58,7 @@ export const useAppStore = defineStore('app', {
         gesangbuchlied_kategories: (state) => state.gesangbuchlied_kategorie,
         files: (state) => state.file,
         export_logs: (state) => state.export_log,
+        settingsData: (state) => state.settings,
 
         arbeitskreis_by_id: (state) => {
             return (id) => _.find(state.auftrag, (o) => o.id === id);
@@ -518,6 +524,56 @@ export const useAppStore = defineStore('app', {
             // Export-Log (Issue #22) separat & graceful nachladen – ein Fehlen der
             // Collection darf den App-Start nicht blockieren.
             this.loadExportLog();
+
+            // Globale Settings (Singleton) ebenfalls graceful nachladen.
+            this.loadSettings();
+        },
+
+        // Lädt die Singleton-Collection „settings". Graceful wie das Export-Log:
+        // fehlt die Collection (404/403), bleiben die Settings leer statt zu crashen.
+        async loadSettings() {
+            try {
+                const resp = await axios.get(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/settings`,
+                );
+                // Singleton -> data ist ein Objekt (kein Array).
+                this.settings = resp.data.data || {};
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                    return;
+                }
+                console.warn(
+                    'Settings konnten nicht geladen werden (Collection vorhanden?)',
+                    error?.response?.status || error,
+                );
+                this.settings = {};
+            }
+        },
+
+        // Schreibt die Liste der im Autoren-Datencheck als erledigt markierten
+        // Autoren (Issue #32) in das JSON-Feld settings.autoren_check. Optimistisch:
+        // der lokale Store wird sofort aktualisiert (instant UI), bei Fehler wieder
+        // auf den vorherigen Stand zurückgerollt – der Aufrufer fängt den Fehler ab.
+        async updateAutorenCheck(autorenCheck) {
+            const prev = this.settings;
+            this.settings = { ...this.settings, autoren_check: autorenCheck };
+            try {
+                const resp = await axios.patch(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/settings`,
+                    { autoren_check: autorenCheck },
+                );
+                this.settings = resp.data.data || this.settings;
+                return this.settings;
+            } catch (error) {
+                this.settings = prev;
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                }
+                throw error;
+            }
         },
 
         // Lädt das Export-Log (Issue #22). Graceful: existiert die Collection in
