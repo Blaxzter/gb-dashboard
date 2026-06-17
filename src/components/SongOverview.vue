@@ -471,7 +471,11 @@ export default {
     }),
     computed: {
         possible_columns() {
+            // „Nr. 2026“ ist für alle Nutzer als optionale, numerisch sortierbare
+            // Spalte verfügbar (Issue #41) – die Nummer wird ohnehin schon als Chip
+            // neben dem Titel angezeigt.
             let columns = [
+                'Nr. 2026',
                 'Titel',
                 'Text Titel',
                 'Text Auftrag',
@@ -483,7 +487,6 @@ export default {
             ];
             if (this.admin && this.admin_ansicht) {
                 columns.push('Bewertung');
-                columns.push('Liednummer 2026');
             }
             return columns;
         },
@@ -492,13 +495,9 @@ export default {
         },
         headers() {
             let headers = [];
-            if (
-                this.admin &&
-                this.admin_ansicht &&
-                this.selected_columns.includes('Liednummer 2026')
-            ) {
+            if (this.selected_columns.includes('Nr. 2026')) {
                 headers.push({
-                    title: 'Liednummer 2026',
+                    title: 'Nr. 2026',
                     align: 'end',
                     key: 'liednummer2026',
                     sort: (a, b) => {

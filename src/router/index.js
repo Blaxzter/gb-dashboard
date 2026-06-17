@@ -117,6 +117,15 @@ const routes = [
                     import(/* webpackChunkName: "noten-export" */ '@/views/NotenExportView.vue'),
             },
             {
+                path: 'inhaltsverzeichnis-export',
+                name: 'InhaltsverzeichnisExport',
+                meta: { requiredRoles: notentextRoles },
+                component: () =>
+                    import(
+                        /* webpackChunkName: "inhaltsverzeichnis-export" */ '@/views/InhaltsverzeichnisExportView.vue'
+                    ),
+            },
+            {
                 path: 'notentext-hochladen',
                 name: 'NotentextHochladen',
                 meta: { requiredRoles: notentextRoles },

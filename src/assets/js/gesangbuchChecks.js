@@ -43,6 +43,15 @@ export function isRein(lied) {
     return !!bezeichner && bezeichner.toLowerCase().includes('rein');
 }
 
+// Exakt die Bewertung „Rein" – im Gegensatz zu isRein() NICHT die Varianten wie
+// „Rein, wenn". Für den Check „genommen-rein" (Issue #42): ein .includes('rein')
+// zählt „Rein, wenn" fälschlich als „Rein" und hebelt damit die Prüfung aus, ob
+// jedes genommene Lied wirklich die finale Bewertung „Rein" trägt.
+export function isExactRein(lied) {
+    const bezeichner = lied?.bewertung_kleiner_kreis?.bezeichner;
+    return !!bezeichner && bezeichner.trim().toLowerCase() === 'rein';
+}
+
 function hasNummer(value) {
     return value !== null && value !== undefined && String(value).trim() !== '';
 }
@@ -97,6 +106,21 @@ function verseLength(strophe) {
 // vollständig übertragen wurde: drei (oder mehr) aufeinanderfolgende Punkte
 // oder das Auslassungszeichen … (U+2026).
 const AUSLASSUNGS_REGEX = /\.{3,}|…/;
+
+// Silbentrennung mit Minus statt Silbentrennzeichen (Issue #39): Beim
+// Korrekturlesen wurde an einzelnen Stellen ein Bindestrich-Minus „-" (U+002D)
+// statt des Silbentrennzeichens „¬" gesetzt (z. B. „o-ben" statt „o¬ben",
+// „Treu-e" statt „Treu¬e"). Kennzeichen ist ein „-" mit jeweils einem Buchstaben
+// direkt davor und dahinter. Diese Regex extrahiert die betroffenen Wörter (eine
+// oder mehrere durch „-" verbundene Buchstabengruppen), damit sie im Check als
+// Beispiel angezeigt werden können.
+const SILBEN_MINUS_WORT_REGEX = /\p{L}+(?:-\p{L}+)+/gu;
+
+// Fälschlicher Gedankenstrich (Issue #40): Ein von Leerzeichen umschlossenes
+// Minus „ - " soll als Halbgeviertstrich (Gedankenstrich) „ – " (U+2013) gesetzt
+// werden. Erkannt wird ein Bindestrich-Minus „-" (U+002D) mit jeweils einem
+// Leerzeichen (normales oder geschütztes) davor und dahinter.
+const GEDANKENSTRICH_MINUS_REGEX = /[  ]-[  ]/g; // Zeichenklasse: normales Leerzeichen oder geschütztes Leerzeichen (U+00A0)
 
 // Schwellen für den Strophenlängen-Check (siehe Check „strophen-laenge-ausreisser“).
 const STROPHENLAENGE_MIN_STROPHEN = 3; // erst ab 3 (gefüllten) Strophen vergleichbar
@@ -405,9 +429,12 @@ export const CHECKS = [
         id: 'genommen-rein',
         category: 'Bewertung',
         title: 'Alle genommenen Lieder sind „Rein“ bewertet',
-        description: 'Jedes „Bewertet und genommen“-Lied sollte die Bewertung „Rein“ haben.',
+        description:
+            'Jedes „Bewertet und genommen“-Lied sollte die Bewertung „Rein“ haben. Varianten wie „Rein, wenn“ zählen hier NICHT als „Rein“ und werden gemeldet (Issue #42).',
         run({ genommen }) {
-            const nichtRein = genommen.filter((l) => !isRein(l));
+            // Exakter Abgleich auf „Rein“ – nicht isRein() (includes), das „Rein, wenn“
+            // fälschlich durchgehen ließe (Issue #42).
+            const nichtRein = genommen.filter((l) => !isExactRein(l));
             return result(
                 nichtRein.length === 0,
                 'error',
@@ -914,6 +941,83 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Alle Strophen mit Text sind in Silben getrennt.'
                     : `${items.length} Lied(er) mit Strophen ohne Silbentrennzeichen.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'silbentrennung-minus',
+        category: 'Redaktion',
+        title: 'Silbentrennung mit „-“ statt „¬“',
+        description:
+            'Beim Korrekturlesen wurde an einzelnen Stellen ein Minus „-“ statt des Silbentrennzeichens „¬“ gesetzt (z. B. „o-ben“ statt „o¬ben“, „Treu-e“ statt „Treu¬e“). Gemeldet werden genommene Lieder, in deren Strophen ein „-“ mit jeweils einem Buchstaben davor und dahinter steht – ein Hinweis auf eine fälschlich mit Minus getrennte Silbe (Issue #39).',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const woerter = new Set();
+                const betroffeneStrophen = [];
+                strophen(l).forEach((s, index) => {
+                    const treffer = verseText(s).match(SILBEN_MINUS_WORT_REGEX);
+                    if (treffer && treffer.length) {
+                        betroffeneStrophen.push(index + 1);
+                        treffer.forEach((w) => woerter.add(w));
+                    }
+                });
+                if (woerter.size) {
+                    const label = betroffeneStrophen.length === 1 ? 'Strophe' : 'Strophen';
+                    const beispiele = [...woerter].slice(0, 5).join(', ');
+                    const mehr = woerter.size > 5 ? ` … (+${woerter.size - 5})` : '';
+                    items.push(
+                        songItem(
+                            l,
+                            `${label} ${betroffeneStrophen.join(', ')}: ${beispiele}${mehr}`,
+                        ),
+                    );
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine mit „-“ getrennten Silben gefunden.'
+                    : `${items.length} Lied(er) mit fälschlich per „-“ getrennten Silben.`,
+                items,
+            );
+        },
+    },
+
+    {
+        id: 'gedankenstrich-minus',
+        category: 'Redaktion',
+        title: 'Gedankenstrich „–“ statt „ - “',
+        description:
+            'Ein von Leerzeichen umschlossenes Minus „ - “ soll als Gedankenstrich (Halbgeviertstrich) „ – “ gesetzt werden. Gemeldet werden genommene Lieder, in deren Strophen die Zeichenfolge „ - “ vorkommt (Issue #40).',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                let anzahl = 0;
+                const betroffeneStrophen = [];
+                strophen(l).forEach((s, index) => {
+                    const treffer = verseText(s).match(GEDANKENSTRICH_MINUS_REGEX);
+                    if (treffer && treffer.length) {
+                        betroffeneStrophen.push(index + 1);
+                        anzahl += treffer.length;
+                    }
+                });
+                if (anzahl) {
+                    const label = betroffeneStrophen.length === 1 ? 'Strophe' : 'Strophen';
+                    items.push(
+                        songItem(l, `${anzahl}× „ - “ in ${label} ${betroffeneStrophen.join(', ')}`),
+                    );
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine von Leerzeichen umschlossenen „ - “ gefunden.'
+                    : `${items.length} Lied(er) mit „ - “ statt Gedankenstrich „ – “.`,
                 items,
             );
         },

@@ -80,6 +80,18 @@ function gesangbuch_kategorie_name_to_icon(gesangbuch_kategorie_name) {
     return null;
 }
 
+// 2026er Liednummer eines Liedes auflösen: eigene Nummer, sonst die der deutschen
+// Liedfassung (deutscheLiedfassung). liednummer2000 ist Legacy und wird bewusst
+// NICHT herangezogen. `liednummer2026ById` ist eine Map id -> liednummer2026
+// (für die Auflösung über die deutsche Liedfassung). Liefert '' wenn keine Nummer.
+function resolveLiednummer2026(lied, liednummer2026ById = {}) {
+    if (lied?.liednummer2026) return lied.liednummer2026;
+    const dlf = lied?.deutscheLiedfassung;
+    const dlfId = dlf && typeof dlf === 'object' ? dlf.id : dlf;
+    if (dlfId != null && liednummer2026ById[dlfId]) return liednummer2026ById[dlfId];
+    return '';
+}
+
 const rang_to_color = {
     1: '#E35169',
     2: '#FFA439',
@@ -165,6 +177,7 @@ export {
     auftrag_type_to_name,
     status_mapping,
     gesangbuch_kategorie_name_to_icon,
+    resolveLiednummer2026,
     rang_to_color,
     chart_colors,
     similarity,

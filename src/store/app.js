@@ -842,5 +842,37 @@ export const useAppStore = defineStore('app', {
                 throw error;
             }
         },
+
+        // Setzt den Status eines Autors (z. B. auf 'published' = „Veröffentlicht").
+        // Wird vom Autoren-Datencheck genutzt: „Als erledigt markieren" setzt den
+        // Autor auf published, was intern als „ist korrekturgelesen"-Marker dient
+        // (Issue #44). Aktualisiert den lokalen Store, damit abhängige Ansichten
+        // (z. B. der Check „autoren-nicht-veroeffentlicht") sofort den neuen Stand
+        // zeigen.
+        async updateAutorStatus(autorId, status) {
+            const controller = new AbortController();
+            this.currentRequests.push(controller);
+
+            try {
+                const response = await axios.patch(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/autor/${autorId}`,
+                    { status },
+                    { signal: controller.signal },
+                );
+
+                const index = this.author.findIndex((a) => a.id === autorId);
+                if (index !== -1) this.author[index].status = status;
+
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                return response.data;
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                }
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+                throw error;
+            }
+        },
     },
 });

@@ -842,6 +842,7 @@ import { Doughnut, Bar } from 'vue-chartjs';
 
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
+import { AUTOR_VEROEFFENTLICHT_STATUS } from '@/assets/js/gesangbuchChecks.js';
 import AutorKandidatCard from '@/components/autor/AutorKandidatCard.vue';
 import AutorDatencheckHilfe from '@/components/autor/AutorDatencheckHilfe.vue';
 
@@ -1485,6 +1486,22 @@ async function toggleDone(id) {
     savingDone.value = true;
     try {
         await appStore.updateAutorenCheck(next);
+        // Beim Markieren als erledigt zusätzlich den Autor-Status auf
+        // „Veröffentlicht" (published) setzen – dient intern als
+        // „ist korrekturgelesen"-Marker (Issue #44). Nur beim Markieren, nicht beim
+        // Zurücknehmen. Schlägt nur das Status-Setzen fehl, bleibt der Erledigt-Haken
+        // gültig; der Nutzer wird gewarnt.
+        if (!wasDone) {
+            try {
+                await appStore.updateAutorStatus(id, AUTOR_VEROEFFENTLICHT_STATUS);
+            } catch (statusError) {
+                snackbar.value = {
+                    show: true,
+                    color: 'warning',
+                    text: 'Als erledigt markiert, aber der Autor-Status konnte nicht auf „Veröffentlicht" gesetzt werden.',
+                };
+            }
+        }
         if (nextId != null) selectAuthor(nextId);
     } catch (e) {
         snackbar.value = {

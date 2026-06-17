@@ -127,6 +127,12 @@ export default {
                         requiredRoles: notentextRoles,
                     },
                     {
+                        name: 'Inhaltsverzeichnis-Export',
+                        route: '/inhaltsverzeichnis-export',
+                        icon: 'mdi-format-list-numbered',
+                        requiredRoles: notentextRoles,
+                    },
+                    {
                         name: 'Notentext-Hochladen',
                         route: '/notentext-hochladen',
                         icon: 'mdi-cloud-upload',

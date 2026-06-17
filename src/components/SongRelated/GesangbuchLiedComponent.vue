@@ -169,15 +169,11 @@
                             <div class="text-grey-darken-2">{{ author.autorPrefix || '' }}</div>
                             <div>
                                 {{ author.vorname }} {{ author.nachname }}
-                                {{
-                                    author.geburtsjahr || author.sterbejahr
-                                        ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''}${author.sterbejahr ? ' - ' + author.sterbejahr : ''})`
-                                        : ''
-                                }}
+                                {{ formatYearRange(author.geburtsjahr, author.sterbejahr) }}
                             </div>
                             <div class="text-grey-darken-2">
                                 {{ author.autorSuffix || '' }}
-                                {{ author?.ursprungsAutorObj?.author_str }}
+                                {{ ursprungLabel(author?.ursprungsAutorObj) }}
                             </div>
                         </div>
                     </div>
@@ -417,6 +413,7 @@
 import TextDialog from '@/components/SongRelated/TextDialog.vue';
 import MelodieDialog from '@/components/SongRelated/MelodieDialog.vue';
 import { gesangbuch_kategorie_name_to_icon, chart_colors, rang_to_color } from '@/assets/js/utils';
+import { formatYearRange } from '@/assets/js/authorFormat';
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import { useUserStore } from '@/store/user';
@@ -483,6 +480,16 @@ export default {
 
     methods: {
         gesangbuch_kategorie_name_to_icon,
+        // Jahresangabe einheitlich wie in der Gesangbuchlieder-Übersicht (Issue #43):
+        // (1932–2025) statt (*1932 - 2025).
+        formatYearRange,
+        // Ursprungsautor als „Vorname Nachname (Jahre)“ in derselben Formatierung.
+        ursprungLabel(u) {
+            if (!u || typeof u !== 'object') return '';
+            const name = [u.vorname, u.nachname].filter(Boolean).join(' ');
+            const years = formatYearRange(u.geburtsjahr, u.sterbejahr);
+            return [name, years].filter(Boolean).join(' ');
+        },
         get_color(category) {
             return chart_colors[category.id % chart_colors.length];
         },

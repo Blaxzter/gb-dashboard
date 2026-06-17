@@ -39,6 +39,64 @@
             </v-col>
         </v-row>
 
+        <!-- 1b. Zusammensetzung: komplett neu vs. überarbeitet vs. übernommen (Issue #46) -->
+        <v-card variant="flat" rounded="lg" border class="mb-8">
+            <v-card-item>
+                <v-card-title class="text-h6">Woher kommen die Lieder?</v-card-title>
+                <v-card-subtitle class="text-wrap">
+                    Aufschlüsselung der {{ composition.total }} angenommenen Lieder: wie viele
+                    komplett neu sind (nicht im Gesangbuch 2000), wie viele bestehende Lieder
+                    überarbeitet und wie viele unverändert übernommen wurden.
+                </v-card-subtitle>
+            </v-card-item>
+            <v-card-text>
+                <v-row align="center">
+                    <v-col cols="12" sm="5" md="4">
+                        <div class="composition-chart">
+                            <Doughnut :data="compositionChartData" :options="compositionChartOptions" />
+                        </div>
+                    </v-col>
+                    <v-col cols="12" sm="7" md="8">
+                        <div
+                            v-for="item in compositionLegend"
+                            :key="item.key"
+                            class="d-flex align-center mb-3"
+                        >
+                            <span
+                                class="composition-swatch me-3"
+                                :style="{ backgroundColor: item.color }"
+                            />
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-baseline ga-2">
+                                    <span class="text-subtitle-1 font-weight-medium">
+                                        {{ item.label }}
+                                    </span>
+                                    <span class="text-h6 font-weight-bold">{{ item.value }}</span>
+                                    <span class="text-caption text-medium-emphasis">
+                                        ({{ item.percent }}%)
+                                    </span>
+                                </div>
+                                <v-progress-linear
+                                    :model-value="item.percent"
+                                    :color="item.color"
+                                    height="6"
+                                    rounded
+                                    class="my-1"
+                                />
+                                <div class="text-caption text-medium-emphasis">{{ item.hint }}</div>
+                            </div>
+                        </div>
+                        <v-divider class="my-2" />
+                        <div class="text-caption text-medium-emphasis">
+                            „Neue Lieder“ ({{ stats.lieder.neu }}) = komplett neu
+                            ({{ composition.komplettNeu }}) + überarbeitet
+                            ({{ composition.ueberarbeitet }}).
+                        </div>
+                    </v-col>
+                </v-row>
+            </v-card-text>
+        </v-card>
+
         <!-- 2.-4. Übersichten in Tabs, damit die drei Bereiche nicht gestapelt erscheinen -->
         <v-card variant="flat" rounded="lg" border>
             <v-tabs v-model="tab" color="primary" bg-color="transparent" grow show-arrows>
@@ -261,7 +319,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
 import { storeToRefs } from 'pinia';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Doughnut } from 'vue-chartjs';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const { gesangbuchlieder } = storeToRefs(useAppStore());
 
@@ -335,6 +397,60 @@ const stats = computed(() => {
         melodien: { neu: neueMelodieIds.size, total: melodieIds.size },
     };
 });
+
+// Differenzierung der angenommenen Lieder (Issue #46): Die „Neue Lieder"-Kennzahl
+// fasst komplett neue und überarbeitete Lieder zusammen. Hier wird beides – plus
+// die unverändert übernommenen – getrennt ausgewiesen:
+//   - komplett neu:   war nicht im Gesangbuch 2000 (keine liednummer2000)
+//   - überarbeitet:   war im GB 2000, Text und/oder Melodie wurde überarbeitet
+//   - übernommen:     war im GB 2000 und blieb unverändert
+const composition = computed(() => {
+    let komplettNeu = 0;
+    let ueberarbeitet = 0;
+    let uebernommen = 0;
+    for (const lied of reineLieder.value) {
+        if (lied.liednummer2000 == null) komplettNeu += 1;
+        else if (lied.textGeaendert || lied.melodieGeaendert) ueberarbeitet += 1;
+        else uebernommen += 1;
+    }
+    return { komplettNeu, ueberarbeitet, uebernommen, total: reineLieder.value.length };
+});
+
+const COMPOSITION_META = [
+    { key: 'komplettNeu', label: 'Komplett neu', color: '#3949AB', hint: 'nicht im GB 2000' },
+    { key: 'ueberarbeitet', label: 'Überarbeitet', color: '#FB8C00', hint: 'GB 2000, Text/Melodie geändert' },
+    { key: 'uebernommen', label: 'Unverändert übernommen', color: '#90A4AE', hint: 'GB 2000, unverändert' },
+];
+
+const compositionLegend = computed(() =>
+    COMPOSITION_META.map((m) => {
+        const value = composition.value[m.key];
+        const total = composition.value.total;
+        return {
+            ...m,
+            value,
+            percent: total > 0 ? Math.round((value / total) * 100) : 0,
+        };
+    }),
+);
+
+const compositionChartData = computed(() => ({
+    labels: COMPOSITION_META.map((m) => m.label),
+    datasets: [
+        {
+            data: COMPOSITION_META.map((m) => composition.value[m.key]),
+            backgroundColor: COMPOSITION_META.map((m) => m.color),
+            borderWidth: 0,
+        },
+    ],
+}));
+
+const compositionChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: { legend: { display: false } },
+};
 
 const statCards = computed(() => [
     {
@@ -443,3 +559,17 @@ const openFromRoute = () => {
 onMounted(openFromRoute);
 watch(gesangbuchlieder, openFromRoute);
 </script>
+
+<style scoped>
+.composition-chart {
+    position: relative;
+    height: 200px;
+}
+.composition-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    flex: 0 0 auto;
+}
+</style>
