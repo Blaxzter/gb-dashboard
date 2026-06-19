@@ -1,9 +1,17 @@
 // Service Worker for caching songs and documents
 
-const CACHE_VERSION = 'v1';
+// v2 (Issue #52): song/item data is now served network-first instead of
+// cache-first. The old cache-first strategy could serve a song/text response up
+// to an hour old, so a corrector who saved a strophe and later reloaded got the
+// stale cached version back — their correction appeared to "revert". The cache
+// is now only a fallback for when the network is unavailable (offline). Bumping
+// the version also purges the old v1 caches (see the activate handler) so
+// existing clients drop any stale entries on update.
+const CACHE_VERSION = 'v2';
 const SONG_CACHE_NAME = `song-data-${CACHE_VERSION}`;
 const DOCUMENT_CACHE_NAME = `documents-${CACHE_VERSION}`;
 
+// Only relevant as an offline fallback now that song data is network-first.
 const SONG_CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 const DOCUMENT_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
 
@@ -48,21 +56,37 @@ function openCacheDB() {
     });
 }
 
-// Helper to determine if a URL should be cached
+// Helper to determine if a URL should be cached and with which strategy.
+//   'network-first' → mutable data: always fetch fresh when online, fall back to
+//                     the cache only on network failure (offline).
+//   'cache-first'   → effectively-immutable file content: serve from cache while
+//                     fresh, otherwise revalidate from the network.
 function shouldCacheUrl(url) {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
 
-    // Cache song data requests (includes file metadata)
+    // Song/item data (and file metadata) is mutable — correctors edit it. Serve
+    // it network-first so a save is never masked by a stale cached copy (#52).
     if (pathname.includes('/items/') || pathname.includes('/files')) {
         console.log('[SW] URL matches song data pattern:', pathname);
-        return { cache: true, name: SONG_CACHE_NAME, duration: SONG_CACHE_DURATION };
+        return {
+            cache: true,
+            name: SONG_CACHE_NAME,
+            duration: SONG_CACHE_DURATION,
+            strategy: 'network-first',
+        };
     }
 
-    // Cache document/asset requests (actual file content)
+    // Document/asset requests are the actual (content-addressed) file bytes and
+    // can safely be served cache-first.
     if (pathname.includes('/assets/')) {
         console.log('[SW] URL matches document pattern:', pathname);
-        return { cache: true, name: DOCUMENT_CACHE_NAME, duration: DOCUMENT_CACHE_DURATION };
+        return {
+            cache: true,
+            name: DOCUMENT_CACHE_NAME,
+            duration: DOCUMENT_CACHE_DURATION,
+            strategy: 'cache-first',
+        };
     }
 
     console.log('[SW] URL does not match cache patterns:', pathname);
@@ -183,71 +207,117 @@ self.addEventListener('fetch', (event) => {
                 return fetch(request);
             }
 
-            // Try to get from cache first
             const cache = await caches.open(cacheInfo.name);
-            console.log('[SW] Checking cache:', cacheInfo.name);
-            const cachedResponse = await cache.match(request);
 
-            if (cachedResponse) {
-                console.log('[SW] 📦 Found in cache, checking freshness...');
-                if (isCacheFresh(cachedResponse, cacheInfo.duration)) {
-                    console.log('[SW] ✅ Serving FRESH cache:', request.url);
-
-                    // Notify the client that data was loaded from cache
-                    const clients = await self.clients.matchAll();
-                    const cacheType = cacheInfo.name.includes('song') ? 'song' : 'document';
-                    console.log('[SW] Notifying clients of cache hit (type:', cacheType + ')');
-                    clients.forEach((client) => {
-                        client.postMessage({
-                            type: 'CACHE_HIT',
-                            url: request.url,
-                            cacheType: cacheType,
-                        });
-                    });
-
-                    return cachedResponse;
-                } else {
-                    console.log('[SW] ⏰ Cache is stale, will fetch from network');
-                }
-            } else {
-                console.log('[SW] ❌ Not found in cache');
+            if (cacheInfo.strategy === 'network-first') {
+                return networkFirst(request, cache, cacheInfo);
             }
-
-            // Fetch from network
-            try {
-                console.log('[SW] 🌐 Fetching from network:', request.url);
-                const networkResponse = await fetch(request);
-                console.log('[SW] Network response status:', networkResponse.status);
-
-                // Only cache successful responses
-                if (networkResponse && networkResponse.status === 200) {
-                    console.log('[SW] ✅ Caching network response');
-                    const responseToCache = await createCachedResponse(networkResponse, cacheInfo);
-                    await cache.put(request, responseToCache);
-                    console.log('[SW] ✅ Successfully cached response');
-                } else {
-                    console.log(
-                        '[SW] ⚠️ Not caching response (status:',
-                        networkResponse.status + ')',
-                    );
-                }
-
-                return networkResponse;
-            } catch (error) {
-                console.error('[SW] ❌ Network fetch failed:', error);
-
-                // If network fails and we have a cached response (even if stale), use it
-                if (cachedResponse) {
-                    console.log('[SW] ⚠️ Using STALE cache as fallback:', request.url);
-                    return cachedResponse;
-                }
-
-                console.error('[SW] ❌ No fallback available, throwing error');
-                throw error;
-            }
+            return cacheFirst(request, cache, cacheInfo);
         })(),
     );
 });
+
+// Network-first: always try the network so mutable data is never stale (#52).
+// The cache is updated on every successful response and only read back when the
+// network is unavailable (offline resilience).
+async function networkFirst(request, cache, cacheInfo) {
+    try {
+        console.log('[SW] 🌐 Network-first, fetching:', request.url);
+        const networkResponse = await fetch(request);
+        console.log('[SW] Network response status:', networkResponse.status);
+
+        if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = await createCachedResponse(networkResponse, cacheInfo);
+            await cache.put(request, responseToCache);
+            console.log('[SW] ✅ Updated cache from network');
+        }
+
+        return networkResponse;
+    } catch (error) {
+        console.error('[SW] ❌ Network fetch failed:', error);
+
+        // Offline fallback: serve whatever we have, even if stale.
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse) {
+            console.log('[SW] ⚠️ Offline — using cached fallback:', request.url);
+            const clients = await self.clients.matchAll();
+            const cacheType = cacheInfo.name.includes('song') ? 'song' : 'document';
+            clients.forEach((client) => {
+                client.postMessage({
+                    type: 'CACHE_HIT',
+                    url: request.url,
+                    cacheType: cacheType,
+                });
+            });
+            return cachedResponse;
+        }
+
+        console.error('[SW] ❌ No fallback available, throwing error');
+        throw error;
+    }
+}
+
+// Cache-first: serve fresh cache immediately, otherwise revalidate from network.
+// Used for effectively-immutable file bytes under /assets/.
+async function cacheFirst(request, cache, cacheInfo) {
+    console.log('[SW] Checking cache:', cacheInfo.name);
+    const cachedResponse = await cache.match(request);
+
+    if (cachedResponse) {
+        console.log('[SW] 📦 Found in cache, checking freshness...');
+        if (isCacheFresh(cachedResponse, cacheInfo.duration)) {
+            console.log('[SW] ✅ Serving FRESH cache:', request.url);
+
+            // Notify the client that data was loaded from cache
+            const clients = await self.clients.matchAll();
+            const cacheType = cacheInfo.name.includes('song') ? 'song' : 'document';
+            console.log('[SW] Notifying clients of cache hit (type:', cacheType + ')');
+            clients.forEach((client) => {
+                client.postMessage({
+                    type: 'CACHE_HIT',
+                    url: request.url,
+                    cacheType: cacheType,
+                });
+            });
+
+            return cachedResponse;
+        } else {
+            console.log('[SW] ⏰ Cache is stale, will fetch from network');
+        }
+    } else {
+        console.log('[SW] ❌ Not found in cache');
+    }
+
+    // Fetch from network
+    try {
+        console.log('[SW] 🌐 Fetching from network:', request.url);
+        const networkResponse = await fetch(request);
+        console.log('[SW] Network response status:', networkResponse.status);
+
+        // Only cache successful responses
+        if (networkResponse && networkResponse.status === 200) {
+            console.log('[SW] ✅ Caching network response');
+            const responseToCache = await createCachedResponse(networkResponse, cacheInfo);
+            await cache.put(request, responseToCache);
+            console.log('[SW] ✅ Successfully cached response');
+        } else {
+            console.log('[SW] ⚠️ Not caching response (status:', networkResponse.status + ')');
+        }
+
+        return networkResponse;
+    } catch (error) {
+        console.error('[SW] ❌ Network fetch failed:', error);
+
+        // If network fails and we have a cached response (even if stale), use it
+        if (cachedResponse) {
+            console.log('[SW] ⚠️ Using STALE cache as fallback:', request.url);
+            return cachedResponse;
+        }
+
+        console.error('[SW] ❌ No fallback available, throwing error');
+        throw error;
+    }
+}
 
 // Message event - handle commands from the client
 self.addEventListener('message', (event) => {

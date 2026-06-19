@@ -42,6 +42,12 @@ const notentextRoles = (import.meta.env.VITE_NOTENTEXT_ROLES || '')
     .map((s) => s.trim())
     .filter(Boolean);
 
+// Rollen für die Superadmin-Werkzeuge (Standard: "Administrator").
+const superadminRoles = (import.meta.env.VITE_SUPERADMIN_ROLES || 'Administrator')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 export default {
     name: 'MenuList',
     props: {
@@ -137,6 +143,21 @@ export default {
                         route: '/notentext-hochladen',
                         icon: 'mdi-cloud-upload',
                         requiredRoles: notentextRoles,
+                    },
+                ],
+            },
+            {
+                // Eigener Bereich, unabhängig vom Kleiner-Kreis-Modus sichtbar –
+                // erscheint nur, wenn der Nutzer eine Superadmin-Rolle hat (der
+                // einzige Eintrag wird sonst herausgefiltert).
+                title: 'Superadmin',
+                public: true,
+                items: [
+                    {
+                        name: 'Nummerngenerierung',
+                        route: '/nummerngenerierung',
+                        icon: 'mdi-shield-crown',
+                        requiredRoles: superadminRoles,
                     },
                 ],
             },

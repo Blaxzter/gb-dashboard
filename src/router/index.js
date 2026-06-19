@@ -7,6 +7,13 @@ const notentextRoles = (import.meta.env.VITE_NOTENTEXT_ROLES || '')
     .map((s) => s.trim())
     .filter(Boolean);
 
+// Rollen mit Zugriff auf die Superadmin-Werkzeuge (z. B. Nummerngenerierung).
+// Standard: "Administrator", falls VITE_SUPERADMIN_ROLES nicht gesetzt ist.
+const superadminRoles = (import.meta.env.VITE_SUPERADMIN_ROLES || 'Administrator')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 const routes = [
     {
         path: '/',
@@ -132,6 +139,15 @@ const routes = [
                 component: () =>
                     import(
                         /* webpackChunkName: "noten-upload" */ '@/views/NotentextUploadView.vue'
+                    ),
+            },
+            {
+                path: 'nummerngenerierung',
+                name: 'Nummerngenerierung',
+                meta: { requiredRoles: superadminRoles },
+                component: () =>
+                    import(
+                        /* webpackChunkName: "nummerngenerierung" */ '@/views/NummerngenerierungView.vue'
                     ),
             },
         ],
