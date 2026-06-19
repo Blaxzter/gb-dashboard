@@ -601,10 +601,23 @@ export const useAppStore = defineStore('app', {
         // Schreibt eine Export-Log-Zeile (Issue #22) und hängt das Ergebnis lokal
         // an. data_created/user_created setzt Directus serverseitig – nicht mitsenden.
         async addNotentextExport(payload) {
-            const resp = await axios.post(
-                `${import.meta.env.VITE_BACKEND_URL}/items/export_log`,
-                payload,
-            );
+            const url = `${import.meta.env.VITE_BACKEND_URL}/items/export_log`;
+            let resp;
+            try {
+                resp = await axios.post(url, payload);
+            } catch (error) {
+                // Fallback: Das Feld footer_snapshot existiert in der Collection
+                // evtl. noch nicht. Dann den Eintrag wenigstens ohne Snapshot
+                // schreiben, damit die Export-Historie und die Noten-/Text-
+                // Änderungserkennung erhalten bleiben. Die Footer-Erkennung greift
+                // erst, sobald das Feld in Directus angelegt ist.
+                if (payload && payload.footer_snapshot !== undefined) {
+                    const { footer_snapshot, ...withoutSnapshot } = payload;
+                    resp = await axios.post(url, withoutSnapshot);
+                } else {
+                    throw error;
+                }
+            }
             const created = resp.data.data;
             // user_created stammt serverseitig vom aktuellen Nutzer. Liefert die
             // Antwort das Feld nicht mit (z. B. eingeschränkte Feld-Leserechte),

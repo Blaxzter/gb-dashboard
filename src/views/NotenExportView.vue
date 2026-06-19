@@ -118,15 +118,21 @@ const my_export_log = computed(() => {
     return rows.filter((entry) => exportLogUserId(entry) === me);
 });
 
-// Pro Lied-ID der späteste Export-Zeitpunkt über die eigenen Log-Zeilen.
+// Pro Lied-ID der späteste Export-Zeitpunkt über die eigenen Log-Zeilen – inkl.
+// des damals gespeicherten Footer-Snapshots (footer_snapshot[id]). Der Snapshot
+// ist die Grundlage der Footer-Änderungserkennung; Alt-Exporte ohne Snapshot
+// liefern hier null.
 const last_export_by_id = computed(() => {
     const map = new Map();
     my_export_log.value.forEach((entry) => {
         const ts = exportLogTimestamp(entry);
         if (!ts) return;
+        const snapshot = entry.footer_snapshot || null;
         (entry.gesangbuchlied_ids || []).forEach((id) => {
             const prev = map.get(id);
-            if (!prev || isAfter(ts, prev)) map.set(id, ts);
+            if (!prev || isAfter(ts, prev.ts)) {
+                map.set(id, { ts, footer: snapshot ? (snapshot[id] ?? null) : null });
+            }
         });
     });
     return map;
@@ -141,7 +147,15 @@ const previously_exported_ids = computed(() => {
 });
 
 function lastExportOf(lied) {
-    return last_export_by_id.value.get(lied.id) || null;
+    return last_export_by_id.value.get(lied.id)?.ts || null;
+}
+
+// Gedruckter Footer, wie er beim letzten Export gespeichert wurde. null, wenn das
+// Lied nie exportiert wurde ODER der letzte Export noch keinen Snapshot enthielt
+// (Alt-Export) – in beiden Fällen ist „geändert?" nicht entscheidbar.
+function lastExportFooterOf(lied) {
+    const entry = last_export_by_id.value.get(lied.id);
+    return entry ? entry.footer : null;
 }
 
 // Zeitpunkt der letzten Noten-Änderung: explizites Feld, sonst Upload-Datum der
@@ -168,17 +182,51 @@ function textStale(lied) {
     return !!le && !!ca && isAfter(ca, le);
 }
 
-// Eigene Export-Historie als absteigend sortierte Anzeige-Liste.
+// Der gedruckte Footer (das ganze Paket: Text-/Melodie-Autoren + alle Copyrights
+// inkl. der „Text und Melodie:"-Zusammenfassung). Genau dieser String wird beim
+// Export als Snapshot mitgeschrieben und später erneut erzeugt und verglichen. So
+// werden alle footer-relevanten Änderungen erkannt – hinzugefügte/entfernte UND
+// bearbeitete Autoren (Name, Jahre, Praefix/Suffix, Ursprungsautor, Reihenfolge)
+// sowie geänderte Copyrights – im Gegensatz zu einem reinen Zeitstempel-Vergleich,
+// der Junction-Änderungen (Autor hinzu/entfernt) und No-Op-Saves nicht abbildet.
+function footerSnapshotOf(lied) {
+    return buildFooter(lied);
+}
+
+// Footer veraltet, wenn der aktuelle Footer-String vom Stand beim letzten Export
+// abweicht. Ohne vorherigen Export oder ohne gespeicherten Snapshot (Alt-Export)
+// gilt der Stand als unbekannt und löst bewusst KEINE Warnung aus.
+function footerStale(lied) {
+    if (!lastExportOf(lied)) return false;
+    const snap = lastExportFooterOf(lied);
+    if (snap == null) return false;
+    return snap !== footerSnapshotOf(lied);
+}
+
+// Eigene Export-Historie als absteigend sortierte Anzeige-Liste. Ein Eintrag gilt
+// als „überholt", wenn ALLE seine Lieder in einem neueren Export erneut exportiert
+// wurden – er trägt dann nichts mehr zum aktuellen Export-Stand bei und wird in der
+// UI ausgegraut/verschlankt.
 const history = computed(() => {
-    const rows = my_export_log.value.map((entry) => ({
-        id: entry.id,
-        timestamp: exportLogTimestamp(entry),
-        songCount: entry.anzahl ?? (entry.gesangbuchlied_ids?.length || 0),
-        filter: entry.filter || null,
-        user: exportLogUserId(entry),
-    }));
-    rows.sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
-    return rows;
+    const sorted = [...my_export_log.value].sort(
+        (a, b) =>
+            (Date.parse(exportLogTimestamp(b)) || 0) - (Date.parse(exportLogTimestamp(a)) || 0),
+    );
+    const supersededIds = new Set(); // von neueren Exporten bereits abgedeckte Lied-IDs
+    return sorted.map((entry) => {
+        const ids = entry.gesangbuchlied_ids || [];
+        const obsolete = ids.length > 0 && ids.every((id) => supersededIds.has(id));
+        ids.forEach((id) => supersededIds.add(id));
+        return {
+            id: entry.id,
+            timestamp: exportLogTimestamp(entry),
+            songCount: entry.anzahl ?? (ids.length || 0),
+            filter: entry.filter || null,
+            user: exportLogUserId(entry),
+            rangeText: exportRangeText(ids),
+            obsolete,
+        };
+    });
 });
 
 const all_lieder = computed(() => store.gesangbuchlieder);
@@ -264,13 +312,19 @@ const selected_without_pdf = computed(() =>
 // (Issue #22). Grundlage für die Summary-Warnung über der Tabelle.
 const selected_stale = computed(() =>
     filtered_lieder.value.filter(
-        (l) => l.notentext && selected_ids.value.has(l.id) && (notesStale(l) || textStale(l)),
+        (l) =>
+            l.notentext &&
+            selected_ids.value.has(l.id) &&
+            (notesStale(l) || textStale(l) || footerStale(l)),
     ),
 );
 const selected_stale_notes = computed(
     () => selected_stale.value.filter((l) => notesStale(l)).length,
 );
 const selected_stale_text = computed(() => selected_stale.value.filter((l) => textStale(l)).length);
+const selected_stale_footer = computed(
+    () => selected_stale.value.filter((l) => footerStale(l)).length,
+);
 // Aufklappbare Detailliste der veränderten Lieder unter der Summary-Warnung.
 const stale_details_open = ref(false);
 
@@ -290,6 +344,15 @@ const liednummer2026_by_id = computed(() => {
     return map;
 });
 
+// Schnellzugriff Lied per ID – u. a. für die Bereichs-Anzeige in der Historie.
+const lied_by_id = computed(() => {
+    const map = new Map();
+    for (const l of all_lieder.value) {
+        if (l && l.id != null) map.set(l.id, l);
+    }
+    return map;
+});
+
 // 2026er Liednummer wie beim Export auflösen: eigene Nummer, sonst die der
 // deutschen Liedfassung (deutscheLiedfassung). liednummer2000 ist Legacy und
 // wird bewusst NICHT als Liednummer herangezogen – Lieder ohne 2026-Nummer
@@ -305,6 +368,46 @@ function displayNummer(lied) {
 }
 function liednummerOf(lied) {
     return parseInt(resolved2026(lied), 10);
+}
+
+// Exportierte Lied-IDs zu zusammenhängenden Liednummer-Bereichen verdichten
+// (z. B. „3–14, 20, 33–40"). IDs ohne auflösbare 2026-Nummer (oder nicht mehr
+// vorhandene Lieder) werden separat als „ohne Nr." gezählt.
+function songRanges(ids) {
+    const byId = lied_by_id.value;
+    const nums = [];
+    let unnumbered = 0;
+    for (const id of ids || []) {
+        const lied = byId.get(id);
+        const n = lied ? liednummerOf(lied) : NaN;
+        if (Number.isFinite(n)) nums.push(n);
+        else unnumbered += 1;
+    }
+    const sorted = [...new Set(nums)].sort((a, b) => a - b);
+    const segments = [];
+    let start = null;
+    let prev = null;
+    for (const n of sorted) {
+        if (start === null) {
+            start = prev = n;
+        } else if (n === prev + 1) {
+            prev = n;
+        } else {
+            segments.push(start === prev ? `${start}` : `${start}–${prev}`);
+            start = prev = n;
+        }
+    }
+    if (start !== null) segments.push(start === prev ? `${start}` : `${start}–${prev}`);
+    return { segments, unnumbered };
+}
+
+// Anzeige-String der exportierten Bereiche für eine Historien-Zeile.
+function exportRangeText(ids) {
+    const { segments, unnumbered } = songRanges(ids);
+    const parts = [];
+    if (segments.length) parts.push('Nr. ' + segments.join(', '));
+    if (unnumbered) parts.push(`${unnumbered} ohne Nr.`);
+    return parts.join(' · ');
 }
 
 // Die Lieder, die tatsächlich exportiert/heruntergeladen werden (im Filter, mit
@@ -825,6 +928,10 @@ async function runExport() {
     const pdfFolder = zip.folder('pdf');
     const csvRows = [];
     const exportedIds = [];
+    // Pro erfolgreich exportiertem Lied der gedruckte Footer – wird im Export-Log
+    // gespeichert, damit später erkannt werden kann, ob sich der Footer (Autoren
+    // oder Copyright) seit diesem Export geändert hat.
+    const footerSnapshot = {};
 
     for (const lied of candidates) {
         progress.value.current = lied.titel || `#${lied.id}`;
@@ -906,7 +1013,10 @@ async function runExport() {
         // CSV-Zeile (Metadaten) immer schreiben – auch wenn die PDF-Erzeugung
         // fehlschlägt, sind die Liedinfos wertvoll; pdf-path bleibt dann leer.
         csvRows.push(row);
-        if (pdfOk) exportedIds.push(lied.id);
+        if (pdfOk) {
+            exportedIds.push(lied.id);
+            footerSnapshot[lied.id] = footerSnapshotOf(lied);
+        }
 
         progress.value.done += 1;
     }
@@ -953,6 +1063,7 @@ async function runExport() {
                 gesangbuchlied_ids: exportedIds,
                 anzahl: exportedIds.length,
                 filter: meta.filter,
+                footer_snapshot: footerSnapshot,
             });
         } catch (e) {
             console.error('Export-Log konnte nicht gespeichert werden', e);
@@ -1138,17 +1249,37 @@ function formatDate(iso) {
                 </div>
                 <div v-else>
                     <v-list density="compact">
-                        <v-list-item v-for="h in history" :key="h.id">
+                        <v-list-item
+                            v-for="h in history"
+                            :key="h.id"
+                            :class="{ 'export-obsolete': h.obsolete }"
+                        >
                             <template #prepend>
-                                <v-icon size="small">mdi-folder-zip</v-icon>
+                                <v-icon size="small">
+                                    {{ h.obsolete ? 'mdi-folder-zip-outline' : 'mdi-folder-zip' }}
+                                </v-icon>
                             </template>
                             <v-list-item-title>
                                 {{ formatDate(h.timestamp) }} — {{ h.songCount }} Lied(er)
+                                <span
+                                    v-if="h.obsolete"
+                                    class="text-disabled font-italic ms-1"
+                                    title="Alle Lieder dieses Exports wurden in einem neueren Export erneut exportiert."
+                                >
+                                    · überholt
+                                </span>
                             </v-list-item-title>
                             <v-list-item-subtitle>
                                 Filter: {{ h.filter?.status || '–' }}
                                 <span v-if="h.filter?.search">, „{{ h.filter.search }}"</span>
                             </v-list-item-subtitle>
+                            <div
+                                v-if="h.rangeText && !h.obsolete"
+                                class="text-caption text-medium-emphasis mt-1 d-flex align-start ga-1"
+                            >
+                                <v-icon size="x-small" class="mt-1">mdi-pound</v-icon>
+                                <span>{{ h.rangeText }}</span>
+                            </div>
                             <template #append>
                                 <v-tooltip text="Diesen Export-Eintrag löschen" location="left">
                                     <template #activator="{ props }">
@@ -1177,14 +1308,15 @@ function formatDate(iso) {
         class="mb-4"
         type="warning"
         variant="tonal"
-        density="compact"
+        border="start"
+        elevation="2"
         prepend-icon="mdi-update"
     >
         <div class="d-flex align-center flex-wrap ga-2">
-            <span>
+            <span class="text-subtitle-1 font-weight-bold">
                 {{ selected_stale.length }} ausgewählte Lieder seit dem letzten Export geändert
-                (Noten: {{ selected_stale_notes }}, Text: {{ selected_stale_text }}). Diese sollten
-                neu weitergegeben werden.
+                (Noten: {{ selected_stale_notes }}, Text: {{ selected_stale_text }}, Footer:
+                {{ selected_stale_footer }}). Diese sollten neu weitergegeben werden.
             </span>
             <v-spacer />
             <v-btn
@@ -1224,6 +1356,15 @@ function formatDate(iso) {
                             >
                                 Text geändert
                             </v-chip>
+                            <v-chip
+                                v-if="footerStale(lied)"
+                                size="x-small"
+                                color="warning"
+                                variant="tonal"
+                                prepend-icon="mdi-text-box-outline"
+                            >
+                                Footer geändert
+                            </v-chip>
                         </v-list-item-title>
                         <v-list-item-subtitle class="mt-1">
                             <span>Letzter Export: {{ formatDate(lastExportOf(lied)) }}</span>
@@ -1232,6 +1373,9 @@ function formatDate(iso) {
                             </span>
                             <span v-if="textStale(lied)">
                                 · Text geändert: {{ formatDate(textChangedAt(lied)) }}
+                            </span>
+                            <span v-if="footerStale(lied)">
+                                · Footer weicht vom letzten Export ab
                             </span>
                         </v-list-item-subtitle>
                         <template #append>
@@ -1455,6 +1599,23 @@ function formatDate(iso) {
                                             </v-chip>
                                         </template>
                                     </v-tooltip>
+                                    <v-tooltip
+                                        v-if="lied.notentext && footerStale(lied)"
+                                        :text="`Der Footer (Autoren/Copyright) unterscheidet sich vom Stand beim letzten Export (${formatDate(lastExportOf(lied))}).`"
+                                        location="top"
+                                    >
+                                        <template #activator="{ props }">
+                                            <v-chip
+                                                v-bind="props"
+                                                size="x-small"
+                                                color="warning"
+                                                variant="tonal"
+                                                prepend-icon="mdi-text-box-outline"
+                                            >
+                                                Footer geändert seit Export
+                                            </v-chip>
+                                        </template>
+                                    </v-tooltip>
                                 </div>
                             </td>
                             <td>
@@ -1579,6 +1740,15 @@ function formatDate(iso) {
 </template>
 
 <style scoped>
+/* Durch einen neueren Export vollständig überholte Historien-Einträge: gedimmt
+   und schlanker (Bereichs-Detailzeile wird zusätzlich im Template ausgeblendet). */
+.export-obsolete {
+    opacity: 0.5;
+    min-height: 0;
+}
+.export-obsolete:hover {
+    opacity: 0.8;
+}
 .select-cell {
     cursor: pointer;
     user-select: none;
