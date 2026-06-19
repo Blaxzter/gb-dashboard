@@ -336,19 +336,50 @@
             <v-btn
                 color="primary"
                 variant="elevated"
-                :loading="isSaving"
-                :disabled="isSaving"
+                :loading="isSaving || checkingConflict"
+                :disabled="isSaving || checkingConflict"
                 @click="saveEditedStrophen"
             >
                 <v-icon start>mdi-content-save</v-icon>
                 Speichern
             </v-btn>
-            <v-btn color="grey" variant="outlined" :disabled="isSaving" @click="cancelEdit">
+            <v-btn
+                color="grey"
+                variant="outlined"
+                :disabled="isSaving || checkingConflict"
+                @click="cancelEdit"
+            >
                 <v-icon start>mdi-close</v-icon>
                 Abbrechen
             </v-btn>
         </div>
     </div>
+
+    <!-- Konflikt-Warnung (Issue #52): der Text wurde zwischenzeitlich serverseitig
+         geändert. Der Nutzer entscheidet, ob er überschreibt. -->
+    <v-dialog v-model="conflictDialog" max-width="520" persistent>
+        <v-card>
+            <v-card-title class="d-flex align-center ga-2">
+                <v-icon color="warning">mdi-alert</v-icon>
+                Zwischenzeitlich geändert
+            </v-card-title>
+            <v-card-text>
+                Dieser Text wurde geöffnet bzw. zuletzt geladen und in der Zwischenzeit von jemand
+                anderem (oder in einem anderen Tab) gespeichert. Wenn du jetzt speicherst,
+                <strong>überschreibst du diese neueren Änderungen</strong>.
+                <div class="mt-3 text-medium-emphasis text-body-2">
+                    Empfehlung: Abbrechen, die Seite neu laden und deine Änderungen erneut eintragen.
+                </div>
+            </v-card-text>
+            <v-card-actions>
+                <v-spacer />
+                <v-btn variant="text" @click="conflictDialog = false">Abbrechen</v-btn>
+                <v-btn color="warning" variant="flat" :loading="isSaving" @click="forceSave">
+                    Trotzdem speichern
+                </v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script>
@@ -408,6 +439,13 @@ export default {
         editedStrophen: [],
         isSaving: false,
         saveError: null,
+        // Konflikterkennung (Issue #52): date_updated des Textes zum Zeitpunkt des
+        // Bearbeitungsstarts. Beim Speichern wird der aktuelle Server-Wert dagegen
+        // geprüft, um zwischenzeitliche Änderungen anderer Nutzer zu erkennen.
+        loadedDateUpdated: null,
+        conflictDialog: false,
+        conflictInfo: null,
+        checkingConflict: false,
         korrekturlesung1: false,
         korrekturlesung1_alle_Strophen: false,
         korrekturlesung2: false,
@@ -448,6 +486,12 @@ export default {
                 }));
                 this.editedStrophen = _.cloneDeep(this.show_strophen);
                 this.syncKorrekturlesung(newText);
+                // Solange NICHT bearbeitet wird, gilt der jeweils geladene Stand
+                // als Bearbeitungsbasis. Während des Bearbeitens bleibt die Basis
+                // bewusst stehen, damit zwischenzeitliche Änderungen erkannt werden.
+                if (!this.editMode) {
+                    this.loadedDateUpdated = newText?.date_updated ?? null;
+                }
             },
             deep: true,
         },
@@ -457,6 +501,8 @@ export default {
                 this.editedStrophen = _.cloneDeep(this.show_strophen);
                 // Reset korrekturlesung flags from text object
                 this.syncKorrekturlesung(this.text);
+                // Bearbeitungsbasis für die Konflikterkennung festhalten.
+                this.loadedDateUpdated = this.text?.date_updated ?? null;
             }
         },
     },
@@ -471,6 +517,9 @@ export default {
 
         // Initialize korrekturlesung flags from text object
         this.syncKorrekturlesung(this.text);
+
+        // Bearbeitungsbasis für die Konflikterkennung (Issue #52).
+        this.loadedDateUpdated = this.text?.date_updated ?? null;
 
         // Load settings from localStorage
         this.loadSettings();
@@ -631,13 +680,49 @@ export default {
             }
         },
 
+        // Konflikterkennung (Issue #52): Vor dem Speichern prüfen, ob der Text seit
+        // dem Bearbeitungsstart serverseitig verändert wurde. Falls ja, warnen und
+        // den Nutzer entscheiden lassen (überschreiben oder abbrechen) – statt
+        // stillschweigend fremde Änderungen zu überschreiben. Schlägt die Prüfung
+        // selbst fehl (z. B. offline), wird normal gespeichert (best effort).
         async saveEditedStrophen() {
+            this.saveError = null;
+            this.checkingConflict = true;
+            try {
+                const remote = await this.store.getTextDateUpdated(this.text.id);
+                const remoteDate = remote?.date_updated ?? null;
+                if (
+                    this.loadedDateUpdated &&
+                    remoteDate &&
+                    remoteDate !== this.loadedDateUpdated
+                ) {
+                    this.conflictInfo = { remoteDate };
+                    this.conflictDialog = true;
+                    this.checkingConflict = false;
+                    return;
+                }
+            } catch (error) {
+                console.warn('Konfliktprüfung fehlgeschlagen, speichere trotzdem:', error);
+            } finally {
+                this.checkingConflict = false;
+            }
+
+            await this.performSave();
+        },
+
+        // Trotz erkannten Konflikts speichern (überschreibt den fremden Stand).
+        async forceSave() {
+            this.conflictDialog = false;
+            await this.performSave();
+        },
+
+        async performSave() {
             this.isSaving = true;
             this.saveError = null;
 
             try {
                 // Save to Directus backend via store
-                await this.store.updateTextStrophes(
+                const result = await this.store.updateTextStrophes(
                     this.text.id,
                     this.editedStrophen.map((strophe, index) => {
                         const payload = {
@@ -663,6 +748,11 @@ export default {
                     ...strophe,
                     strophe: this.editedStrophen[index].strophe,
                 }));
+
+                // Bearbeitungsbasis auf den frisch gespeicherten Stand setzen, damit
+                // ein direkt folgendes Speichern nicht fälschlich als Konflikt gilt.
+                const savedDate = result?.data?.date_updated;
+                if (savedDate) this.loadedDateUpdated = savedDate;
 
                 // Emit event to close edit mode
                 this.$emit('edit-completed');

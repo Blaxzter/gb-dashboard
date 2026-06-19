@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useAppStore } from '@/store/app.js';
 import { storeToRefs } from 'pinia';
 import { resolveLiednummer2026 } from '@/assets/js/utils';
+import { isGenommen } from '@/assets/js/gesangbuchChecks';
 
 // Separater Export des Inhaltsverzeichnisses (Issue #45), das Janosch importieren
 // oder einfach kopieren kann. Zwei Varianten:
@@ -15,10 +16,10 @@ import { resolveLiednummer2026 } from '@/assets/js/utils';
 const store = useAppStore();
 const { gesangbuchlieder } = storeToRefs(store);
 
-// Bewertung „Rein" (angenommen) – wie in den übrigen Export-/Listenansichten.
-const isRein = (bezeichner) => !!bezeichner && bezeichner.toLowerCase().includes('rein');
-
-const only_rein = ref(true);
+// „Bewertet und genommen" = status === 'accepted' (Issue #51). Es wird bewusst
+// nach dem Status gefiltert und nicht mehr nach der Kleiner-Kreis-Bewertung
+// „Rein".
+const only_accepted = ref(true);
 const only_with_number = ref(false);
 
 const snackbar = ref(false);
@@ -47,22 +48,55 @@ function kategorienOf(lied) {
     return namen.length ? [...new Set(namen)] : [];
 }
 
-// Grundmenge: nach Filtern, mit aufgelöster Nummer angereichert.
-const songs = computed(() => {
+// Grundmenge: nach dem Status-Filter, mit aufgelöster Nummer angereichert.
+// Bewusst OHNE den „nur mit Liednummer"-Filter, damit die Kennzahlen (u. a.
+// „ohne Liednummer") aussagekräftig bleiben.
+const base_songs = computed(() => {
     let list = gesangbuchlieder.value.filter((l) => l && (l.titel || '').trim());
-    if (only_rein.value) {
-        list = list.filter((l) => isRein(l.bewertung_kleiner_kreis?.bezeichner));
+    if (only_accepted.value) {
+        list = list.filter((l) => isGenommen(l));
     }
-    let mapped = list.map((l) => ({
+    return list.map((l) => ({
         id: l.id,
         titel: (l.titel || '').trim(),
         nummer: nummerOf(l),
         kategorien: kategorienOf(l),
     }));
-    if (only_with_number.value) {
-        mapped = mapped.filter((s) => s.nummer !== '' && s.nummer != null);
+});
+
+// Anzeige-/Exportmenge: zusätzlich optional auf Lieder mit Nummer eingeschränkt.
+const songs = computed(() => {
+    if (!only_with_number.value) return base_songs.value;
+    return base_songs.value.filter((s) => s.nummer !== '' && s.nummer != null);
+});
+
+function hasNummer(s) {
+    return s.nummer !== '' && s.nummer != null;
+}
+
+// Differenzierte Kennzahlen für die Kopfzeile (Issue #50): Gesamtzahl, Anzahl
+// der Lieder, die sich eine Liednummer 2026 mit mindestens einem anderen Lied
+// teilen, höchste vergebene Liednummer und Lieder ohne Liednummer.
+const stats = computed(() => {
+    const list = base_songs.value;
+    const total = list.length;
+    const withNummer = list.filter(hasNummer);
+    const withoutNummer = total - withNummer.length;
+
+    let maxNummer = 0;
+    for (const s of withNummer) {
+        const n = leadingNummer(s);
+        if (n != null && n > maxNummer) maxNummer = n;
     }
-    return mapped;
+
+    const countByNummer = {};
+    for (const s of withNummer) {
+        const key = String(s.nummer);
+        countByNummer[key] = (countByNummer[key] || 0) + 1;
+    }
+    const duplicate = withNummer.filter((s) => countByNummer[String(s.nummer)] > 1).length;
+
+    return { total, withoutNummer, maxNummer: maxNummer || null, duplicate };
 });
 
 // Sortierung nach Liednummer 2026. Die Nummern wurden bereits in der
@@ -192,7 +226,57 @@ function copyByCategory() {
 <template>
     <div class="d-flex align-center flex-wrap ga-2 mb-2">
         <h1 class="me-4">Inhaltsverzeichnis-Export</h1>
-        <v-chip color="primary" variant="tonal">{{ songs.length }} Lieder</v-chip>
+        <v-tooltip text="Lieder insgesamt (Bewertet und genommen)" location="bottom">
+            <template #activator="{ props }">
+                <v-chip
+                    v-bind="props"
+                    color="primary"
+                    variant="tonal"
+                    prepend-icon="mdi-music"
+                >
+                    {{ stats.total }} Lieder
+                </v-chip>
+            </template>
+        </v-tooltip>
+        <v-tooltip
+            text="Lieder, die sich eine Liednummer 2026 mit mindestens einem anderen Lied teilen"
+            location="bottom"
+        >
+            <template #activator="{ props }">
+                <v-chip
+                    v-bind="props"
+                    :color="stats.duplicate ? 'warning' : undefined"
+                    variant="tonal"
+                    prepend-icon="mdi-content-duplicate"
+                >
+                    {{ stats.duplicate }} gleiche Nr.
+                </v-chip>
+            </template>
+        </v-tooltip>
+        <v-tooltip text="Höchste vergebene Liednummer 2026" location="bottom">
+            <template #activator="{ props }">
+                <v-chip
+                    v-bind="props"
+                    color="primary"
+                    variant="tonal"
+                    prepend-icon="mdi-pound"
+                >
+                    Höchste Nr.: {{ stats.maxNummer ?? '–' }}
+                </v-chip>
+            </template>
+        </v-tooltip>
+        <v-tooltip text="Lieder ohne Liednummer 2026" location="bottom">
+            <template #activator="{ props }">
+                <v-chip
+                    v-bind="props"
+                    :color="stats.withoutNummer ? 'warning' : undefined"
+                    variant="tonal"
+                    prepend-icon="mdi-help-circle-outline"
+                >
+                    {{ stats.withoutNummer }} ohne Nr.
+                </v-chip>
+            </template>
+        </v-tooltip>
     </div>
     <p class="text-body-2 text-medium-emphasis mb-4" style="max-width: 820px">
         Separater Export des Inhaltsverzeichnisses zum Importieren oder Kopieren – einmal
@@ -204,8 +288,8 @@ function copyByCategory() {
     <v-card class="mb-4">
         <v-card-text class="d-flex flex-wrap align-center ga-4">
             <v-checkbox
-                v-model="only_rein"
-                label="Nur angenommene (Rein)"
+                v-model="only_accepted"
+                label='Nur "Bewertet und genommen"'
                 color="success"
                 hide-details
                 density="comfortable"

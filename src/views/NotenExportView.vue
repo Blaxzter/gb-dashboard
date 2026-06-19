@@ -9,6 +9,7 @@ import { jsPDF } from 'jspdf';
 import 'svg2pdf.js';
 import JSZip from 'jszip';
 import { formatYearRange, formatAuthors } from '@/assets/js/authorFormat';
+import { isGenommen } from '@/assets/js/gesangbuchChecks';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
 const store = useAppStore();
@@ -19,11 +20,11 @@ const router = useRouter();
 const search = ref('');
 const filter_status = ref('set'); // 'set' | 'empty' | 'all'
 const hide_already_exported = ref(false);
-const only_rein = ref(true);
+// „Bewertet und genommen" = status === 'accepted' (Issue #49). Ersetzt den
+// früheren Filter nach der Kleiner-Kreis-Bewertung „Rein".
+const only_accepted = ref(true);
 const trim_whitespace = ref(false);
 const trim_padding = ref(8);
-
-const isRein = (bezeichner) => !!bezeichner && bezeichner.toLowerCase().includes('rein');
 
 const exporting = ref(false);
 const progress = ref({ done: 0, total: 0, current: '' });
@@ -238,7 +239,7 @@ const filtered_lieder = computed(() => {
             const has = !!lied.notentext;
             if (filter_status.value === 'set' && !has) return false;
             if (filter_status.value === 'empty' && has) return false;
-            if (only_rein.value && !isRein(lied.bewertung_kleiner_kreis?.bezeichner)) return false;
+            if (only_accepted.value && !isGenommen(lied)) return false;
             if (hide_already_exported.value && previously_exported_ids.value.has(lied.id))
                 return false;
             if (q) {
@@ -257,9 +258,14 @@ const filtered_lieder = computed(() => {
         });
 });
 
+// Kennzahlen beziehen sich immer auf die „Bewertet und genommen"-Lieder
+// (status === 'accepted') – unabhängig vom „Nur Bewertet und genommen"-Schalter
+// (Issue #49). Interessant ist, wie viele davon schon einen Notentext haben und
+// wie viele noch fehlen.
 const stats = computed(() => {
-    const total = all_lieder.value.length;
-    const with_notentext = all_lieder.value.filter((l) => !!l.notentext).length;
+    const accepted = all_lieder.value.filter((l) => isGenommen(l));
+    const total = accepted.length;
+    const with_notentext = accepted.filter((l) => !!l.notentext).length;
     const without = total - with_notentext;
     return { total, with_notentext, without };
 });
@@ -416,7 +422,22 @@ const export_candidates = computed(() =>
     filtered_lieder.value.filter((l) => !!l.notentext && selected_ids.value.has(l.id)),
 );
 
+// Höchste vergebene Liednummer 2026 über ALLE Lieder (nicht nur die
+// exportierbaren). Dient als Obergrenze der Lücken-Anzeige (Issue #48).
+const global_max_liednummer = computed(() => {
+    let max = NaN;
+    for (const lied of all_lieder.value) {
+        const n = liednummerOf(lied);
+        if (Number.isFinite(n) && (!Number.isFinite(max) || n > max)) max = n;
+    }
+    return max;
+});
+
 // Min/Max-Liednummer des Download-Bereichs (>= 2 Nummern nötig für eine Lücke).
+// Die Obergrenze ist bewusst die höchste insgesamt vergebene Liednummer 2026
+// (Issue #48) und nicht nur die höchste ausgewählte/exportierbare Nummer – so
+// werden auch noch fehlende Lieder oberhalb des Auswahl-Maximums als Lücke
+// sichtbar (man sieht besser, welche Liedtitel noch fehlen).
 const selection_range = computed(() => {
     const nums = new Set();
     for (const lied of export_candidates.value) {
@@ -424,7 +445,11 @@ const selection_range = computed(() => {
         if (Number.isFinite(n)) nums.add(n);
     }
     if (nums.size < 2) return null;
-    return { min: Math.min(...nums), max: Math.max(...nums), nums };
+    const min = Math.min(...nums);
+    const selMax = Math.max(...nums);
+    const gmax = global_max_liednummer.value;
+    const max = Number.isFinite(gmax) && gmax > selMax ? gmax : selMax;
+    return { min, max, nums };
 });
 
 function gapReason(lied) {
@@ -913,6 +938,62 @@ async function blobIsPdf(blob) {
     }
 }
 
+// --- Issue #52: Frische-Warnung vor dem Export ----------------------------
+// Beim Klick auf „exportieren" wird geprüft, ob für die ausgewählten Lieder im
+// Directus inzwischen ein neuerer Stand existiert (z. B. ein gerade korrigierter
+// Strophentext). Falls ja, wird gewarnt, statt einen veralteten Stand zu
+// exportieren.
+const freshness_dialog = ref(false);
+const freshness_checking = ref(false);
+const freshness_stale = ref([]);
+
+async function onExportClick() {
+    error_msg.value = '';
+    if (export_candidates.value.length === 0) {
+        error_msg.value = 'Keine Lieder ausgewählt.';
+        return;
+    }
+    freshness_checking.value = true;
+    try {
+        const ids = export_candidates.value.map((l) => l.id);
+        freshness_stale.value = await store.checkSongsFreshness(ids);
+    } catch (e) {
+        // Prüfung fehlgeschlagen (z. B. offline) -> Export nicht blockieren.
+        freshness_stale.value = [];
+    } finally {
+        freshness_checking.value = false;
+    }
+    if (freshness_stale.value.length > 0) {
+        freshness_dialog.value = true;
+        return;
+    }
+    runExport();
+}
+
+// „Daten neu laden" aus der Frische-Warnung: alles frisch holen und erneut prüfen.
+async function reloadAndRecheck() {
+    freshness_checking.value = true;
+    try {
+        await store.reloadData();
+        const ids = export_candidates.value.map((l) => l.id);
+        freshness_stale.value = await store.checkSongsFreshness(ids);
+        if (freshness_stale.value.length === 0) {
+            freshness_dialog.value = false;
+            snackbar_message.value = 'Daten aktualisiert – jetzt auf dem neuesten Stand.';
+            snackbar.value = true;
+        }
+    } catch (e) {
+        error_msg.value = 'Aktualisieren fehlgeschlagen.';
+    } finally {
+        freshness_checking.value = false;
+    }
+}
+
+function exportAnyway() {
+    freshness_dialog.value = false;
+    runExport();
+}
+
 async function runExport() {
     error_msg.value = '';
     const candidates = export_candidates.value;
@@ -1028,7 +1109,7 @@ async function runExport() {
         filter: {
             status: filter_status.value,
             search: search.value,
-            only_rein: only_rein.value,
+            only_accepted: only_accepted.value,
             hide_already_exported: hide_already_exported.value,
         },
         options: {
@@ -1116,9 +1197,31 @@ function formatDate(iso) {
 <template>
     <div class="d-flex align-center flex-wrap ga-2 mb-4">
         <h1 class="me-4">Notentext-Export</h1>
-        <v-chip color="primary" variant="tonal">Gesamt: {{ stats.total }}</v-chip>
-        <v-chip color="success" variant="tonal">Mit notentext: {{ stats.with_notentext }}</v-chip>
-        <v-chip color="warning" variant="tonal">Ohne: {{ stats.without }}</v-chip>
+        <v-tooltip
+            text='Lieder mit Status "Bewertet und genommen", die bereits einen Notentext haben'
+            location="bottom"
+        >
+            <template #activator="{ props }">
+                <v-chip v-bind="props" color="success" variant="tonal" prepend-icon="mdi-music-note">
+                    Mit Notentext: {{ stats.with_notentext }}
+                </v-chip>
+            </template>
+        </v-tooltip>
+        <v-tooltip
+            text='Lieder mit Status "Bewertet und genommen", die noch keinen Notentext haben'
+            location="bottom"
+        >
+            <template #activator="{ props }">
+                <v-chip
+                    v-bind="props"
+                    color="warning"
+                    variant="tonal"
+                    prepend-icon="mdi-music-note-off"
+                >
+                    Ohne: {{ stats.without }}
+                </v-chip>
+            </template>
+        </v-tooltip>
     </div>
 
     <v-card class="mb-4">
@@ -1150,8 +1253,8 @@ function formatDate(iso) {
                     </v-btn>
                 </v-btn-toggle>
                 <v-checkbox
-                    v-model="only_rein"
-                    label="Nur Rein"
+                    v-model="only_accepted"
+                    label="Nur Bewertet und genommen"
                     color="success"
                     hide-details
                     density="comfortable"
@@ -1196,10 +1299,10 @@ function formatDate(iso) {
                 <v-spacer />
                 <v-btn
                     color="primary"
-                    :loading="exporting"
-                    :disabled="exporting || selected_count === 0"
+                    :loading="exporting || freshness_checking"
+                    :disabled="exporting || freshness_checking || selected_count === 0"
                     prepend-icon="mdi-download"
-                    @click="runExport"
+                    @click="onExportClick"
                 >
                     {{ selected_count }} PDF(s) + CSV als ZIP exportieren
                 </v-btn>
@@ -1726,6 +1829,48 @@ function formatDate(iso) {
                     @click="confirmDeleteExport"
                 >
                     Löschen
+                </v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
+
+    <!-- Issue #52: Frische-Warnung – für ausgewählte Lieder existiert im Directus
+         ein neuerer Stand als der geladene. -->
+    <v-dialog v-model="freshness_dialog" max-width="560" persistent>
+        <v-card>
+            <v-card-title class="d-flex align-center ga-2">
+                <v-icon color="warning">mdi-alert</v-icon>
+                Neuerer Stand in Directus
+            </v-card-title>
+            <v-card-text>
+                Für
+                <strong>{{ freshness_stale.length }}</strong>
+                der ausgewählten Lieder gibt es in Directus einen neueren Stand als den geladenen –
+                vermutlich wurde zwischenzeitlich etwas korrigiert. Beim Export würde der
+                <strong>veraltete</strong> Stand verwendet.
+                <ul class="mt-2 mb-1 ps-4">
+                    <li v-for="s in freshness_stale.slice(0, 12)" :key="s.id">{{ s.titel }}</li>
+                </ul>
+                <div v-if="freshness_stale.length > 12" class="text-caption text-medium-emphasis">
+                    … und {{ freshness_stale.length - 12 }} weitere.
+                </div>
+            </v-card-text>
+            <v-card-actions>
+                <v-spacer />
+                <v-btn variant="text" :disabled="freshness_checking" @click="freshness_dialog = false">
+                    Abbrechen
+                </v-btn>
+                <v-btn
+                    color="primary"
+                    variant="tonal"
+                    :loading="freshness_checking"
+                    prepend-icon="mdi-refresh"
+                    @click="reloadAndRecheck"
+                >
+                    Daten neu laden
+                </v-btn>
+                <v-btn color="warning" variant="flat" :disabled="freshness_checking" @click="exportAnyway">
+                    Trotzdem exportieren
                 </v-btn>
             </v-card-actions>
         </v-card>

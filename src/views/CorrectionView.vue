@@ -8,6 +8,7 @@ import {
     chart_colors,
     chipColors,
     gesangbuch_kategorie_name_to_icon,
+    resolveLiednummer2026,
     status_mapping,
 } from '@/assets/js/utils.js';
 import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
@@ -21,6 +22,20 @@ const store = useAppStore();
 const userStore = useUserStore();
 
 const { author, gesangbuchlieder } = store;
+
+// 2026er Liednummer pro Lied auflösen (inkl. Fallback über die deutsche
+// Liedfassung) – analog zu den Export-Ansichten. Wird in der Titelzeile vor dem
+// Titel angezeigt (Issue #47).
+const liednummer2026_by_id = computed(() => {
+    const map = {};
+    for (const l of gesangbuchlieder) {
+        if (l && l.id != null && l.liednummer2026) map[l.id] = l.liednummer2026;
+    }
+    return map;
+});
+function nummer2026Of(lied) {
+    return resolveLiednummer2026(lied, liednummer2026_by_id.value);
+}
 
 const showSongs = ref(false);
 
@@ -647,6 +662,20 @@ const get_color = (category) => {
                                             size="small"
                                             class="me-1"
                                         />
+                                    </template>
+                                </v-tooltip>
+                                <v-tooltip
+                                    v-if="nummer2026Of(lied)"
+                                    text="Liednummer im Gesangbuch 2026"
+                                    location="bottom"
+                                >
+                                    <template #activator="{ props }">
+                                        <span
+                                            v-bind="props"
+                                            class="font-weight-bold text-primary me-1"
+                                        >
+                                            {{ nummer2026Of(lied) }}
+                                        </span>
                                     </template>
                                 </v-tooltip>
                                 {{ lied.titel }}

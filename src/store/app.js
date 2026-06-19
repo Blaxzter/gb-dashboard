@@ -8,6 +8,18 @@ import { formatAuthors } from '@/assets/js/authorFormat';
 import router from '@/router';
 import { useUserStore } from '@/store/user';
 
+// True, wenn der entfernte Zeitstempel echt neuer ist als der lokale (Issue #52,
+// Konflikterkennung). Fehlt der entfernte Wert, gilt nichts als neuer; fehlt nur
+// der lokale, gilt jeder vorhandene entfernte Wert als neuer.
+function isTimestampNewer(remote, local) {
+    if (!remote) return false;
+    if (!local) return true;
+    const r = Date.parse(remote);
+    const l = Date.parse(local);
+    if (Number.isNaN(r) || Number.isNaN(l)) return false;
+    return r > l;
+}
+
 export const useAppStore = defineStore('app', {
     state: () => ({
         data_loaded: false,
@@ -745,6 +757,60 @@ export const useAppStore = defineStore('app', {
             }
         },
 
+        // Aktuelles date_updated eines Textes frisch vom Server holen (Issue #52).
+        // Für die Konflikterkennung beim Speichern von Strophentexten: weicht der
+        // Wert vom beim Bearbeitungsstart geladenen ab, hat zwischenzeitlich jemand
+        // anderes gespeichert.
+        async getTextDateUpdated(textId) {
+            const resp = await axios.get(
+                `${import.meta.env.VITE_BACKEND_URL}/items/text/${textId}`,
+                { params: { fields: 'id,date_updated,user_updated' } },
+            );
+            return resp.data?.data ?? null;
+        },
+
+        // Prüft, ob für die angegebenen Lieder im Directus ein neuerer Stand
+        // existiert als im Store geladen (Issue #52, Export-Warnung). Vergleicht
+        // date_updated des Liedes UND des zugehörigen Textes. Liefert die Lieder
+        // mit neuerem Stand (id, titel).
+        async checkSongsFreshness(songIds) {
+            const ids = (songIds || []).filter((id) => id != null);
+            if (ids.length === 0) return [];
+            const resp = await axios.get(
+                `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied`,
+                {
+                    params: {
+                        filter: JSON.stringify({ id: { _in: ids } }),
+                        fields: 'id,titel,date_updated,textId.id,textId.date_updated',
+                        limit: -1,
+                    },
+                },
+            );
+            const remoteList = resp.data?.data ?? [];
+            const localById = new Map(this.gesangbuchlied.map((l) => [l.id, l]));
+            const stale = [];
+            for (const remote of remoteList) {
+                const local = localById.get(remote.id);
+                if (!local) continue;
+                const liedNewer = isTimestampNewer(remote.date_updated, local.date_updated);
+                const textNewer = isTimestampNewer(
+                    remote.textId?.date_updated,
+                    local.text?.date_updated,
+                );
+                if (liedNewer || textNewer) {
+                    stale.push({ id: remote.id, titel: remote.titel || local.titel || '' });
+                }
+            }
+            return stale;
+        },
+
+        // Alle Daten neu laden (umgeht die data_loaded-Sperre). Für die
+        // „Daten neu laden"-Aktion der Export-Frische-Warnung (Issue #52).
+        async reloadData() {
+            this.data_loaded = false;
+            await this.loadData();
+        },
+
         async updateTextStrophes(textId, strophes, korrektur = null) {
             const controller = new AbortController();
             this.currentRequests.push(controller);
@@ -788,6 +854,13 @@ export const useAppStore = defineStore('app', {
                 if (textIndex !== -1) {
                     this.text[textIndex].strophenEinzeln = strophes;
                     this.text[textIndex].text_changed_at = textChangedAt;
+                    // Directus liefert den aktualisierten Datensatz inkl. neuem
+                    // date_updated zurück – im Store nachziehen, damit die
+                    // Konflikterkennung (Issue #52) auf dem aktuellen Stand bleibt.
+                    const serverDateUpdated = response.data?.data?.date_updated;
+                    if (serverDateUpdated) {
+                        this.text[textIndex].date_updated = serverDateUpdated;
+                    }
                     if (korrektur && typeof korrektur === 'object') {
                         KORREKTUR_FELDER.forEach((feld) => {
                             if (korrektur[feld] !== undefined) {
