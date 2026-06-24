@@ -127,6 +127,11 @@ export default {
                         icon: 'mdi-account-search',
                     },
                     {
+                        name: 'Autoren-Ranking',
+                        route: '/autoren-ranking',
+                        icon: 'mdi-chart-donut',
+                    },
+                    {
                         name: 'Notentext-Export',
                         route: '/notentext-export',
                         icon: 'mdi-file-music',

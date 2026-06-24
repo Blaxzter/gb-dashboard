@@ -111,6 +111,12 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/AutorenMailingView.vue'),
             },
             {
+                path: 'autoren-ranking',
+                name: 'AutorenRanking',
+                component: () =>
+                    import(/* webpackChunkName: "home" */ '@/views/AutorenRankingView.vue'),
+            },
+            {
                 path: 'checks/:id?',
                 name: 'Checks',
                 component: () =>
