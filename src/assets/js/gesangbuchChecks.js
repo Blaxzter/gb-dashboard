@@ -916,6 +916,10 @@ export const CHECKS = [
     {
         id: 'strophen-ohne-silbentrenner',
         category: 'Redaktion',
+        // Silbentrennung (¬) ist abgeschlossen und das Trennzeichen aus den
+        // Texten entfernt – dieser Check ist damit gegenstandslos und wird
+        // ausgeblendet (siehe Filter in runChecks). hidden entfernen zum Reaktivieren.
+        hidden: true,
         title: 'Alle Strophen sind in Silben getrennt',
         description:
             'Strophentexte werden für die Silben-/Notenausrichtung mit dem Trennzeichen „¬“ versehen. Hier werden genommene Lieder gemeldet, bei denen einzelne Strophen (mit Text) noch kein einziges Silbentrennzeichen enthalten.',
@@ -949,6 +953,9 @@ export const CHECKS = [
     {
         id: 'silbentrennung-minus',
         category: 'Redaktion',
+        // Silbentrennung (¬) ist abgeschlossen – Check ausgeblendet (siehe
+        // Filter in runChecks). hidden entfernen zum Reaktivieren.
+        hidden: true,
         title: 'Silbentrennung mit „-“ statt „¬“',
         description:
             'Beim Korrekturlesen wurde an einzelnen Stellen ein Minus „-“ statt des Silbentrennzeichens „¬“ gesetzt (z. B. „o-ben“ statt „o¬ben“, „Treu-e“ statt „Treu¬e“). Gemeldet werden genommene Lieder, in deren Strophen ein „-“ mit jeweils einem Buchstaben davor und dahinter steht – ein Hinweis auf eine fälschlich mit Minus getrennte Silbe (Issue #39).',
@@ -1151,7 +1158,8 @@ export function runChecks(alle, authors) {
     const list = alle || [];
     const genommen = list.filter(isGenommen);
     const ctx = { alle: list, genommen, authors: authors || [] };
-    return CHECKS.map((check) => {
+    // Ausgeblendete Checks (z. B. abgeschlossene Silbentrennung) überspringen.
+    return CHECKS.filter((check) => !check.hidden).map((check) => {
         let r;
         try {
             r = check.run(ctx);

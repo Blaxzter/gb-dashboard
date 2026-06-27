@@ -459,7 +459,11 @@ const openFromRoute = () => {
 onMounted(openFromRoute);
 watch(filtered_gesangbuchlieder, openFromRoute);
 
-// Syllable view state for each song
+// Syllable view state for each song.
+// Silbentrennung (¬) ist abgeschlossen und ausgeblendet: Der Button zum
+// Einblenden der Silbensymbole wird über dieses Flag versteckt. Auf true
+// setzen, um die Silbentrennungs-UI wieder einzublenden.
+const silbentrennungEnabled = false;
 const syllableViewEnabled = ref({});
 
 const toggleSyllableView = (liedId) => {
@@ -873,6 +877,7 @@ const get_color = (category) => {
                                     </div>
                                     <div class="d-flex ga-2">
                                         <v-tooltip
+                                            v-if="silbentrennungEnabled"
                                             text="Silbensymbole und Leerzeichen anzeigen"
                                             location="bottom"
                                         >

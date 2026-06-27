@@ -2,7 +2,10 @@
     <div v-if="includeTitle" class="text-h6 mx-auto mb-1 d-flex align-center">
         <span class="me-2"> Strophen </span>
         <div v-if="isAdmin && isAdminView" class="d-flex ga-2">
-            <v-tooltip text="Silbenmodus bearbeiten" location="bottom">
+            <!-- Silbentrennung (¬) ausgeblendet: Die Wort-/Silbentrennung wurde
+                 abgeschlossen und das Trennzeichen aus den Texten entfernt. Zum
+                 Reaktivieren `silbentrennungEnabled` auf true setzen. -->
+            <v-tooltip v-if="silbentrennungEnabled" text="Silbenmodus bearbeiten" location="bottom">
                 <template #activator="{ props }">
                     <v-btn
                         icon="mdi-format-letter-matches"
@@ -432,6 +435,10 @@ export default {
         store: useAppStore(),
         userStore: useUserStore(),
         show_strophen: [],
+        // Silbentrennung (¬) ist abgeschlossen und ausgeblendet. Schaltet den
+        // Silbenmodus-Button und die zugehörigen Optionen aus. Auf true setzen,
+        // um die Silbentrennungs-UI wieder einzublenden.
+        silbentrennungEnabled: false,
         syllableEditMode: false,
         internalShowSyllableSymbols: false,
         internalShowSpacesAsDots: false,
