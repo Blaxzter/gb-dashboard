@@ -10,6 +10,7 @@ import 'svg2pdf.js';
 import JSZip from 'jszip';
 import { formatYearRange, formatAuthors } from '@/assets/js/authorFormat';
 import { isGenommen } from '@/assets/js/gesangbuchChecks';
+import { formatStrophenForExport } from '@/assets/js/utils';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
 const store = useAppStore();
@@ -772,20 +773,6 @@ function buildFooter(lied) {
     return lines.join('\n');
 }
 
-function formatStrophen(strophenEinzeln) {
-    if (!Array.isArray(strophenEinzeln) || strophenEinzeln.length <= 1) return '';
-    return strophenEinzeln
-        .slice(1)
-        .map((s) =>
-            (s?.strophe || '')
-                .replaceAll('¬', '')
-                .replace(/[\p{Zs}\s]+/gu, ' ')
-                .trim(),
-        )
-        .filter(Boolean)
-        .join('\n');
-}
-
 function resolveLiednummer2026(lied, liednummer2026ById) {
     if (lied.liednummer2026) return lied.liednummer2026;
     const dlf = lied.deutscheLiedfassung;
@@ -1026,7 +1013,7 @@ async function runExport() {
             liednummer2026,
             choralbuchnummer: lied.melodie?.choralbuchNummer || '',
             titel: lied.titel || '',
-            strophen: formatStrophen(lied.text?.strophenEinzeln),
+            strophen: formatStrophenForExport(lied.text?.strophenEinzeln),
             text_autoren: formatAuthors(lied.text?.authors, lied.text?.copyright),
             melodie_autoren: formatAuthors(
                 lied.melodie?.authors,

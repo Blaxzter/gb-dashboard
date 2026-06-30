@@ -1,6 +1,26 @@
 <template>
     <div v-if="includeTitle" class="text-h6 mx-auto mb-1 d-flex align-center">
         <span class="me-2"> Strophen </span>
+        <!-- Strophen 2–n ohne Silbentrennzeichen/Zeilenumbrüche in die Zwischenablage
+             kopieren – für die direkte Übernahme nach InDesign. Formatiert wie der
+             Notentext-Export (Issue #61). -->
+        <v-tooltip
+            v-if="!showTextOnly && hasFollowupStrophen"
+            text="Strophen 2–n ohne Trennzeichen kopieren (für InDesign)"
+            location="bottom"
+        >
+            <template #activator="{ props }">
+                <v-btn
+                    icon="mdi-clipboard-multiple-outline"
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    class="me-2"
+                    v-bind="props"
+                    @click="copyFollowupStrophen"
+                />
+            </template>
+        </v-tooltip>
         <div v-if="isAdmin && isAdminView" class="d-flex ga-2">
             <!-- Silbentrennung (¬) ausgeblendet: Die Wort-/Silbentrennung wurde
                  abgeschlossen und das Trennzeichen aus den Texten entfernt. Zum
@@ -383,6 +403,14 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+
+    <!-- Rückmeldung nach dem Kopieren der Strophen 2–n (Issue #61). -->
+    <v-snackbar v-model="copySnackbar" :timeout="2500" :color="copySnackbarColor">
+        {{ copySnackbarMessage }}
+        <template #actions>
+            <v-btn variant="text" @click="copySnackbar = false">OK</v-btn>
+        </template>
+    </v-snackbar>
 </template>
 
 <script>
@@ -390,6 +418,7 @@ import _ from 'lodash';
 import SyllableEditList from './SyllableEditList.vue';
 import { useAppStore } from '@/store/app';
 import { useUserStore } from '@/store/user';
+import { formatStrophenForExport } from '@/assets/js/utils';
 
 export default {
     name: 'StrophenList',
@@ -456,6 +485,10 @@ export default {
         korrekturlesung1: false,
         korrekturlesung1_alle_Strophen: false,
         korrekturlesung2: false,
+        // Rückmeldung für den „Strophen 2–n kopieren"-Button (Issue #61).
+        copySnackbar: false,
+        copySnackbarMessage: '',
+        copySnackbarColor: undefined,
         bewertungOptions: [
             { title: 'Akzeptiert', value: 'accepted' },
             { title: 'Abgelehnt', value: 'rejected' },
@@ -482,6 +515,10 @@ export default {
         },
         effectiveShowKiReview() {
             return this.showKiReview !== null ? this.showKiReview : this.internalShowKiReview;
+        },
+        // Es gibt überhaupt Strophen 2..n, die kopiert werden können (Issue #61).
+        hasFollowupStrophen() {
+            return (this.text?.strophenEinzeln?.length ?? 0) > 1;
         },
     },
     watch: {
@@ -617,6 +654,34 @@ export default {
             this.onKiReviewChanged();
         },
 
+        // Schreibt Text in die Zwischenablage – moderne API mit Fallback für ältere
+        // Browser / unsichere Kontexte. Liefert true bei Erfolg.
+        async writeToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    return false;
+                }
+            }
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            let ok = false;
+            try {
+                ok = document.execCommand('copy');
+            } catch (err) {
+                console.error('Failed to copy text (fallback): ', err);
+            }
+            document.body.removeChild(textArea);
+            return ok;
+        },
+
         copyToClipboard(text) {
             // Replace ¬ symbols with - symbols
             let textToCopy = text.replace(/¬/g, '-');
@@ -626,32 +691,34 @@ export default {
             // Only add space when the next line starts with a letter (continuation)
             textToCopy = textToCopy.replace(/([^\s])\n(?=[A-ZÄÖÜa-zäöüß])/g, '$1 \n');
 
-            if (navigator.clipboard && window.isSecureContext) {
-                // Use the modern clipboard API
-                navigator.clipboard
-                    .writeText(textToCopy)
-                    .then(() => {
-                        // Optional: Show a success message or toast
-                        console.log('Text copied to clipboard successfully');
-                    })
-                    .catch((err) => {
-                        console.error('Failed to copy text: ', err);
-                    });
-            } else {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = textToCopy;
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    console.log('Text copied to clipboard successfully (fallback)');
-                } catch (err) {
-                    console.error('Failed to copy text (fallback): ', err);
-                }
-                document.body.removeChild(textArea);
+            this.writeToClipboard(textToCopy);
+        },
+
+        // Strophen 2..n formatiert wie der Notentext-Export (ohne Silbentrennzeichen,
+        // ohne Zeilenumbrüche, Strophen mit \n getrennt) in die Zwischenablage
+        // kopieren – zur direkten Übernahme nach InDesign (Issue #61).
+        async copyFollowupStrophen() {
+            const textToCopy = formatStrophenForExport(this.text?.strophenEinzeln);
+            if (!textToCopy) {
+                this.showCopySnackbar('Keine Strophen 2–n zum Kopieren vorhanden.', 'warning');
+                return;
             }
+            const ok = await this.writeToClipboard(textToCopy);
+            if (ok) {
+                const count = textToCopy.split('\n').length;
+                this.showCopySnackbar(
+                    `${count} ${count === 1 ? 'Strophe' : 'Strophen'} (2–n) in die Zwischenablage kopiert.`,
+                    'success',
+                );
+            } else {
+                this.showCopySnackbar('Kopieren fehlgeschlagen.', 'error');
+            }
+        },
+
+        showCopySnackbar(message, color) {
+            this.copySnackbarMessage = message;
+            this.copySnackbarColor = color;
+            this.copySnackbar = true;
         },
 
         saveSettings() {

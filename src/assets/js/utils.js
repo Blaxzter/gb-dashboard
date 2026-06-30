@@ -92,6 +92,25 @@ function resolveLiednummer2026(lied, liednummer2026ById = {}) {
     return '';
 }
 
+// Strophen 2..n für Export/Zwischenablage formatieren: Strophe 1 wird übersprungen
+// (sie steht bereits im Notensatz), das Silbentrennzeichen ¬ entfernt, alle
+// Zeilenumbrüche und Mehrfach-Leerzeichen zu einem einzelnen Leerzeichen
+// zusammengefasst und die Strophen mit „\n“ getrennt. Gemeinsam genutzt vom
+// Notentext-Export (CSV) und vom Kopier-Button in der Strophen-Ansicht (Issue #61).
+function formatStrophenForExport(strophenEinzeln) {
+    if (!Array.isArray(strophenEinzeln) || strophenEinzeln.length <= 1) return '';
+    return strophenEinzeln
+        .slice(1)
+        .map((s) =>
+            (s?.strophe || '')
+                .replaceAll('¬', '')
+                .replace(/[\p{Zs}\s]+/gu, ' ')
+                .trim(),
+        )
+        .filter(Boolean)
+        .join('\n');
+}
+
 const rang_to_color = {
     1: '#E35169',
     2: '#FFA439',
@@ -178,6 +197,7 @@ export {
     status_mapping,
     gesangbuch_kategorie_name_to_icon,
     resolveLiednummer2026,
+    formatStrophenForExport,
     rang_to_color,
     chart_colors,
     similarity,
