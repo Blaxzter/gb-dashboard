@@ -215,22 +215,32 @@
                     v-for="(review, reviewIndex) in strophe.kiReview"
                     :key="reviewIndex"
                     class="ki-review-entry pt-2"
-                    :class="{ 'ki-review-rejected': review.bewertungDurchMensch === 'rejected' }"
+                    :class="{ 'ki-review-collapsed': isCollapsedReview(review) }"
                 >
-                    <!-- Compact view for rejected reviews -->
+                    <!-- Compact view for accepted/rejected reviews -->
                     <div
-                        v-if="review.bewertungDurchMensch === 'rejected'"
-                        class="d-flex align-center ga-2 ki-review-rejected-compact"
+                        v-if="isCollapsedReview(review)"
+                        class="d-flex align-center ga-2 ki-review-collapsed-compact"
                     >
                         <v-btn
-                            icon="mdi-close-circle"
+                            :icon="
+                                review.bewertungDurchMensch === 'accepted'
+                                    ? 'mdi-check-circle'
+                                    : 'mdi-close-circle'
+                            "
                             size="x-small"
                             variant="text"
-                            color="error"
-                            title="Ablehnung rückgängig machen"
-                            @click="revertRejection(review)"
+                            :color="
+                                review.bewertungDurchMensch === 'accepted' ? 'success' : 'error'
+                            "
+                            :title="
+                                review.bewertungDurchMensch === 'accepted'
+                                    ? 'Akzeptierung rückgängig machen'
+                                    : 'Ablehnung rückgängig machen'
+                            "
+                            @click="revertBewertung(review)"
                         />
-                        <div class="ki-review-rejected-text">
+                        <div class="ki-review-collapsed-text">
                             {{ firstLine(review.reviewErgebnis) }}
                         </div>
                         <v-menu :close-on-content-click="false" location="bottom end">
@@ -391,7 +401,8 @@
                 anderem (oder in einem anderen Tab) gespeichert. Wenn du jetzt speicherst,
                 <strong>überschreibst du diese neueren Änderungen</strong>.
                 <div class="mt-3 text-medium-emphasis text-body-2">
-                    Empfehlung: Abbrechen, die Seite neu laden und deine Änderungen erneut eintragen.
+                    Empfehlung: Abbrechen, die Seite neu laden und deine Änderungen erneut
+                    eintragen.
                 </div>
             </v-card-text>
             <v-card-actions>
@@ -649,7 +660,17 @@ export default {
             return line.length > 120 ? line.slice(0, 117) + '…' : line;
         },
 
-        revertRejection(review) {
+        // Akzeptierte und abgelehnte KI-Reviews werden eingeklappt dargestellt
+        // (Issue #63). Nur "Diskussion" und noch nicht bewertete Reviews bleiben
+        // vollständig sichtbar.
+        isCollapsedReview(review) {
+            return (
+                review.bewertungDurchMensch === 'accepted' ||
+                review.bewertungDurchMensch === 'rejected'
+            );
+        },
+
+        revertBewertung(review) {
             review.bewertungDurchMensch = null;
             this.onKiReviewChanged();
         },
@@ -765,11 +786,7 @@ export default {
             try {
                 const remote = await this.store.getTextDateUpdated(this.text.id);
                 const remoteDate = remote?.date_updated ?? null;
-                if (
-                    this.loadedDateUpdated &&
-                    remoteDate &&
-                    remoteDate !== this.loadedDateUpdated
-                ) {
+                if (this.loadedDateUpdated && remoteDate && remoteDate !== this.loadedDateUpdated) {
                     this.conflictInfo = { remoteDate };
                     this.conflictDialog = true;
                     this.checkingConflict = false;
@@ -879,7 +896,7 @@ export default {
     transition: transform 0.2s ease-in-out;
 }
 
-.ki-review-rejected {
+.ki-review-collapsed {
     opacity: 0.55;
     filter: grayscale(1);
     transition:
@@ -887,7 +904,7 @@ export default {
         filter 0.2s ease-in-out;
 }
 
-.ki-review-rejected:hover {
+.ki-review-collapsed:hover {
     opacity: 1;
     filter: grayscale(0);
 }
@@ -898,12 +915,12 @@ export default {
 
 /* Show on row hover, and keep visible while the menu is open so it
    doesn't lose its anchor (aria-expanded is set by Vuetify's activator). */
-.ki-review-rejected:hover .ki-review-eye,
+.ki-review-collapsed:hover .ki-review-eye,
 .ki-review-eye[aria-expanded='true'] {
     display: inline-flex;
 }
 
-.ki-review-rejected-text {
+.ki-review-collapsed-text {
     font-size: 0.8rem;
     color: rgba(0, 0, 0, 0.6);
     white-space: nowrap;
