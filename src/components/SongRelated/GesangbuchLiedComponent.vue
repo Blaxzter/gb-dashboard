@@ -104,10 +104,9 @@
                     selectedSong?.gesangbuchlied_satz_mit_melodie_und_text
                 "
                 :notentext-files="
-                    [
-                        selectedSong?.notentext_file,
-                        selectedSong?.notentext_seite2_file,
-                    ].filter(Boolean)
+                    [selectedSong?.notentext_file, selectedSong?.notentext_seite2_file].filter(
+                        Boolean,
+                    )
                 "
                 @visible_file="visible_file = $event"
             />
@@ -134,6 +133,25 @@
                     {{ category?.kategorie_name?.name }}
                 </v-chip>
             </v-chip-group>
+
+            <!-- Formatierten Footer (Autoren + Copyright, wie beim Notentext-Export)
+                 in die Zwischenablage kopieren – zur direkten Übernahme nach InDesign
+                 (Issue #64). Nutzt exakt dieselbe Formatierung wie der Export (buildFooter). -->
+            <div v-if="footerText" class="d-flex align-center mb-2">
+                <span class="text-subtitle-1 font-weight-medium me-2">Footer</span>
+                <v-tooltip text="Formatierten Footer kopieren (für InDesign)" location="bottom">
+                    <template #activator="{ props }">
+                        <v-btn
+                            icon="mdi-clipboard-multiple-outline"
+                            size="small"
+                            variant="text"
+                            color="primary"
+                            v-bind="props"
+                            @click="copyFooter"
+                        />
+                    </template>
+                </v-tooltip>
+            </div>
 
             <div
                 v-for="(author_source, index_1) in [
@@ -200,15 +218,17 @@
                     <div class="text-subtitle-1 font-weight-medium">Copyright:</div>
                     <div class="white-space-pre">© {{ selectedSong?.copyright }}</div>
                 </div>
-                <div v-if="selectedSong?.einreicherName" :class="{ 'mt-2': selectedSong?.copyright }">
+                <div
+                    v-if="selectedSong?.einreicherName"
+                    :class="{ 'mt-2': selectedSong?.copyright }"
+                >
                     <span class="text-subtitle-1 font-weight-medium"> Eingereicht von: </span>
                     <span> {{ selectedSong?.einreicherName }} </span>
                 </div>
                 <div
                     v-if="selectedSong?.text?.korrekturlesung1"
                     :class="{
-                        'mt-2':
-                            selectedSong?.copyright || selectedSong?.einreicherName,
+                        'mt-2': selectedSong?.copyright || selectedSong?.einreicherName,
                     }"
                 >
                     <v-chip color="success" prepend-icon="mdi-check-circle">
@@ -407,13 +427,25 @@
     <v-dialog v-model="melodie_dialog" width="700" @close="melodie_dialog = false">
         <MelodieDialog :melodie="selectedSong.melodie" @close="melodie_dialog = false" />
     </v-dialog>
+
+    <v-snackbar v-model="copySnackbar" :timeout="2500" :color="copySnackbarColor">
+        {{ copySnackbarMessage }}
+        <template #actions>
+            <v-btn variant="text" @click="copySnackbar = false">OK</v-btn>
+        </template>
+    </v-snackbar>
 </template>
 
 <script>
 import TextDialog from '@/components/SongRelated/TextDialog.vue';
 import MelodieDialog from '@/components/SongRelated/MelodieDialog.vue';
-import { gesangbuch_kategorie_name_to_icon, chart_colors, rang_to_color } from '@/assets/js/utils';
-import { formatYearRange } from '@/assets/js/authorFormat';
+import {
+    gesangbuch_kategorie_name_to_icon,
+    chart_colors,
+    rang_to_color,
+    writeToClipboard,
+} from '@/assets/js/utils';
+import { formatYearRange, buildFooter } from '@/assets/js/authorFormat';
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import { useUserStore } from '@/store/user';
@@ -446,6 +478,10 @@ export default {
         copied: false,
         visible_file: null,
         editMode: false,
+        // Rückmeldung für den „Footer kopieren"-Button (Issue #64).
+        copySnackbar: false,
+        copySnackbarMessage: '',
+        copySnackbarColor: undefined,
     }),
     computed: {
         rang_to_color() {
@@ -476,6 +512,12 @@ export default {
         melodie_has_done_auftraege() {
             return this.has_only_done_auftraege(this.selectedSong.melodie.auftrag);
         },
+        // Formatierter Footer (Autoren + Copyright) exakt wie beim Notentext-Export
+        // (Issue #64). Leer, wenn es nichts zu kopieren gibt – dann wird der Button
+        // ausgeblendet.
+        footerText() {
+            return buildFooter(this.selectedSong);
+        },
     },
 
     methods: {
@@ -496,6 +538,29 @@ export default {
         copyPathInClipboard() {
             navigator.clipboard.writeText(window.location.href);
             this.copied = true;
+        },
+
+        // Kopiert den formatierten Footer (Autoren + Copyright) in die Zwischenablage –
+        // identisch zum Notentext-Export (buildFooter), zur direkten Übernahme nach
+        // InDesign (Issue #64).
+        async copyFooter() {
+            const textToCopy = this.footerText;
+            if (!textToCopy) {
+                this.showCopySnackbar('Kein Footer zum Kopieren vorhanden.', 'warning');
+                return;
+            }
+            const ok = await writeToClipboard(textToCopy);
+            if (ok) {
+                this.showCopySnackbar('Footer in die Zwischenablage kopiert.', 'success');
+            } else {
+                this.showCopySnackbar('Kopieren fehlgeschlagen.', 'error');
+            }
+        },
+
+        showCopySnackbar(message, color) {
+            this.copySnackbarMessage = message;
+            this.copySnackbarColor = color;
+            this.copySnackbar = true;
         },
         has_only_done_auftraege(auftrag) {
             return _.every(auftrag, (auftrag) => auftrag.status === 'done');
