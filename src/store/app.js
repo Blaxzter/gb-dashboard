@@ -40,6 +40,12 @@ export const useAppStore = defineStore('app', {
         auftrags_category: [],
         melodie_file: [],
         gesangbuchlied_kategorie: [],
+        // Inhaltsverzeichnis-Kategorien (Issue #53): reduzierte/umbenannte
+        // Kategorien fürs gedruckte Inhaltsverzeichnis. Jede „kategorie" ist
+        // genau einer „kategorieInhaltsverzeichnis" zugeordnet (Mapping-Feld
+        // kategorieInhaltsverzeichnis.kategorien); die Reihenfolge ergibt sich
+        // aus dem Feld „sortierung", die Überschrift aus „name".
+        kategorie_inhaltsverzeichnis: [],
         file: [],
         export_log: [],
         // Globale, in Directus persistierte Einstellungen (Singleton-Collection
@@ -68,6 +74,7 @@ export const useAppStore = defineStore('app', {
         auftrags_categories: (state) => state.auftrags_category,
         melodie_files: (state) => state.melodie_file,
         gesangbuchlied_kategories: (state) => state.gesangbuchlied_kategorie,
+        kategorie_inhaltsverzeichnisse: (state) => state.kategorie_inhaltsverzeichnis,
         files: (state) => state.file,
         export_logs: (state) => state.export_log,
         settingsData: (state) => state.settings,
@@ -539,6 +546,34 @@ export const useAppStore = defineStore('app', {
 
             // Globale Settings (Singleton) ebenfalls graceful nachladen.
             this.loadSettings();
+
+            // Inhaltsverzeichnis-Kategorien (Issue #53) graceful nachladen.
+            this.loadKategorieInhaltsverzeichnis();
+        },
+
+        // Lädt die Inhaltsverzeichnis-Kategorien (Issue #53) inklusive des
+        // Mappings auf die bestehenden Kategorien (Feld „kategorien"). Graceful
+        // wie das Export-Log: existiert die Collection in Directus noch nicht
+        // bzw. fehlt die Leseberechtigung (404/403), bleibt die Liste leer,
+        // statt den App-Start zu blockieren.
+        async loadKategorieInhaltsverzeichnis() {
+            try {
+                const resp = await axios.get(
+                    `${import.meta.env.VITE_BACKEND_URL}/items/kategorieInhaltsverzeichnis?fields=*,kategorien.*&limit=-1`,
+                );
+                this.kategorie_inhaltsverzeichnis = resp.data.data || [];
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                    return;
+                }
+                console.warn(
+                    'Inhaltsverzeichnis-Kategorien konnten nicht geladen werden (Collection vorhanden?)',
+                    error?.response?.status || error,
+                );
+                this.kategorie_inhaltsverzeichnis = [];
+            }
         },
 
         // Lädt die Singleton-Collection „settings". Graceful wie das Export-Log:
