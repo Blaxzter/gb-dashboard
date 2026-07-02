@@ -51,3 +51,80 @@ export function formatAuthors(authors, ...copyrights) {
         .map((c) => `© ${String(c).trim()}`);
     return [authorStrings.join(', '), ...copyrightStrings].filter(Boolean).join('\n');
 }
+
+// --- Footer nach Janoschs Grammatik ----------------------------------------
+// Gemeinsam genutzt vom Notentext-Export (CSV-Spalte „footer") und vom
+// Kopier-Button in der Lied-Detailansicht (Issue #64), damit beide exakt
+// identisch formatieren. Jahresangabe (Issue #18): (1798–1874) / (1989) – ohne
+// Sternchen oder Kreuz, über formatYearRange.
+
+// ursprungsAutor:  {vorname} {nachname} (geburtsjahr–sterbejahr)  (ohne Praefix/Suffix)
+// ursprungsAutorObj ist entweder ein Autoren-Objekt oder der String 'Keine'.
+function formatFooterUrsprungsAutor(u) {
+    if (!u || typeof u !== 'object') return '';
+    let s = '';
+    if (u.vorname) s += `${u.vorname} `;
+    if (u.nachname) s += u.nachname;
+    s = s.trimEnd();
+    const years = formatYearRange(u.geburtsjahr, u.sterbejahr);
+    if (years) s = s ? `${s} ${years}` : years;
+    return s.trim();
+}
+
+// Pro Autor:  {praefix} {vorname} {nachname} (geburtsjahr–sterbejahr) {suffix} {ursprungsAutor}
+//   - Leerzeichen nach vorname/praefix nur, wenn nicht leer
+function formatFooterAuthorEntry(author) {
+    if (!author) return '';
+    let s = '';
+    if (author.autorPrefix) s += `${author.autorPrefix} `;
+    if (author.vorname) s += `${author.vorname} `;
+    if (author.nachname) s += author.nachname;
+    s = s.trimEnd();
+
+    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
+    if (years) s = s ? `${s} ${years}` : years;
+    if (author.autorSuffix) s += s ? ` ${author.autorSuffix}` : author.autorSuffix;
+
+    const ursprung = formatFooterUrsprungsAutor(author.ursprungsAutorObj);
+    if (ursprung) s += s ? ` ${ursprung}` : ursprung;
+    return s.trim();
+}
+
+function formatFooterAuthors(authors) {
+    return (authors || []).map(formatFooterAuthorEntry).filter(Boolean).join(', ');
+}
+
+function footerCopyright(copyright) {
+    const v = copyright && String(copyright).trim();
+    return v ? `© ${v}` : '';
+}
+
+// Liefert den fertig formatierten Footer:
+//   Text: {Text-Autor} © {Text-Copyright}
+//   Melodie: {Melodie-Autor} © {Melodie-Copyright}
+//   © {Lied-Copyright}
+// Sind Text- und Melodie-Autor gleich: "Text und Melodie: {Autor}".
+// Leere Bestandteile (Copyright, Autor) werden samt führendem Trenner weggelassen.
+export function buildFooter(lied) {
+    const textAuthors = formatFooterAuthors(lied?.text?.authors);
+    const melodyAuthors = formatFooterAuthors(lied?.melodie?.authors);
+    const textCr = footerCopyright(lied?.text?.copyright);
+    const melodyCr = footerCopyright(lied?.melodie?.copyright);
+    const liedCr = footerCopyright(lied?.copyright);
+
+    const lines = [];
+
+    if (textAuthors && melodyAuthors && textAuthors === melodyAuthors) {
+        const crs = [...new Set([textCr, melodyCr].filter(Boolean))];
+        lines.push(['Text und Melodie:', textAuthors, ...crs].join(' '));
+    } else {
+        const textBody = [textAuthors, textCr].filter(Boolean).join(' ');
+        if (textBody) lines.push(`Text: ${textBody}`);
+        const melodyBody = [melodyAuthors, melodyCr].filter(Boolean).join(' ');
+        if (melodyBody) lines.push(`Melodie: ${melodyBody}`);
+    }
+
+    if (liedCr) lines.push(liedCr);
+
+    return lines.join('\n');
+}

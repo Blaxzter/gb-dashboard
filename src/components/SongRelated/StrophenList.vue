@@ -429,7 +429,7 @@ import _ from 'lodash';
 import SyllableEditList from './SyllableEditList.vue';
 import { useAppStore } from '@/store/app';
 import { useUserStore } from '@/store/user';
-import { formatStrophenForExport } from '@/assets/js/utils';
+import { formatStrophenForExport, writeToClipboard } from '@/assets/js/utils';
 
 export default {
     name: 'StrophenList',
@@ -675,33 +675,9 @@ export default {
             this.onKiReviewChanged();
         },
 
-        // Schreibt Text in die Zwischenablage – moderne API mit Fallback für ältere
-        // Browser / unsichere Kontexte. Liefert true bei Erfolg.
-        async writeToClipboard(text) {
-            if (navigator.clipboard && window.isSecureContext) {
-                try {
-                    await navigator.clipboard.writeText(text);
-                    return true;
-                } catch (err) {
-                    console.error('Failed to copy text: ', err);
-                    return false;
-                }
-            }
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            let ok = false;
-            try {
-                ok = document.execCommand('copy');
-            } catch (err) {
-                console.error('Failed to copy text (fallback): ', err);
-            }
-            document.body.removeChild(textArea);
-            return ok;
-        },
+        // Schreibt Text in die Zwischenablage (gemeinsame Util-Funktion mit
+        // Fallback für ältere Browser / unsichere Kontexte). Liefert true bei Erfolg.
+        writeToClipboard,
 
         copyToClipboard(text) {
             // Replace ¬ symbols with - symbols

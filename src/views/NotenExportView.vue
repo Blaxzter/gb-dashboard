@@ -1,14 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import _ from 'lodash';
 import axios from '@/assets/js/axiossConfig';
 import { useAppStore } from '@/store/app.js';
 import { useUserStore } from '@/store/user.js';
 import { jsPDF } from 'jspdf';
 import 'svg2pdf.js';
 import JSZip from 'jszip';
-import { formatYearRange, formatAuthors } from '@/assets/js/authorFormat';
+import { formatAuthors, buildFooter } from '@/assets/js/authorFormat';
 import { isGenommen } from '@/assets/js/gesangbuchChecks';
 import { formatStrophenForExport } from '@/assets/js/utils';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
@@ -133,7 +132,7 @@ const last_export_by_id = computed(() => {
         (entry.gesangbuchlied_ids || []).forEach((id) => {
             const prev = map.get(id);
             if (!prev || isAfter(ts, prev.ts)) {
-                map.set(id, { ts, footer: snapshot ? (snapshot[id] ?? null) : null });
+                map.set(id, { ts, footer: snapshot ? snapshot[id] ?? null : null });
             }
         });
     });
@@ -698,81 +697,6 @@ function buildCsv(rows) {
     return '﻿' + lines.join('\n');
 }
 
-// --- "footer"-Spalte nach Janoschs Grammatik -------------------------------
-// Jahresangabe (Issue #18): (1798–1874) / (1989) – ohne Sternchen oder Kreuz.
-// Verwendet dieselbe Formatierung wie die Autoren-Spalten (formatYearRange).
-
-// ursprungsAutor:  {vorname} {nachname} (geburtsjahr–sterbejahr)  (ohne Praefix/Suffix)
-// ursprungsAutorObj ist entweder ein Autoren-Objekt oder der String 'Keine'.
-function formatFooterUrsprungsAutor(u) {
-    if (!u || typeof u !== 'object') return '';
-    let s = '';
-    if (u.vorname) s += `${u.vorname} `;
-    if (u.nachname) s += u.nachname;
-    s = s.trimEnd();
-    const years = formatYearRange(u.geburtsjahr, u.sterbejahr);
-    if (years) s = s ? `${s} ${years}` : years;
-    return s.trim();
-}
-
-// Pro Autor:  {praefix} {vorname} {nachname} (geburtsjahr–sterbejahr) {suffix} {ursprungsAutor}
-//   - Leerzeichen nach vorname/praefix nur, wenn nicht leer
-function formatFooterAuthorEntry(author) {
-    if (!author) return '';
-    let s = '';
-    if (author.autorPrefix) s += `${author.autorPrefix} `;
-    if (author.vorname) s += `${author.vorname} `;
-    if (author.nachname) s += author.nachname;
-    s = s.trimEnd();
-
-    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
-    if (years) s = s ? `${s} ${years}` : years;
-    if (author.autorSuffix) s += s ? ` ${author.autorSuffix}` : author.autorSuffix;
-
-    const ursprung = formatFooterUrsprungsAutor(author.ursprungsAutorObj);
-    if (ursprung) s += s ? ` ${ursprung}` : ursprung;
-    return s.trim();
-}
-
-function formatFooterAuthors(authors) {
-    return (authors || []).map(formatFooterAuthorEntry).filter(Boolean).join(', ');
-}
-
-function footerCopyright(copyright) {
-    const v = copyright && String(copyright).trim();
-    return v ? `© ${v}` : '';
-}
-
-// Liefert den fertig formatierten Footer:
-//   Text: {Text-Autor} © {Text-Copyright}
-//   Melodie: {Melodie-Autor} © {Melodie-Copyright}
-//   © {Lied-Copyright}
-// Sind Text- und Melodie-Autor gleich: "Text und Melodie: {Autor}".
-// Leere Bestandteile (Copyright, Autor) werden samt führendem Trenner weggelassen.
-function buildFooter(lied) {
-    const textAuthors = formatFooterAuthors(lied.text?.authors);
-    const melodyAuthors = formatFooterAuthors(lied.melodie?.authors);
-    const textCr = footerCopyright(lied.text?.copyright);
-    const melodyCr = footerCopyright(lied.melodie?.copyright);
-    const liedCr = footerCopyright(lied.copyright);
-
-    const lines = [];
-
-    if (textAuthors && melodyAuthors && textAuthors === melodyAuthors) {
-        const crs = _.uniq([textCr, melodyCr].filter(Boolean));
-        lines.push(['Text und Melodie:', textAuthors, ...crs].join(' '));
-    } else {
-        const textBody = [textAuthors, textCr].filter(Boolean).join(' ');
-        if (textBody) lines.push(`Text: ${textBody}`);
-        const melodyBody = [melodyAuthors, melodyCr].filter(Boolean).join(' ');
-        if (melodyBody) lines.push(`Melodie: ${melodyBody}`);
-    }
-
-    if (liedCr) lines.push(liedCr);
-
-    return lines.join('\n');
-}
-
 function resolveLiednummer2026(lied, liednummer2026ById) {
     if (lied.liednummer2026) return lied.liednummer2026;
     const dlf = lied.deutscheLiedfassung;
@@ -1189,7 +1113,12 @@ function formatDate(iso) {
             location="bottom"
         >
             <template #activator="{ props }">
-                <v-chip v-bind="props" color="success" variant="tonal" prepend-icon="mdi-music-note">
+                <v-chip
+                    v-bind="props"
+                    color="success"
+                    variant="tonal"
+                    prepend-icon="mdi-music-note"
+                >
                     Mit Notentext: {{ stats.with_notentext }}
                 </v-chip>
             </template>
@@ -1844,7 +1773,11 @@ function formatDate(iso) {
             </v-card-text>
             <v-card-actions>
                 <v-spacer />
-                <v-btn variant="text" :disabled="freshness_checking" @click="freshness_dialog = false">
+                <v-btn
+                    variant="text"
+                    :disabled="freshness_checking"
+                    @click="freshness_dialog = false"
+                >
                     Abbrechen
                 </v-btn>
                 <v-btn
@@ -1856,7 +1789,12 @@ function formatDate(iso) {
                 >
                     Daten neu laden
                 </v-btn>
-                <v-btn color="warning" variant="flat" :disabled="freshness_checking" @click="exportAnyway">
+                <v-btn
+                    color="warning"
+                    variant="flat"
+                    :disabled="freshness_checking"
+                    @click="exportAnyway"
+                >
                     Trotzdem exportieren
                 </v-btn>
             </v-card-actions>

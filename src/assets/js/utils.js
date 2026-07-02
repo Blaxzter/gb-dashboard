@@ -111,6 +111,35 @@ function formatStrophenForExport(strophenEinzeln) {
         .join('\n');
 }
 
+// Schreibt Text in die Zwischenablage – moderne Clipboard-API mit Fallback für
+// ältere Browser bzw. unsichere Kontexte. Liefert true bei Erfolg. Gemeinsam
+// genutzt von den Kopier-Buttons in der Detailansicht (Strophen & Footer).
+async function writeToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            return false;
+        }
+    }
+    // Fallback for older browsers / insecure contexts
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    let ok = false;
+    try {
+        ok = document.execCommand('copy');
+    } catch (err) {
+        console.error('Failed to copy text (fallback): ', err);
+    }
+    document.body.removeChild(textArea);
+    return ok;
+}
+
 const rang_to_color = {
     1: '#E35169',
     2: '#FFA439',
@@ -198,6 +227,7 @@ export {
     gesangbuch_kategorie_name_to_icon,
     resolveLiednummer2026,
     formatStrophenForExport,
+    writeToClipboard,
     rang_to_color,
     chart_colors,
     similarity,
