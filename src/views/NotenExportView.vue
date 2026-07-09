@@ -705,6 +705,16 @@ function resolveLiednummer2026(lied, liednummer2026ById) {
     return '';
 }
 
+// gb26-Nummer im Export mit führenden Nullen auf drei Stellen bringen
+// (1 -> 001, 22 -> 022), damit PDF-Dateinamen und CSV-Zeilen numerisch korrekt
+// sortieren. Nicht-numerische oder leere Werte bleiben unverändert.
+function padLiednummer2026(nummer) {
+    if (nummer === '' || nummer == null) return '';
+    const n = parseInt(nummer, 10);
+    if (!Number.isFinite(n)) return String(nummer);
+    return String(n).padStart(3, '0');
+}
+
 function readStyleProp(styleStr, prop) {
     if (!styleStr) return null;
     const re = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, 'i');
@@ -927,7 +937,7 @@ async function runExport() {
 
     for (const lied of candidates) {
         progress.value.current = lied.titel || `#${lied.id}`;
-        const liednummer2026 = resolved2026(lied);
+        const liednummer2026 = padLiednummer2026(resolved2026(lied));
         const filenameBase = `${liednummer2026 || lied.liednummer2000 || lied.id}_${safeFilename(lied.titel)}`;
         const pdfFilename = `${filenameBase}.pdf`;
         const pageFileIds = [lied.notentext];
