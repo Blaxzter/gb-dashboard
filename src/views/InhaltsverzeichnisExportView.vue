@@ -425,6 +425,20 @@ async function copyToClipboard(text) {
     snackbar.value = true;
 }
 
+// --- Spalten-Copy für den zweispaltigen InDesign-Satz (Issue #67) ---------
+// Janosch setzt die Inhaltsverzeichnisse zweispaltig (Nummer | Titel) und
+// befüllt jede Spalte einzeln. Deshalb gibt es je einen Copy-Button pro Spalte,
+// der die Werte zeilenweise (eine Nummer bzw. ein Titel pro Zeile) liefert.
+// Beide Spalten nutzen dieselbe Liederreihenfolge, damit die Zeilen zueinander
+// passen; fehlt eine Nummer, bleibt die Zeile leer, sodass die Ausrichtung
+// erhalten bleibt.
+function copyNummernSpalte(list) {
+    copyToClipboard(list.map((s) => s.nummer ?? '').join('\n'));
+}
+function copyTitelSpalte(list) {
+    copyToClipboard(list.map((s) => s.titel).join('\n'));
+}
+
 // --- Alphabetisch ---------------------------------------------------------
 function downloadAlphabetical() {
     const rows = alphabetical.value.map((s) => [s.nummer, s.titel]);
@@ -537,7 +551,9 @@ function copyByTocCategory() {
         Titel, nach den bestehenden Kategorien sowie nach den reduzierten
         Inhaltsverzeichnis-Kategorien (Spalte E). Die CSV-Datei eignet sich zum Import, die
         Schaltfläche „In Zwischenablage kopieren“ liefert eine direkt einfügbare
-        (Tabulator-getrennte) Fassung.
+        (Tabulator-getrennte) Fassung. Für den zweispaltigen Satz in InDesign gibt es zusätzlich je
+        einen Copy-Button „Nummern“ und „Titel“, der nur die jeweilige Spalte (ein Wert pro Zeile)
+        kopiert – bei den Kategorie-Ansichten pro Kategorie.
     </p>
 
     <v-card class="mb-4">
@@ -586,6 +602,27 @@ function copyByTocCategory() {
                             @click="copyAlphabetical"
                         >
                             In Zwischenablage kopieren
+                        </v-btn>
+                    </div>
+                    <div class="d-flex flex-wrap align-center ga-2 mb-3">
+                        <span class="text-caption text-medium-emphasis">Spalten für InDesign:</span>
+                        <v-btn
+                            size="small"
+                            variant="tonal"
+                            prepend-icon="mdi-content-copy"
+                            :disabled="alphabetical.length === 0"
+                            @click="copyNummernSpalte(alphabetical)"
+                        >
+                            Nummern
+                        </v-btn>
+                        <v-btn
+                            size="small"
+                            variant="tonal"
+                            prepend-icon="mdi-content-copy"
+                            :disabled="alphabetical.length === 0"
+                            @click="copyTitelSpalte(alphabetical)"
+                        >
+                            Titel
                         </v-btn>
                     </div>
                     <div class="toc-preview">
@@ -649,9 +686,30 @@ function copyByTocCategory() {
                     <div class="toc-preview">
                         <template v-if="byCategory.length">
                             <div v-for="g in byCategory" :key="g.kategorie" class="mb-3">
-                                <div class="text-subtitle-2 font-weight-bold mb-1">
-                                    {{ g.kategorie }}
-                                    <span class="text-medium-emphasis">({{ g.songs.length }})</span>
+                                <div class="d-flex align-center ga-2 mb-1">
+                                    <div class="text-subtitle-2 font-weight-bold">
+                                        {{ g.kategorie }}
+                                        <span class="text-medium-emphasis">
+                                            ({{ g.songs.length }})
+                                        </span>
+                                    </div>
+                                    <v-spacer />
+                                    <v-btn
+                                        size="x-small"
+                                        variant="tonal"
+                                        prepend-icon="mdi-content-copy"
+                                        @click="copyNummernSpalte(g.songs)"
+                                    >
+                                        Nummern
+                                    </v-btn>
+                                    <v-btn
+                                        size="x-small"
+                                        variant="tonal"
+                                        prepend-icon="mdi-content-copy"
+                                        @click="copyTitelSpalte(g.songs)"
+                                    >
+                                        Titel
+                                    </v-btn>
                                 </div>
                                 <v-table density="compact">
                                     <tbody>
@@ -746,11 +804,30 @@ function copyByTocCategory() {
                         <div class="toc-preview">
                             <template v-if="byTocCategory.length">
                                 <div v-for="g in byTocCategory" :key="g.kategorie" class="mb-3">
-                                    <div class="text-subtitle-2 font-weight-bold mb-1">
-                                        {{ g.kategorie }}
-                                        <span class="text-medium-emphasis">
-                                            ({{ g.songs.length }})
-                                        </span>
+                                    <div class="d-flex align-center ga-2 mb-1">
+                                        <div class="text-subtitle-2 font-weight-bold">
+                                            {{ g.kategorie }}
+                                            <span class="text-medium-emphasis">
+                                                ({{ g.songs.length }})
+                                            </span>
+                                        </div>
+                                        <v-spacer />
+                                        <v-btn
+                                            size="x-small"
+                                            variant="tonal"
+                                            prepend-icon="mdi-content-copy"
+                                            @click="copyNummernSpalte(g.songs)"
+                                        >
+                                            Nummern
+                                        </v-btn>
+                                        <v-btn
+                                            size="x-small"
+                                            variant="tonal"
+                                            prepend-icon="mdi-content-copy"
+                                            @click="copyTitelSpalte(g.songs)"
+                                        >
+                                            Titel
+                                        </v-btn>
                                     </div>
                                     <v-table density="compact">
                                         <tbody>
