@@ -121,18 +121,113 @@
                 />
             </div>
 
-            <v-chip-group>
-                <v-chip
-                    v-for="(category, index) in selectedSong?.kategories"
-                    :key="index"
-                    :prepend-icon="
-                        gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)
-                    "
-                    :style="{ 'background-color': get_color(category) }"
+            <!-- Kategorien: für Super-Editoren/Administratoren direkt in der
+                 Detailansicht bearbeitbar (Issue #66) – spart Luise den Umweg
+                 über das Redaktionssystem. -->
+            <div class="d-flex align-center flex-wrap">
+                <template v-if="!categoryEditMode">
+                    <v-chip-group>
+                        <v-chip
+                            v-for="(category, index) in selectedSong?.kategories"
+                            :key="index"
+                            :prepend-icon="
+                                gesangbuch_kategorie_name_to_icon(category?.kategorie_name?.name)
+                            "
+                            :style="{ 'background-color': get_color(category) }"
+                        >
+                            {{ category?.kategorie_name?.name }}
+                        </v-chip>
+                    </v-chip-group>
+                    <span
+                        v-if="canEditCategories && !selectedSong?.kategories?.length"
+                        class="text-grey-darken-1 text-body-2 me-2"
+                    >
+                        Keine Kategorien
+                    </span>
+                    <v-tooltip
+                        v-if="canEditCategories"
+                        text="Kategorien bearbeiten"
+                        location="bottom"
+                    >
+                        <template #activator="{ props }">
+                            <v-btn
+                                icon="mdi-pencil"
+                                size="small"
+                                variant="text"
+                                color="primary"
+                                v-bind="props"
+                                @click="startCategoryEdit"
+                            />
+                        </template>
+                    </v-tooltip>
+                </template>
+            </div>
+
+            <div v-if="categoryEditMode" class="mb-4 mt-1" style="max-width: 600px">
+                <v-autocomplete
+                    v-model="editedCategoryIds"
+                    label="Kategorien"
+                    :items="allCategories"
+                    item-title="name"
+                    item-value="id"
+                    variant="outlined"
+                    density="comfortable"
+                    hide-details="auto"
+                    multiple
+                    chips
+                    closable-chips
+                    :disabled="categorySaving"
                 >
-                    {{ category?.kategorie_name?.name }}
-                </v-chip>
-            </v-chip-group>
+                    <template #chip="{ props: chipProps, item }">
+                        <v-chip
+                            v-bind="chipProps"
+                            :prepend-icon="gesangbuch_kategorie_name_to_icon(item.raw.name)"
+                            :text="item.raw.name"
+                        />
+                    </template>
+                    <template #item="{ props: itemProps, item }">
+                        <v-list-item
+                            v-bind="itemProps"
+                            :prepend-icon="gesangbuch_kategorie_name_to_icon(item.raw.name)"
+                            :title="item.raw.name"
+                        />
+                    </template>
+                </v-autocomplete>
+
+                <v-alert
+                    v-if="categorySaveError"
+                    type="error"
+                    variant="tonal"
+                    density="compact"
+                    class="mt-2"
+                    closable
+                    @click:close="categorySaveError = null"
+                >
+                    {{ categorySaveError }}
+                </v-alert>
+
+                <div class="d-flex ga-2 mt-2">
+                    <v-btn
+                        color="primary"
+                        variant="elevated"
+                        :loading="categorySaving"
+                        :disabled="categorySaving"
+                        @click="saveCategories"
+                    >
+                        <v-icon start>mdi-content-save</v-icon>
+                        Speichern
+                    </v-btn>
+                    <v-btn
+                        color="grey"
+                        variant="outlined"
+                        :disabled="categorySaving"
+                        @click="cancelCategoryEdit"
+                    >
+                        <v-icon start>mdi-close</v-icon>
+                        Abbrechen
+                    </v-btn>
+                </div>
+            </div>
 
             <!-- Formatierten Footer (Autoren + Copyright, wie beim Notentext-Export)
                  in die Zwischenablage kopieren – zur direkten Übernahme nach InDesign
@@ -454,6 +549,16 @@ import { useAppStore } from '@/store/app';
 import _ from 'lodash';
 import SingModeDialog from '@/components/SongRelated/SingModeDialog.vue';
 
+// Das Bearbeiten der Kategorien ist auf bestimmte Directus-Rollen beschränkt
+// (Issue #66): standardmäßig Super-Editoren und Administratoren. Leere Konfig
+// deaktiviert die Rollenprüfung (analog zu den übrigen *_ROLES-Variablen).
+const kategorieEditRoles = (
+    import.meta.env.VITE_KATEGORIE_EDIT_ROLES || 'Super-Editor,Administrator'
+)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 export default {
     name: 'GesangbuchLiedComponent',
     components: {
@@ -478,6 +583,11 @@ export default {
         copied: false,
         visible_file: null,
         editMode: false,
+        // Kategorien-Bearbeitung (Issue #66).
+        categoryEditMode: false,
+        editedCategoryIds: [],
+        categorySaving: false,
+        categorySaveError: null,
         // Rückmeldung für den „Footer kopieren"-Button (Issue #64).
         copySnackbar: false,
         copySnackbarMessage: '',
@@ -489,6 +599,14 @@ export default {
         },
         is_kleiner_kreis() {
             return this.user.is_kleiner_kreis;
+        },
+        // Kategorien nur für Super-Editoren/Administratoren bearbeitbar (Issue #66).
+        canEditCategories() {
+            return this.user.has_role(kategorieEditRoles);
+        },
+        // Alle verfügbaren Kategorien (alphabetisch) für das Bearbeiten-Dropdown.
+        allCategories() {
+            return _.sortBy(this.appStore.kategorien, (k) => (k?.name || '').toLowerCase());
         },
         is_kleiner_kreis_ansicht() {
             return this.user.is_kleiner_kreis_ansicht;
@@ -535,6 +653,39 @@ export default {
         get_color(category) {
             return chart_colors[category.id % chart_colors.length];
         },
+
+        // Kategorien-Bearbeitung (Issue #66): Vorbelegung der aktuell verknüpften
+        // Kategorien und Umschalten in den Bearbeitungsmodus.
+        startCategoryEdit() {
+            this.categorySaveError = null;
+            this.editedCategoryIds = _.map(
+                this.selectedSong?.kategories,
+                (category) => category?.kategorie_name?.id ?? category?.kategorie_id,
+            ).filter((id) => id != null);
+            this.categoryEditMode = true;
+        },
+        cancelCategoryEdit() {
+            this.categoryEditMode = false;
+            this.categorySaveError = null;
+        },
+        async saveCategories() {
+            this.categorySaving = true;
+            this.categorySaveError = null;
+            try {
+                await this.appStore.updateGesangbuchliedKategorien(
+                    this.selectedSong.id,
+                    this.editedCategoryIds,
+                );
+                this.categoryEditMode = false;
+            } catch (error) {
+                console.error('Error saving categories:', error);
+                this.categorySaveError =
+                    'Fehler beim Speichern der Kategorien. Bitte versuchen Sie es erneut.';
+            } finally {
+                this.categorySaving = false;
+            }
+        },
+
         copyPathInClipboard() {
             navigator.clipboard.writeText(window.location.href);
             this.copied = true;

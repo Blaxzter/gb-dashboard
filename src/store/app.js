@@ -763,6 +763,99 @@ export const useAppStore = defineStore('app', {
             }
         },
 
+        // Kategorien eines Liedes bearbeiten (Issue #66). UI-seitig auf
+        // Super-Editoren/Administratoren beschränkt. Vergleicht die gewünschten
+        // Kategorie-IDs mit den bestehenden Junction-Zeilen und legt fehlende an
+        // bzw. löscht überzählige (statt alles neu zu schreiben). Danach wird der
+        // lokale Store aktualisiert, damit die Detailansicht die Änderung sofort
+        // widerspiegelt.
+        async updateGesangbuchliedKategorien(gesangbuchliedId, kategorieIds) {
+            const controller = new AbortController();
+            this.currentRequests.push(controller);
+
+            const cleanup = () => {
+                this.currentRequests = this.currentRequests.filter((c) => c !== controller);
+            };
+
+            try {
+                const desiredIds = _.uniq((kategorieIds || []).map((id) => Number(id)));
+
+                // Bestehende Junction-Zeilen dieses Liedes.
+                const existingRows = _.filter(
+                    this.gesangbuchlied_kategorie,
+                    (row) => row.gesangbuchlied_id === gesangbuchliedId,
+                );
+                const existingIds = existingRows.map((row) => row.kategorie_id);
+
+                // Zu löschende Zeilen (Kategorie nicht mehr gewünscht) und neu
+                // anzulegende Kategorie-IDs (gewünscht, aber noch nicht verknüpft).
+                const rowsToDelete = existingRows.filter(
+                    (row) => !desiredIds.includes(row.kategorie_id),
+                );
+                const idsToAdd = desiredIds.filter((id) => !existingIds.includes(id));
+
+                // Löschen (Batch) …
+                if (rowsToDelete.length > 0) {
+                    await axios.delete(
+                        `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`,
+                        {
+                            data: rowsToDelete.map((row) => row.id),
+                            signal: controller.signal,
+                        },
+                    );
+                }
+
+                // … und Anlegen (Batch).
+                let createdRows = [];
+                if (idsToAdd.length > 0) {
+                    const resp = await axios.post(
+                        `${import.meta.env.VITE_BACKEND_URL}/items/gesangbuchlied_kategorie`,
+                        idsToAdd.map((kategorie_id) => ({
+                            gesangbuchlied_id: gesangbuchliedId,
+                            kategorie_id,
+                        })),
+                        { signal: controller.signal },
+                    );
+                    createdRows = resp.data?.data ?? [];
+                }
+
+                // Lokalen Store aktualisieren: gelöschte Zeilen entfernen, neue
+                // (inkl. aufgelöstem kategorie_name wie in update_store) ergänzen.
+                const deletedIdSet = new Set(rowsToDelete.map((row) => row.id));
+                const kategorieById = _.keyBy(this.kategorie, 'id');
+                const enrichedCreatedRows = createdRows.map((row) => ({
+                    ...row,
+                    kategorie_name: kategorieById[row.kategorie_id] ?? null,
+                }));
+
+                this.gesangbuchlied_kategorie = [
+                    ...this.gesangbuchlied_kategorie.filter((row) => !deletedIdSet.has(row.id)),
+                    ...enrichedCreatedRows,
+                ];
+
+                // Abgeleitete kategories-Liste am Lied neu aufbauen.
+                const songIndex = this.gesangbuchlied.findIndex(
+                    (g) => g.id === gesangbuchliedId,
+                );
+                if (songIndex !== -1) {
+                    this.gesangbuchlied[songIndex].kategories = _.filter(
+                        this.gesangbuchlied_kategorie,
+                        (row) => row.gesangbuchlied_id === gesangbuchliedId,
+                    );
+                }
+
+                cleanup();
+                return { created: enrichedCreatedRows, deleted: rowsToDelete };
+            } catch (error) {
+                if (error?.response?.status === 401) {
+                    const userStore = useUserStore();
+                    userStore.logout();
+                }
+                cleanup();
+                throw error;
+            }
+        },
+
         // Korrekturlesung der gesetzten Noten (1. Strophe unter den Noten) – Issue #21.
         async updateNotenKorrekturlesung(gesangbuchliedId, value) {
             const controller = new AbortController();
