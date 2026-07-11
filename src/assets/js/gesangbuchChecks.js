@@ -107,6 +107,15 @@ function verseLength(strophe) {
 // oder das Auslassungszeichen … (U+2026).
 const AUSLASSUNGS_REGEX = /\.{3,}|…/;
 
+// „ToDo“-Marker in Anmerkungsfeldern (Issue #69): Beim Erfassen und
+// Korrekturlesen wird in den Anmerkungsfeldern (Lied, Text, Melodie) häufig
+// „ToDo“ notiert, um noch offene Punkte zu markieren – etwa eine noch zu
+// klärende Melodie-Bewertung („Rein, wenn“). Vor dem finalen Export sollten
+// keine solchen Marker mehr übrig sein. Erkannt werden „todo“, „to-do“ und
+// „to do“ (Groß-/Kleinschreibung egal, auch als Mehrzahl „ToDos“). Das führende
+// \b verhindert Fehltreffer mitten in Wörtern (z. B. „Auto do…“, „Konto do…“).
+const TODO_ANMERKUNG_REGEX = /\bto[-\s]?do/i;
+
 // Silbentrennung mit Minus statt Silbentrennzeichen (Issue #39): Beim
 // Korrekturlesen wurde an einzelnen Stellen ein Bindestrich-Minus „-" (U+002D)
 // statt des Silbentrennzeichens „¬" gesetzt (z. B. „o-ben" statt „o¬ben",
@@ -270,6 +279,226 @@ function songItem(lied, detail) {
         nummer: lied.liednummer2026 || lied.liednummer2000 || null,
         detail: detail || '',
     };
+}
+
+// --- Copyright-Schreibweisen (Issue #70) -----------------------------------
+//
+// Ziel: ähnliche, aber unterschiedlich geschriebene Copyright-Angaben finden,
+// damit sie vereinheitlicht werden können – z. B. „Bärenreiter-Verlag, Kassel“
+// vs. „Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel“. Verglichen
+// werden die drei Copyright-Felder eines Liedes: Text, Melodie und Lied.
+
+// Generische Rechtsform-/Füllwörter, die einen Copyright-Inhaber kaum
+// identifizieren. Sie bleiben beim Vergleich der „aussagekräftigen“ Wörter
+// unberücksichtigt, damit die lange und die kurze Schreibweise desselben
+// Verlags als gleich erkannt werden.
+const COPYRIGHT_STOPWORDS = new Set([
+    'verlag',
+    'verlags',
+    'verlage',
+    'musikverlag',
+    'musikverlage',
+    'edition',
+    'editionen',
+    'gmbh',
+    'mbh',
+    'co',
+    'kg',
+    'kgaa',
+    'ohg',
+    'ag',
+    'ug',
+    'gbr',
+    'ev',
+    'und',
+    'u',
+    'and',
+    'im',
+    'in',
+    'der',
+    'die',
+    'das',
+    'den',
+    'für',
+    'auftrag',
+    'by',
+    'the',
+    'of',
+    'inc',
+    'ltd',
+    'llc',
+    'corp',
+]);
+
+// Zerlegt eine Copyright-Angabe in normalisierte Wort-Token: NFC, Kleinschreibung,
+// Trennung an allen Nicht-Buchstaben/-Ziffern (Satzzeichen, Bindestriche,
+// Leerzeichen). So werden „Bärenreiter-Verlag, Kassel“ und
+// „Bärenreiter-Verlag Kassel“ auf dieselben Token abgebildet.
+function copyrightTokens(value) {
+    return String(value == null ? '' : value)
+        .normalize('NFC')
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean);
+}
+
+// Normalisierte Vergleichsform: Token mit einfachem Leerzeichen verbunden – ohne
+// Satzzeichen, Mehrfach-Leerzeichen und Groß-/Kleinschreibung. Gleiche norm-Form
+// bei unterschiedlicher Rohform = reiner Formatierungsunterschied.
+function copyrightNorm(value) {
+    return copyrightTokens(value).join(' ');
+}
+
+// „Aussagekräftige“ Token: ohne generische Füllwörter, ohne reine Zahlen
+// (Jahreszahlen) und ohne Einzelbuchstaben – im Wesentlichen der Verlags-/
+// Autorenname als Identität der Angabe.
+function copyrightSignificant(value) {
+    return copyrightTokens(value).filter(
+        (t) => t.length > 1 && !/^\d+$/.test(t) && !COPYRIGHT_STOPWORDS.has(t),
+    );
+}
+
+// Levenshtein-Distanz (Editierabstand) zweier Strings – für die Erkennung
+// tippfehlernaher Schreibweisen.
+function levenshtein(a, b) {
+    const m = a.length;
+    const n = b.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    let prev = [];
+    for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        }
+        prev = cur;
+    }
+    return prev[n];
+}
+
+// Sammelt alle distinkten Copyright-Angaben (Rohform) über Text-, Melodie- und
+// Lied-Copyright und merkt sich je Angabe die Zahl betroffener Lieder, die Felder
+// und ein Beispiel-Lied.
+function collectCopyrightEntries(lieder) {
+    const map = new Map();
+    const add = (value, lied, field) => {
+        const raw = String(value == null ? '' : value).trim();
+        if (!raw) return;
+        let e = map.get(raw);
+        if (!e) {
+            const sig = copyrightSignificant(raw);
+            e = {
+                raw,
+                norm: copyrightNorm(raw),
+                sigSet: new Set(sig),
+                sigCount: sig.length,
+                songIds: new Set(),
+                fields: new Set(),
+                example: null,
+            };
+            map.set(raw, e);
+        }
+        e.fields.add(field);
+        if (!e.songIds.has(lied.id)) {
+            e.songIds.add(lied.id);
+            if (!e.example) e.example = lied;
+        }
+    };
+    lieder.forEach((l) => {
+        add(l.text?.copyright, l, 'Text');
+        add(l.melodie?.copyright, l, 'Melodie');
+        add(l.copyright, l, 'Lied');
+    });
+    return [...map.values()];
+}
+
+// Entscheidet, ob zwei Copyright-Angaben denselben Inhaber meinen (nur
+// unterschiedlich geschrieben). `df` ist die Dokumenthäufigkeit der
+// aussagekräftigen Token, `genericCap` die Grenze, ab der ein Token als generisch
+// (nicht unterscheidungskräftig) gilt.
+function sameCopyrightHolder(a, b, df, genericCap) {
+    // 1) Reiner Formatierungsunterschied (Groß-/Kleinschreibung, Satzzeichen,
+    //    Leerzeichen) → gleiche Angabe.
+    if (a.norm === b.norm) return true;
+    // 2) Namens-Enthaltensein: die aussagekräftigen Wörter der kürzeren Angabe
+    //    stecken vollständig in der längeren (kurze vs. lange Schreibweise),
+    //    und mindestens ein geteiltes Wort ist unterscheidungskräftig (nicht z. B.
+    //    eine überall vorkommende Stadt).
+    const [small, large] =
+        a.sigSet.size <= b.sigSet.size ? [a.sigSet, b.sigSet] : [b.sigSet, a.sigSet];
+    if (small.size > 0) {
+        let contained = true;
+        let hasDistinctive = false;
+        for (const t of small) {
+            if (!large.has(t)) {
+                contained = false;
+                break;
+            }
+            if ((df.get(t) || 0) <= genericCap) hasDistinctive = true;
+        }
+        if (contained && hasDistinctive) return true;
+    }
+    // 3) Tippfehlernahe Varianten: geringe Editierdistanz auf der normalisierten
+    //    Form (nur bei ausreichender Länge, um Zufallstreffer zu vermeiden). Beide
+    //    Angaben müssen mindestens ein aussagekräftiges Wort tragen.
+    if (a.sigCount > 0 && b.sigCount > 0) {
+        const la = a.norm.length;
+        const lb = b.norm.length;
+        const maxLen = Math.max(la, lb);
+        if (maxLen >= 6) {
+            const thresh = Math.max(1, Math.ceil(maxLen * 0.12));
+            if (Math.abs(la - lb) <= thresh) {
+                const dist = levenshtein(a.norm, b.norm);
+                if (dist >= 1 && dist <= thresh) return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Gruppiert distinkte Copyright-Angaben per Union-Find in Cluster „gleicher
+// Inhaber, unterschiedliche Schreibweise“.
+function clusterCopyrights(entries) {
+    const n = entries.length;
+    if (n < 2) return entries.map((e) => [e]);
+    // Dokumenthäufigkeit der aussagekräftigen Token: in wie vielen distinkten
+    // Angaben kommt ein Token vor. Seltene Token (Verlagsnamen) sind
+    // unterscheidungskräftig, häufige (z. B. eine oft genannte Stadt) nicht.
+    const df = new Map();
+    entries.forEach((e) => e.sigSet.forEach((t) => df.set(t, (df.get(t) || 0) + 1)));
+    const genericCap = Math.max(4, Math.ceil(n * 0.3));
+
+    const parent = [];
+    for (let i = 0; i < n; i++) parent[i] = i;
+    const find = (x) => {
+        while (parent[x] !== x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        return x;
+    };
+    const union = (a, b) => {
+        parent[find(a)] = find(b);
+    };
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            if (sameCopyrightHolder(entries[i], entries[j], df, genericCap)) union(i, j);
+        }
+    }
+    const byRoot = new Map();
+    for (let i = 0; i < n; i++) {
+        const r = find(i);
+        if (!byRoot.has(r)) byRoot.set(r, []);
+        byRoot.get(r).push(entries[i]);
+    }
+    return [...byRoot.values()];
+}
+
+function truncateText(value, max) {
+    const s = String(value == null ? '' : value);
+    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
 // --- die eigentlichen Checks ----------------------------------------------
@@ -585,6 +814,39 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Keine offenen Anmerkungen.'
                     : `${items.length} Lied(er) mit Strophen-Anmerkungen.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'todo-in-anmerkungen',
+        category: 'Redaktion',
+        title: 'Keine „ToDo“-Marker in Anmerkungsfeldern',
+        description:
+            'Offene Punkte werden in den Anmerkungsfeldern häufig mit „ToDo“ markiert (z. B. eine noch zu klärende Melodie-Bewertung „Rein, wenn“). Vor dem finalen Export sollten keine solchen Marker mehr übrig sein. Geprüft werden die Anmerkungsfelder von Lied, Text und Melodie genommener Lieder auf „ToDo“/„To-Do“/„To Do“ (Groß-/Kleinschreibung egal). Siehe Issue #69.',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const stellen = [
+                    ['Lied', l.anmerkung],
+                    ['Text', l.text?.anmerkung],
+                    ['Melodie', l.melodie?.anmerkung],
+                ]
+                    .filter(([, wert]) => TODO_ANMERKUNG_REGEX.test(String(wert || '')))
+                    .map(([label]) => label);
+                if (stellen.length) {
+                    // Quellen mit „ · “ (Mittelpunkt) trennen – hebt Lied, Text und
+                    // Melodie deutlicher voneinander ab als ein Komma (wie beim
+                    // Copyright-Check).
+                    items.push(songItem(l, `„ToDo“ in Anmerkung: ${stellen.join(' · ')}`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Keine „ToDo“-Marker in Anmerkungsfeldern.'
+                    : `${items.length} genommene(s) Lied(er) mit „ToDo“ in einem Anmerkungsfeld.`,
                 items,
             );
         },
@@ -1101,6 +1363,67 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Alle Lieder haben etwa gleich lange Strophen.'
                     : `${items.length} Lied(er) mit auffällig unterschiedlichen Strophenlängen.`,
+                items,
+            );
+        },
+    },
+
+    // ===== Copyright =====
+    {
+        id: 'copyright-schreibweisen',
+        category: 'Copyright',
+        title: 'Einheitliche Schreibweise der Copyright-Angaben',
+        description:
+            'Hinweis (kein Fehler): Findet ähnliche, aber unterschiedlich geschriebene Copyright-Angaben genommener Lieder – über die drei Felder Text-, Melodie- und Lied-Copyright hinweg –, damit sie vereinheitlicht werden können. Beispiel: „Bärenreiter-Verlag, Kassel“ vs. „Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel“. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung, Satzzeichen und generischen Zusätzen (Verlag, GmbH, Co., KG …). Erkannt werden kurze/lange Schreibweisen desselben Herstellers, reine Formatierungsunterschiede sowie tippfehlernahe Varianten. Je Gruppe wird die häufigste Schreibweise als Angleichungs-Vorschlag markiert.',
+        run({ genommen }) {
+            const entries = collectCopyrightEntries(genommen);
+            // Nur Angaben mit mindestens einem aussagekräftigen Wort lassen sich
+            // sinnvoll vergleichen.
+            const comparable = entries.filter((e) => e.sigCount > 0);
+            const usageOf = (group) => group.reduce((sum, e) => sum + e.songIds.size, 0);
+            // Interessant sind nur Cluster mit mehr als einer Schreibweise.
+            const groups = clusterCopyrights(comparable)
+                .filter((c) => c.length > 1)
+                .sort((a, b) => b.length - a.length || usageOf(b) - usageOf(a));
+
+            const items = [];
+            groups.forEach((group, groupIdx) => {
+                const sorted = [...group].sort((x, y) => y.songIds.size - x.songIds.size);
+                // Häufigste Schreibweise als Angleichungs-Vorschlag.
+                const canonicalShort = truncateText(sorted[0].raw, 48);
+                sorted.forEach((e, idx) => {
+                    const nr = e.example
+                        ? e.example.liednummer2026 || e.example.liednummer2000 || null
+                        : null;
+                    const detail = [
+                        `${e.songIds.size}×`,
+                        [...e.fields].join('/'),
+                        nr ? `z. B. Nr. ${nr}` : null,
+                    ]
+                        .filter(Boolean)
+                        .join(' · ');
+                    items.push({
+                        id: e.example ? e.example.id : undefined,
+                        title: e.raw,
+                        detail,
+                        // Gruppen-Index: fasst die Einträge einer Gruppe in der
+                        // Anzeige zusammen (Randstrich + gemeinsamer Kopf).
+                        group: groupIdx,
+                        // Kopfzeile nur am ersten (häufigsten) Eintrag der Gruppe.
+                        groupHeader:
+                            idx === 0
+                                ? `${sorted.length} Schreibweisen · Vorschlag: „${canonicalShort}“`
+                                : undefined,
+                    });
+                });
+            });
+
+            return result(
+                groups.length === 0,
+                'info',
+                groups.length === 0
+                    ? 'Keine ähnlichen, aber unterschiedlich geschriebenen Copyright-Angaben gefunden.'
+                    : `${groups.length} Gruppe(n) ähnlicher, aber unterschiedlich geschriebener Copyright-Angaben.`,
                 items,
             );
         },

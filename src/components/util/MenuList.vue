@@ -149,6 +149,12 @@ export default {
                         icon: 'mdi-cloud-upload',
                         requiredRoles: notentextRoles,
                     },
+                    {
+                        name: 'Druck-PDF Prüfung',
+                        route: '/druck-check',
+                        icon: 'mdi-file-find',
+                        requiredRoles: notentextRoles,
+                    },
                 ],
             },
             {

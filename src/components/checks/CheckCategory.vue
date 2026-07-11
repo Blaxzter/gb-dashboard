@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { STATUS } from '@/assets/js/gesangbuchChecks.js';
+import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
 
 const props = defineProps({
     // { name, checks: [...], problems: Number }
@@ -8,12 +9,31 @@ const props = defineProps({
     // Zähler-Signale: erhöht der Parent, klappen alle Gruppen auf/zu.
     expandSignal: { type: Number, default: 0 },
     collapseSignal: { type: Number, default: 0 },
+    // Nur im Druck-Check: „Bestätigen"-Buttons (localStorage) an den Items.
+    allowAck: { type: Boolean, default: false },
 });
 
 defineEmits(['open-song']);
 
+const acks = useDruckCheckAcks();
+
 // Pro Check maximal so viele Treffer rendern (Performance bei großen Listen).
 const MAX_ITEMS = 200;
+
+// Aufgeklappte „Bestätigt"-Bereiche (je Check).
+const ackedOpen = ref(new Set());
+function isAckedOpen(id) {
+    return ackedOpen.value.has(id);
+}
+function toggleAcked(id) {
+    const next = new Set(ackedOpen.value);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    ackedOpen.value = next;
+}
+function toggleItemAck(item) {
+    acks.toggle(item.fp);
+}
 
 // Eigene Auf-/Zuklapp-Steuerung über ein Set offener Check-IDs. Standardmäßig ist
 // alles zugeklappt (Performance) – und wir verzichten bewusst auf
@@ -102,42 +122,116 @@ watch(
                             </v-alert>
 
                             <v-list v-else density="compact" class="check-items">
-                                <v-list-item
+                                <template
                                     v-for="(item, idx) in shownItems(check)"
-                                    :key="item.id ?? idx"
-                                    :class="{ 'cursor-pointer': item.id != null }"
-                                    @click="$emit('open-song', item.id)"
+                                    :key="item.id != null ? `it-${item.id}-${idx}` : `it-${idx}`"
                                 >
-                                    <template #prepend>
-                                        <v-chip
-                                            v-if="item.nummer"
-                                            size="x-small"
-                                            color="primary"
-                                            variant="tonal"
-                                            class="me-2"
-                                        >
-                                            {{ item.nummer }}
-                                        </v-chip>
-                                        <v-icon v-else size="small" class="me-2">
-                                            mdi-pound
-                                        </v-icon>
-                                    </template>
-                                    <v-list-item-title>{{ item.title }}</v-list-item-title>
-                                    <v-list-item-subtitle v-if="item.detail">
-                                        {{ item.detail }}
-                                    </v-list-item-subtitle>
-                                    <template v-if="item.id != null" #append>
-                                        <v-icon size="small" class="text-medium-emphasis">
-                                            mdi-open-in-app
-                                        </v-icon>
-                                    </template>
-                                </v-list-item>
+                                    <!-- Gruppenkopf (z. B. Copyright-Check): trennt zusammen-
+                                         gehörige Einträge sichtbar voneinander. -->
+                                    <v-divider v-if="item.groupHeader && idx > 0" class="mt-2 mb-1" />
+                                    <v-list-subheader
+                                        v-if="item.groupHeader"
+                                        class="check-group-header"
+                                    >
+                                        {{ item.groupHeader }}
+                                    </v-list-subheader>
+                                    <v-list-item
+                                        :class="{
+                                            'cursor-pointer': item.id != null,
+                                            'check-group-item': item.group != null,
+                                        }"
+                                        @click="$emit('open-song', item.id)"
+                                    >
+                                        <template #prepend>
+                                            <v-chip
+                                                v-if="item.nummer"
+                                                size="x-small"
+                                                color="primary"
+                                                variant="tonal"
+                                                class="me-2"
+                                            >
+                                                {{ item.nummer }}
+                                            </v-chip>
+                                            <v-icon v-else size="small" class="me-2">
+                                                mdi-pound
+                                            </v-icon>
+                                        </template>
+                                        <v-list-item-title>{{ item.title }}</v-list-item-title>
+                                        <v-list-item-subtitle v-if="item.detail">
+                                            {{ item.detail }}
+                                        </v-list-item-subtitle>
+                                        <template #append>
+                                            <v-btn
+                                                v-if="allowAck && item.fp"
+                                                icon="mdi-check-circle-outline"
+                                                size="x-small"
+                                                variant="text"
+                                                title="Als geprüft / gewollt bestätigen und ausblenden"
+                                                @click.stop="toggleItemAck(item)"
+                                            />
+                                            <v-icon
+                                                v-if="item.id != null"
+                                                size="small"
+                                                class="text-medium-emphasis ms-1"
+                                            >
+                                                mdi-open-in-app
+                                            </v-icon>
+                                        </template>
+                                    </v-list-item>
+                                </template>
                                 <v-list-item v-if="hiddenCount(check)">
                                     <v-list-item-subtitle>
                                         … und {{ hiddenCount(check) }} weitere
                                     </v-list-item-subtitle>
                                 </v-list-item>
                             </v-list>
+
+                            <!-- Bestätigte (ausgeblendete) Befunde dieses Checks -->
+                            <div
+                                v-if="allowAck && check.ackedItems && check.ackedItems.length"
+                                class="acked-block"
+                            >
+                                <div class="acked-toggle" @click="toggleAcked(check.id)">
+                                    <v-icon size="small">
+                                        {{ isAckedOpen(check.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
+                                    </v-icon>
+                                    <v-icon size="small" color="success">mdi-check-circle</v-icon>
+                                    Bestätigt / ausgeblendet ({{ check.ackedItems.length }})
+                                </div>
+                                <v-list v-if="isAckedOpen(check.id)" density="compact" class="check-items">
+                                    <v-list-item
+                                        v-for="(item, idx) in check.ackedItems"
+                                        :key="'ack-' + (item.fp ?? idx)"
+                                        class="acked-item"
+                                    >
+                                        <template #prepend>
+                                            <v-chip
+                                                v-if="item.nummer"
+                                                size="x-small"
+                                                color="primary"
+                                                variant="tonal"
+                                                class="me-2"
+                                            >
+                                                {{ item.nummer }}
+                                            </v-chip>
+                                            <v-icon v-else size="small" class="me-2">mdi-pound</v-icon>
+                                        </template>
+                                        <v-list-item-title>{{ item.title }}</v-list-item-title>
+                                        <v-list-item-subtitle v-if="item.detail">
+                                            {{ item.detail }}
+                                        </v-list-item-subtitle>
+                                        <template #append>
+                                            <v-btn
+                                                icon="mdi-restore"
+                                                size="x-small"
+                                                variant="text"
+                                                title="Bestätigung zurücknehmen"
+                                                @click.stop="toggleItemAck(item)"
+                                            />
+                                        </template>
+                                    </v-list-item>
+                                </v-list>
+                            </div>
                         </div>
                     </div>
                 </v-expand-transition>
@@ -155,7 +249,38 @@ watch(
     max-height: 420px;
     overflow-y: auto;
 }
+/* Gruppierte Befunde (z. B. Copyright-Schreibweisen): Kopfzeile je Gruppe und
+   ein farbiger Randstrich, der die Einträge einer Gruppe optisch zusammenfasst. */
+.check-group-header {
+    min-height: 30px;
+    padding-inline: 8px;
+    font-weight: 600;
+    color: rgba(var(--v-theme-on-surface), 0.85);
+}
+.check-group-item {
+    border-left: 3px solid rgba(var(--v-theme-primary), 0.35);
+}
 .cursor-pointer {
     cursor: pointer;
+}
+.acked-block {
+    margin-top: 8px;
+    border-top: 1px solid rgba(var(--v-border-color), 0.3);
+}
+.acked-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 4px 4px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.8rem;
+    color: rgba(var(--v-theme-on-surface), 0.7);
+}
+.acked-toggle:hover {
+    color: rgba(var(--v-theme-on-surface), 0.95);
+}
+.acked-item {
+    opacity: 0.7;
 }
 </style>

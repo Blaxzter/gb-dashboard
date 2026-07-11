@@ -148,6 +148,13 @@ const routes = [
                     ),
             },
             {
+                path: 'druck-check',
+                name: 'DruckCheck',
+                meta: { requiredRoles: notentextRoles },
+                component: () =>
+                    import(/* webpackChunkName: "druck-check" */ '@/views/DruckCheckView.vue'),
+            },
+            {
                 path: 'nummerngenerierung',
                 name: 'Nummerngenerierung',
                 meta: { requiredRoles: superadminRoles },
