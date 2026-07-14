@@ -45,6 +45,17 @@ export function useDruckCheckAcks() {
             acked.value = next;
             persist();
         },
+        // Alle Befunde eines Liedes auf einmal bestätigen bzw. wieder öffnen.
+        setAcked(fps, value) {
+            const next = new Set(acked.value);
+            for (const fp of fps) {
+                if (!fp) continue;
+                if (value) next.add(fp);
+                else next.delete(fp);
+            }
+            acked.value = next;
+            persist();
+        },
         clear() {
             acked.value = new Set();
             persist();

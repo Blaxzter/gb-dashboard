@@ -74,7 +74,10 @@ function numInt(v) {
 // "001" -> "1", "12a" -> "12a".
 function numKey(v) {
     const m = String(v ?? '').match(/^\s*0*(\d+)\s*([a-zA-Z]?)/);
-    if (!m) return String(v ?? '').trim().toLowerCase();
+    if (!m)
+        return String(v ?? '')
+            .trim()
+            .toLowerCase();
     return `${m[1]}${(m[2] || '').toLowerCase()}`;
 }
 
@@ -98,15 +101,18 @@ const FOOTER_UNVERIFIABLE = /^\s*(Anmerkung|Quelle|Kanon)\s*:/i;
 const FOOTER_LABEL_WORDS =
     /\b(text|melodie|satz|und|rechte|übersetzung|übertragung|quelle|kanon|anmerkung)\b/gi;
 
+// Beginnt diese Zeile die Fußzeile eines Liedes („Text: …", „© …")?
+function isFooterLine(line) {
+    return FOOTER_LABEL.test(line.text) || FOOTER_COPYRIGHT.test(line.text);
+}
+
 // Signatur einer Fußzeile für den Vergleich: nur Buchstaben+Ziffern, ohne
 // Label-Wörter, ohne Jahres-Dekoration (* + – ( )). Dadurch ist der Vergleich
 // unabhängig davon, dass der Druck „(*1650 +1680)" statt „(1650–1680)" setzt und
 // ob „Text und Melodie" zusammengefasst oder getrennt gedruckt wird.
 export function footerSignature(footerText, { dropUnverifiable = true } = {}) {
     const lines = String(footerText || '').split('\n');
-    const kept = dropUnverifiable
-        ? lines.filter((l) => !FOOTER_UNVERIFIABLE.test(l))
-        : lines;
+    const kept = dropUnverifiable ? lines.filter((l) => !FOOTER_UNVERIFIABLE.test(l)) : lines;
     return kept
         .join(' ')
         .normalize('NFC')
@@ -139,42 +145,134 @@ export function footerSignaturesMatch(expected, pdf) {
 
 // Liest die Text-Items einer Seite (ohne Notensatz-Rauschen) und liefert sie mit
 // Position (x, yTop von oben) und Schriftgröße zurück.
+//
+// Bewusst NICHT über die Position der Notensatz-Glyphen gehen: verschiedene
+// pdf.js-Versionen melden für sie unterschiedliche Grundlinien (2.9 setzt sie an
+// den Seitenkopf, 4.x an die Notenzeile). Der Seiten-Übergang in extractPdfSongs
+// orientiert sich deshalb an der Liednummer, die in jeder Version dort sitzt, wo
+// sie gedruckt ist.
 async function extractPageItems(page) {
     const viewport = page.getViewport({ scale: 1 });
     const content = await page.getTextContent();
     const items = [];
+    const offPage = [];
+    let musicCount = 0; // Notensatz-Glyphen AUF der Seite → hier beginnt ein Lied
+    let musicTop = null;
     for (const it of content.items) {
-        if (typeof it.str !== 'string' || isNoise(it.str)) continue;
+        if (typeof it.str !== 'string') continue;
         const t = it.transform;
-        const size = Math.abs(t[3]) || it.height || 0;
-        items.push({
+        const x = t[4];
+        const yTop = viewport.height - t[5]; // von oben, damit Lesereihenfolge = aufsteigend
+        const inPage = x >= 0 && x <= viewport.width && yTop >= 0 && yTop <= viewport.height;
+
+        if (isNoise(it.str)) {
+            // Der platzierte Notensatz ragt weit über seinen Rahmen hinaus (x von
+            // −265 bis 556 auf einer 312 pt breiten Seite); InDesign beschneidet
+            // ihn. Gezählt wird deshalb nur, was wirklich auf der Seite steht –
+            // sonst „hätte" auch eine reine Textseite Noten (Seite 143).
+            if (inPage && it.str.replace(/\s/g, '')) {
+                musicCount++;
+                if (musicTop == null || yTop < musicTop) musicTop = yTop;
+            }
+            continue;
+        }
+
+        const item = {
             str: it.str,
-            x: t[4],
-            yTop: viewport.height - t[5], // von oben, damit Lesereihenfolge = aufsteigend
+            x,
+            yTop,
             width: it.width || 0,
-            size,
-        });
+            size: Math.abs(t[3]) || it.height || 0,
+            font: it.fontName || '', // pdf.js-interne Id, je Seite eindeutig
+        };
+        // Text außerhalb der Seite wird nicht gedruckt und darf den Satz nicht
+        // verfälschen. Der platzierte Notensatz ist breiter als sein Rahmen;
+        // InDesign beschneidet ihn, im Text-Layer stehen die abgeschnittenen
+        // Reste aber weiter drin – bei Lied 80 die Strophenzähler „1." / „2."
+        // des Notensatzes bei x = 357 und 455 auf einer 312 pt breiten Seite.
+        // Ungeprüft ignorieren wäre falsch: Genauso könnte hier eine Strophe
+        // aus dem Rahmen gelaufen und damit aus dem Druck gefallen sein. Also
+        // aussortieren UND melden (Check „Text außerhalb des Druckbereichs").
+        if (inPage) items.push(item);
+        else offPage.push(item);
     }
-    return { items, width: viewport.width, height: viewport.height };
+    return { items, offPage, musicCount, musicTop, width: viewport.width, height: viewport.height };
+}
+
+// Text, der zum Notensatz gehört, nicht zum Lied: Der platzierte Notensatz
+// bringt eigene Beschriftungen mit, allen voran die Wiederholungs-Klammern
+// („1." und „2." über dem Schlusstakt, Lied 81 / Seite 115). Sie stehen mitten
+// auf der Seite und sind gedruckt – wegwerfen per Seitenrand geht also nicht.
+// Ohne Filter liest splitVerses die Zeile „1. 2." als „Strophe 1 mit dem Text
+// «2.»".
+//
+// Unterschieden wird über die Schrift: Strophen, Fußzeile und die hängenden
+// Strophennummern stehen in der Textschrift, alles aus dem Notensatz in dessen
+// eigener Schrift. Die Position hilft nicht – pdf.js 2.9 meldet für die
+// Noten-Glyphen unbrauchbare Koordinaten (x von −265 bis 564 auf einer 312 pt
+// breiten Seite), ein „liegt im Notenbild"-Test wäre also nicht verlässlich.
+//
+// Verworfen wird nur Text OHNE Buchstaben (Ziffern/Satzzeichen) in einer fremden
+// Schrift – eine hängende Strophennummer steht in der Textschrift und bleibt
+// damit erhalten. Findet sich gar keine Textschrift (Seite ohne Strophen), ist
+// eine einzelne Zahl ohnehin keine Strophennummer und fliegt ebenfalls raus.
+function dropNotationItems(items) {
+    const hasLetter = (i) => /\p{L}/u.test(i.str);
+    const counts = new Map();
+    for (const i of items) {
+        if (hasLetter(i)) counts.set(i.font, (counts.get(i.font) || 0) + 1);
+    }
+    let bodyFont = null;
+    let best = 0;
+    for (const [font, n] of counts) {
+        if (n > best) {
+            best = n;
+            bodyFont = font;
+        }
+    }
+    return items.filter((i) => hasLetter(i) || (bodyFont != null && i.font === bodyFont));
+}
+
+// Kasten für einen Befund, der (teilweise) außerhalb der Seite liegt: auf die
+// Seite geklemmt, damit das Overlay ihn an der Kante zeigt, statt ins Leere zu
+// zeichnen. Mindestgröße, falls der Kasten dabei auf null zusammenfällt.
+function clampRectToPage(rect, width, height) {
+    const MIN = 6;
+    const x0 = Math.min(Math.max(rect.x, 0), width);
+    const y0 = Math.min(Math.max(rect.y, 0), height);
+    const w = Math.max(Math.min(Math.max(rect.x + rect.w, 0), width) - x0, MIN);
+    const h = Math.max(Math.min(Math.max(rect.y + rect.h, 0), height) - y0, MIN);
+    return { x: Math.min(x0, width - w), y: Math.min(y0, height - h), w, h };
 }
 
 // Erkennt die beiden Zahlen am oberen Außenrand einer Liedseite:
 //   * die große obere Zahl  = gb2026-Liednummer
 //   * die kleinere darunter = Choralbuchnummer (optional)
-// Beide stehen in derselben (linken oder rechten) Randspalte im oberen Seiten-
-// viertel; der Musiksatz darunter ist bereits als Rauschen herausgefiltert.
-function detectNumbers(items, pageHeight) {
-    const top = items.filter(
-        (i) => i.yTop < pageHeight * 0.25 && /^\d{1,3}[a-zA-Z]?$/.test(i.str.trim()),
+// Beide stehen in derselben (linken oder rechten) Randspalte über dem Notensatz;
+// der Musiksatz selbst ist bereits als Rauschen herausgefiltert.
+//
+// Der Liedblock rutscht nach unten, wenn oben noch der Strophenrest des
+// vorherigen Liedes steht (siehe extractPdfSongs) – ein enges Fenster am
+// Seitenkopf würde die Nummern dann verlieren. Erkannt wird die Liednummer
+// deshalb über ihren Schriftgrad: Sie ist deutlich größer gesetzt als der
+// Fließtext. Die Choralbuchnummer hat dagegen fast Fließtextgröße und wird
+// relativ zur Liednummer gesucht (gleiche Randspalte, direkt darunter).
+function detectNumbers(items, pageHeight, sizeHint) {
+    const nums = items.filter(
+        (i) => i.yTop < pageHeight * 0.5 && /^\d{1,3}[a-zA-Z]?$/.test(i.str.trim()),
     );
-    if (!top.length) return { numberItem: null, choralItem: null };
-    const sorted = [...top].sort((a, b) => b.size - a.size || a.yTop - b.yTop);
-    const numberItem = sorted[0];
-    const rest = sorted.slice(1);
+    const numberItem = nums
+        .filter((i) => i.size >= sizeHint * 1.4)
+        .sort((a, b) => b.size - a.size || a.yTop - b.yTop)[0];
+    if (!numberItem) return { numberItem: null, choralItem: null };
     const choralItem =
-        rest.find((i) => Math.abs(i.x - numberItem.x) < 40 && i.yTop >= numberItem.yTop - 2) ||
-        rest[0] ||
-        null;
+        nums.find(
+            (i) =>
+                i !== numberItem &&
+                Math.abs(i.x - numberItem.x) < 40 &&
+                i.yTop > numberItem.yTop &&
+                i.yTop - numberItem.yTop < 60,
+        ) || null;
     return { numberItem, choralItem };
 }
 
@@ -237,7 +335,8 @@ function joinDehyphen(lines) {
 // Body-Zeilen in Strophen zerlegen. Eine Strophe beginnt mit einer hängenden
 // 1–2-stelligen Nummer (am linken Rand). Vers 1 steht im Notensatz und taucht
 // hier nicht auf – die Nummerierung startet daher üblicherweise bei 2 (oder 3,
-// wenn zwei Strophen im Notensatz stehen).
+// wenn zwei Strophen im Notensatz stehen). Strophen, vor denen im Satz die
+// Nummer fehlt, bekommen `num: null`.
 function splitVerses(bodyLines) {
     const verses = [];
     let cur = null;
@@ -245,15 +344,25 @@ function splitVerses(bodyLines) {
         const withText = line.text.match(/^\s*(\d{1,2})[.)]?\s+(\S.*)$/);
         const onlyNum = line.text.match(/^\s*(\d{1,2})[.)]?\s*$/);
         if (withText || onlyNum) {
-            cur = { num: parseInt((withText || onlyNum)[1], 10), textLines: [], lines: [line] };
+            // `textLines` läuft synchron zu `lines` (Zeilentext ohne die
+            // hängende Nummer) – compareVerses schneidet daran, wenn an einer
+            // Strophe eine unnummerierte Folgestrophe klebt.
+            cur = {
+                num: parseInt((withText || onlyNum)[1], 10),
+                textLines: [withText ? withText[2] : ''],
+                lines: [line],
+            };
             verses.push(cur);
-            if (withText && withText[2]) cur.textLines.push(withText[2]);
         } else if (cur) {
             cur.textLines.push(line.text);
             cur.lines.push(line);
         } else {
-            // Text vor der ersten nummerierten Strophe (unerwartet).
-            cur = { num: null, stray: true, textLines: [line.text], lines: [line] };
+            // Textzeilen, vor denen keine hängende Nummer steht. Im Satz muss
+            // jede Textstrophe eine bekommen (2., 3., …) – fehlt sie, landen die
+            // Zeilen hier. Die Nummer bleibt offen; compareVerses() erschließt
+            // sie (Position im Satz / Textähnlichkeit zur DB) und meldet die
+            // fehlende Nummer als Fehler.
+            cur = { num: null, textLines: [line.text], lines: [line] };
             verses.push(cur);
         }
     }
@@ -269,7 +378,10 @@ function splitVerses(bodyLines) {
 // Bounding-Box (in PDF-Punkten, Ursprung oben-links) einer Item-Liste. Die
 // Glyphen reichen von der Grundlinie um ~0.8·Größe nach oben und ~0.25 nach unten.
 function bboxOfItems(items) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    let x0 = Infinity,
+        y0 = Infinity,
+        x1 = -Infinity,
+        y1 = -Infinity;
     for (const it of items) {
         const asc = it.size * 0.9;
         const desc = it.size * 0.3;
@@ -292,22 +404,41 @@ function boxOfLines(lines) {
     return rect ? { page, rect } : null;
 }
 
+// Kasten dort, wo die Liednummer stehen müsste (Kopfsteg außen: gerade Seiten
+// links, ungerade rechts) – als Anker für den Befund „Liednummer fehlt".
+function expectedNumberRect(page, width) {
+    const w = 40;
+    return { x: page % 2 === 0 ? 6 : width - w - 6, y: 30, w, h: 34 };
+}
+
 // Eine ganze PDF (PDFDocumentProxy von vue-pdf-embed/pdf.js) in Lieder zerlegen.
-// Rückgabe: { songs, pageCount, blankPages, introPages, warnings }.
+// Rückgabe: { songs, pageCount, blankPages, introPages, clipped, warnings }.
 export async function extractPdfSongs(pdfDoc) {
     const pageCount = pdfDoc.numPages;
     const songs = [];
     const blankPages = [];
     const introPages = [];
+    const clipped = []; // Text außerhalb der Seite – je Seite ein Eintrag.
     const pageSizes = {};
     let cur = null;
 
     for (let p = 1; p <= pageCount; p++) {
         const page = await pdfDoc.getPage(p);
-        const { items, width, height } = await extractPageItems(page);
+        const { items, offPage, musicCount, musicTop, width, height } =
+            await extractPageItems(page);
         pageSizes[p] = { width, height };
 
-        if (!items.length) {
+        if (offPage.length) {
+            clipped.push({
+                page: p,
+                texts: offPage.map((i) => i.str.trim()).filter(Boolean),
+                box: { page: p, rect: clampRectToPage(bboxOfItems(offPage), width, height) },
+            });
+        }
+
+        // Leer ist eine Seite nur ohne Text UND ohne Noten (eine reine Notenseite
+        // ohne Fußzeile wäre sonst „leer" und das Lied verschwunden).
+        if (!items.length && !musicCount) {
             blankPages.push(p);
             continue;
         }
@@ -317,25 +448,56 @@ export async function extractPdfSongs(pdfDoc) {
             median(items.map((i) => i.size));
 
         // Liednummer (groß) und Choralbuchnummer (kleiner, darunter).
-        const { numberItem, choralItem } = detectNumbers(items, height);
+        const { numberItem, choralItem } = detectNumbers(items, height, sizeHint);
 
+        // Lied- und Choralbuchnummer sind erkannt (und sind selbst reine Zahlen in
+        // eigener Schrift) – erst danach den Notensatz-Text aussortieren.
         const remove = new Set([numberItem, choralItem].filter(Boolean));
-        const bodyItems = remove.size ? items.filter((i) => !remove.has(i)) : items;
-        const lines = groupLines(bodyItems, sizeHint);
+        const bodyItems = dropNotationItems(
+            remove.size ? items.filter((i) => !remove.has(i)) : items,
+        );
+        let lines = groupLines(bodyItems, sizeHint);
         for (const l of lines) l.page = p;
 
-        if (numberItem) {
+        // Ein Lied beginnt dort, wo sein Notensatz steht – nicht dort, wo eine
+        // Liednummer steht. Beides fällt fast immer zusammen (in beiden Test-PDFs
+        // 1:1), aber eben nicht immer: Auf Seite 144 fehlt die Liednummer im
+        // Druck. Hinge die Zerlegung allein an der Nummer, würde die ganze Seite
+        // samt Fußzeile dem vorherigen Lied zugeschlagen (dessen Fußzeile dann
+        // doppelt erscheint) – und der Satzfehler bliebe unbemerkt.
+        const startsSong = !!numberItem || musicCount > 0;
+
+        if (startsSong) {
+            // Läuft der Strophenblock des vorherigen Liedes über, stehen seine
+            // restlichen Zeilen samt Fußzeile über dem Block des neuen Liedes –
+            // der rutscht dann nach unten (Seite 42: Nummer bei y=110 statt wie
+            // sonst bei y=49). Alles oberhalb des neuen Liedblocks gehört also
+            // noch zum vorherigen Lied; sonst fehlt dort das Strophenende samt
+            // Fußzeile, und das neue Lied bekommt fremden Text untergeschoben.
+            // Anker ist die Liednummer, ersatzweise (wenn sie fehlt) die
+            // Oberkante des Notensatzes.
+            const blockTop = numberItem ? numberItem.yTop : musicTop;
+            if (cur && blockTop != null && !cur.lines.some(isFooterLine)) {
+                const spill = lines.filter((l) => l.yTop < blockTop);
+                if (spill.length) {
+                    cur.pages.push(p);
+                    cur.lines.push(...spill); // Reihenfolge bleibt Lesereihenfolge
+                    lines = lines.filter((l) => l.yTop >= blockTop);
+                }
+            }
             cur = {
-                nummer: numberItem.str.trim(),
+                nummer: numberItem ? numberItem.str.trim() : null,
                 choralnummer: choralItem ? choralItem.str.trim() : '',
-                numberBox: { page: p, rect: bboxOfItems([numberItem]) },
+                numberBox: numberItem
+                    ? { page: p, rect: bboxOfItems([numberItem]) }
+                    : { page: p, rect: expectedNumberRect(p, width) },
                 choralBox: choralItem ? { page: p, rect: bboxOfItems([choralItem]) } : null,
                 pages: [p],
                 lines: [...lines],
             };
             songs.push(cur);
         } else if (cur) {
-            // Fortsetzungsseite eines mehrseitigen Liedes.
+            // Fortsetzungsseite eines mehrseitigen Liedes (kein Notensatz).
             cur.pages.push(p);
             cur.lines.push(...lines);
         } else {
@@ -346,9 +508,7 @@ export async function extractPdfSongs(pdfDoc) {
 
     // Pro Lied: Fußzeile abtrennen und Strophen zerlegen.
     for (const song of songs) {
-        const footerStart = song.lines.findIndex(
-            (l) => FOOTER_LABEL.test(l.text) || FOOTER_COPYRIGHT.test(l.text),
-        );
+        const footerStart = song.lines.findIndex(isFooterLine);
         // Fußzeile endet vor der nächsten Strophe („2. …") oder einer nackten
         // Zahl (angefangene Folgeliednummer) – verhindert, dass bei zwei Liedern
         // auf einer Seite die Fußzeile den Rest verschluckt.
@@ -373,7 +533,7 @@ export async function extractPdfSongs(pdfDoc) {
         delete song.lines;
     }
 
-    return { songs, pageCount, blankPages, introPages, pageSizes, warnings: [] };
+    return { songs, pageCount, blankPages, introPages, clipped, pageSizes, warnings: [] };
 }
 
 // --- Vergleich PDF ↔ DB ----------------------------------------------------
@@ -393,13 +553,22 @@ function deriveStatus(items, forced) {
 // Zusätzlich werden `forced`, `okSummary` und `problemSummary` mitgeführt, damit
 // applyAcks() den Status neu berechnen kann, wenn einzelne Items bestätigt
 // (ausgeblendet) werden.
-function makeCheck(id, category, title, description, items, { forceStatus, okSummary, problemSummary }) {
+function makeCheck(
+    id,
+    category,
+    title,
+    description,
+    items,
+    { forceStatus, okSummary, problemSummary },
+) {
     const forced = forceStatus || null;
     const status = deriveStatus(items, forced);
     const summary =
         status === 'ok'
             ? okSummary
-            : (problemSummary ? problemSummary(items) : `${items.length} Auffälligkeit(en)`);
+            : problemSummary
+              ? problemSummary(items)
+              : `${items.length} Auffälligkeit(en)`;
     return {
         id,
         category,
@@ -448,7 +617,9 @@ export function applyAcks(checks, isAcked) {
         const status = deriveStatus(active, c.forced);
         let summary;
         if (active.length) {
-            summary = c.problemSummary ? c.problemSummary(active) : `${active.length} Auffälligkeit(en)`;
+            summary = c.problemSummary
+                ? c.problemSummary(active)
+                : `${active.length} Auffälligkeit(en)`;
         } else {
             summary = `${acked.length} bestätigt · keine offenen Befunde`;
         }
@@ -465,7 +636,7 @@ const CAT_OVERVIEW = 'Übersicht';
 // Vergleicht das aus der PDF extrahierte Ergebnis mit den DB-Liedern und liefert
 // die flache Liste von Checks (nach Kategorie gruppiert die View selbst).
 export function comparePrintPdf(extracted, dbSongs) {
-    const { songs: pdfSongs, pageCount, blankPages, introPages } = extracted;
+    const { songs: pdfSongs, pageCount, blankPages, introPages, clipped = [] } = extracted;
 
     const byId = {};
     for (const l of dbSongs) byId[l.id] = l.liednummer2026;
@@ -493,6 +664,7 @@ export function comparePrintPdf(extracted, dbSongs) {
     const unknown = [];
     const duplicates = [];
     const order = [];
+    const songNumber = []; // Lieder, deren Liednummer im Druck fehlt
     const choral = [];
     const verseText = [];
     const verseCount = [];
@@ -517,9 +689,13 @@ export function comparePrintPdf(extracted, dbSongs) {
     }
 
     // PDF-Vorkommen nach Nummer gruppieren (Reihenfolge erhalten). Eine Nummer
-    // kann mehrere DB-Fassungen haben (z. B. deutsch + Übersetzung).
+    // kann mehrere DB-Fassungen haben (z. B. deutsch + Übersetzung). Lieder ohne
+    // gedruckte Nummer lassen sich so natürlich nicht zuordnen – die kommen
+    // weiter unten über den Text dran.
+    const numberless = pdfSongs.filter((ps) => !ps.nummer);
     const pdfByNum = new Map();
     for (const ps of pdfSongs) {
+        if (!ps.nummer) continue;
         const k = numKey(ps.nummer);
         if (!pdfByNum.has(k)) pdfByNum.set(k, []);
         pdfByNum.get(k).push(ps);
@@ -607,6 +783,62 @@ export function comparePrintPdf(extracted, dbSongs) {
                 loc: ps.numberBox,
             });
         }
+    }
+
+    // Lieder ohne gedruckte Liednummer (Seite 144). Ohne Nummer gibt es keinen
+    // Schlüssel zur DB – zugeordnet wird deshalb über den Text (Strophen bzw.
+    // Fußzeile). Klappt das, läuft das Lied ganz normal durch alle Prüfungen und
+    // taucht nicht zusätzlich als „fehlt im PDF" auf: ein Satzfehler, ein Befund.
+    for (const ps of numberless) {
+        const cands = [...genommenByNum.values()].flat().filter((l) => !matchedDbIds.has(l.id));
+        let best = null;
+        for (const lied of cands) {
+            const score = versionScore(ps, lied);
+            if (!best || score > best.score) best = { lied, score };
+        }
+        const page = ps.pages[0];
+        if (!best || best.score < 0.6) {
+            songNumber.push({
+                sev: 'error',
+                id: null,
+                nummer: null,
+                title: `Seite ${page}`,
+                detail: `Lied ohne Liednummer im Druck (Seite ${page}) – keiner DB-Fassung zuzuordnen`,
+                loc: ps.numberBox,
+            });
+            recognized.push({
+                nummer: '—',
+                choralnummer: ps.choralnummer,
+                title: '—',
+                pages: ps.pages,
+                loc: ps.numberBox,
+            });
+            continue;
+        }
+
+        const lied = best.lied;
+        matchedDbIds.add(lied.id);
+        songNumber.push({
+            sev: 'error',
+            id: lied.id,
+            nummer: resolveLiednummer2026(lied, byId),
+            title: lied.titel || `Seite ${page}`,
+            detail: `Liednummer fehlt im Druck (Seite ${page}) – erwartet: ${resolveLiednummer2026(lied, byId) || '—'}${lied.melodie?.choralbuchNummer ? ` (Choralbuchnummer ${lied.melodie.choralbuchNummer})` : ''}`,
+            loc: ps.numberBox,
+        });
+        recognized.push({
+            id: lied.id,
+            nummer: resolveLiednummer2026(lied, byId),
+            choralnummer: ps.choralnummer,
+            title: lied.titel,
+            pages: ps.pages,
+            loc: ps.numberBox,
+        });
+        // Choralbuchnummer NICHT prüfen: Sie fehlt zwangsläufig mit der Nummer –
+        // das steht schon im Befund oben und wäre nur ein zweiter für denselben
+        // Satzfehler. Strophen und Fußzeile werden ganz normal geprüft.
+        compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
+        compareFooter(ps, lied, { footer });
     }
 
     // Fehlende Lieder: genommen + Nummer, aber keine zugeordnete PDF-Fassung.
@@ -738,7 +970,7 @@ export function comparePrintPdf(extracted, dbSongs) {
             'verse-count',
             CAT_VERSE,
             'Strophen-Vollständigkeit',
-            'Anzahl und Nummerierung der Textstrophen müssen zur Datenbank passen (keine fehlenden, doppelten oder überzähligen Strophen).',
+            'Anzahl und Nummerierung der Textstrophen müssen zur Datenbank passen (keine fehlenden, doppelten oder überzähligen Strophen). Jede Textstrophe muss ihre hängende Nummer tragen, und die Nummern müssen im Satz aufsteigend und lückenlos stehen (2 → 3 → 4 …).',
             verseCount,
             {
                 okSummary: 'Strophen-Anzahl und -Nummerierung stimmen',
@@ -757,6 +989,51 @@ export function comparePrintPdf(extracted, dbSongs) {
             {
                 okSummary: 'Alle geprüften Fußzeilen stimmen überein',
                 problemSummary: (i) => `${i.length} abweichende Fußzeile(n)`,
+            },
+        ),
+    );
+
+    checks.push(
+        makeCheck(
+            'song-number',
+            CAT_COMPLETE,
+            'Liednummer im Druck',
+            'Jedes Lied muss seine Liednummer im Kopfsteg tragen. Erkannt wird ein Lied am Notensatz – fehlt dort die Nummer, ist das ein Satzfehler (und die Seite würde sonst dem Lied davor zugeschlagen).',
+            songNumber,
+            {
+                okSummary: 'Alle Lieder haben eine Liednummer',
+                problemSummary: (i) => `${i.length} Lied(er) ohne Liednummer`,
+            },
+        ),
+    );
+
+    // Text außerhalb der Seite. Meist harmlos (der platzierte Notensatz ist
+    // breiter als sein Rahmen und bringt seine eigenen Strophenzähler mit), aber
+    // eine aus dem Rahmen gelaufene Strophe sähe genauso aus – und die stünde
+    // dann nicht im gedruckten Buch. Deshalb sichtbar melden statt still
+    // verwerfen. Zuordnung zum Lied der Seite, damit der Befund in dessen Gruppe
+    // landet.
+    checks.push(
+        makeCheck(
+            'clipped',
+            CAT_COMPLETE,
+            'Text außerhalb des Druckbereichs',
+            'Text, der im PDF außerhalb der Seite liegt und deshalb nicht gedruckt wird (er wird auch nicht gegen die DB geprüft). Meist sind es die Strophenzähler des platzierten Notensatzes; es kann aber auch Text sein, der aus seinem Rahmen gelaufen und damit aus dem Druck gefallen ist.',
+            clipped.map((c) => {
+                const ps = pdfSongs.find((s) => s.pages.includes(c.page));
+                const rec = ps ? recognized.find((r) => r.nummer === ps.nummer) : null;
+                return {
+                    sev: 'warning',
+                    id: rec?.id ?? null,
+                    nummer: ps?.nummer,
+                    title: rec?.title || (ps ? `Lied ${ps.nummer}` : `Seite ${c.page}`),
+                    detail: `Seite ${c.page}: ${c.texts.map((t) => `„${trunc(t, 40)}"`).join(' ')} liegt außerhalb der Seite und wird nicht gedruckt`,
+                    loc: c.box,
+                };
+            }),
+            {
+                okSummary: 'Kein Text außerhalb des Druckbereichs',
+                problemSummary: (i) => `${i.length} Seite(n) mit Text außerhalb des Druckbereichs`,
             },
         ),
     );
@@ -820,14 +1097,16 @@ function assignVersions(occs, dbCands) {
 // Ähnlichkeit eines PDF-Vorkommens zu einer DB-Fassung – primär über die
 // Strophentexte, ersatzweise über die Fußzeile.
 function versionScore(ps, lied) {
-    const pdfV = canon(
-        ps.verses
-            .filter((v) => v.num != null)
-            .map((v) => v.text)
+    // Auch Strophen ohne gedruckte Nummer zählen mit – sonst stünde ein Lied,
+    // dessen Strophennummer im Satz fehlt, hier ohne Vergleichstext da.
+    const pdfV = canon(ps.verses.map((v) => v.text).join(' '));
+    const strophen = lied.text?.strophenEinzeln || [];
+    const dbV = canon(
+        strophen
+            .slice(1)
+            .map((s) => dbVerseText(s))
             .join(' '),
     );
-    const strophen = lied.text?.strophenEinzeln || [];
-    const dbV = canon(strophen.slice(1).map((s) => dbVerseText(s)).join(' '));
     if (pdfV && dbV) return similarity(pdfV, dbV);
     const fp = footerSignature(ps.footerText);
     const fe = footerSignature(buildFooter(lied));
@@ -850,32 +1129,230 @@ function compareChoral(ps, lied, { choral }) {
     };
     if (dbHas && pdfHas) {
         if (numKey(pdfChoral) === numKey(dbChoral)) return;
-        choral.push({ ...base, sev: 'error', detail: `Choralbuchnummer PDF ${pdfChoral} ≠ DB ${dbChoral}` });
+        choral.push({
+            ...base,
+            sev: 'error',
+            detail: `Choralbuchnummer PDF ${pdfChoral} ≠ DB ${dbChoral}`,
+        });
     } else if (pdfHas) {
-        choral.push({ ...base, sev: 'warning', detail: `PDF hat Choralbuchnummer ${pdfChoral}, DB hat keine` });
+        choral.push({
+            ...base,
+            sev: 'warning',
+            detail: `PDF hat Choralbuchnummer ${pdfChoral}, DB hat keine`,
+        });
     } else {
-        choral.push({ ...base, sev: 'warning', detail: `DB-Choralbuchnummer ${dbChoral} fehlt im PDF` });
+        choral.push({
+            ...base,
+            sev: 'warning',
+            detail: `DB-Choralbuchnummer ${dbChoral} fehlt im PDF`,
+        });
     }
+}
+
+// Einen Textblock ohne gedruckte Strophennummern den erwarteten DB-Strophen
+// zuordnen. Ohne Nummern fehlt die Trennung zwischen den Strophen – der Block
+// kann also mehrere Strophen am Stück enthalten (Lied 56). Deshalb wird er der
+// Reihe nach an den erwarteten DB-Strophen „abgeschnitten": passt der Anfang zur
+// nächsten erwarteten Strophe, wird er als diese Strophe übernommen und der Rest
+// weiter zerlegt.
+//
+// Ergebnis: [{ num, text, … }] oder null, wenn schon die erste Strophe nicht
+// passt (dann ist der Block nichts Zuordenbares und wird als solcher gemeldet).
+// Die Strophen bekommen `numInferred`, werden danach aber ganz normal gegen die
+// DB geprüft – eine fehlende Nummer soll keinen Textfehler verdecken.
+// Die DB-Strophe, der ein Textblock am ehesten entspricht (oder null).
+function bestVerseMatch(text, strophen) {
+    const a = canon(text);
+    let best = null;
+    for (let i = 0; i < strophen.length; i++) {
+        const sim = similarity(a, canon(dbVerseText(strophen[i])));
+        if (!best || sim > best.sim) best = { num: i + 1, sim };
+    }
+    return best && best.sim >= 0.6 ? best : null;
+}
+
+function alignStrophen(verse, expectedNums, strophen) {
+    // Geschnitten wird an den Zeilen des Blocks, nicht am Fließtext: Nur so
+    // bekommt jede Teil-Strophe ihre eigenen Zeilen und damit ihren eigenen
+    // Kasten im PDF. (Bei Lied 56 stehen die beiden Strophen sogar auf
+    // verschiedenen Seiten – ein gemeinsamer Kasten zeigte auf die falsche.)
+    const lines = verse.lines || [];
+    const texts = verse.textLines || [];
+    if (!lines.length || lines.length !== texts.length) return null;
+
+    const parts = [];
+    let i = 0;
+    for (const num of expectedNums) {
+        if (i >= lines.length) break;
+        const db = canon(dbVerseText(strophen[num - 1]));
+        if (!db) break;
+        // Zeilen aufnehmen, solange sie die Länge der DB-Strophe besser treffen.
+        const taken = [];
+        const takenTexts = [];
+        let text = '';
+        while (i < lines.length) {
+            const grown = joinDehyphen([...takenTexts, texts[i]]);
+            const better =
+                !taken.length ||
+                Math.abs(canon(grown).length - db.length) <=
+                    Math.abs(canon(text).length - db.length);
+            if (!better) break;
+            taken.push(lines[i]);
+            takenTexts.push(texts[i]);
+            text = grown;
+            i++;
+        }
+        if (similarity(canon(text), db) < 0.6) break;
+        parts.push({
+            num,
+            text,
+            lines: taken,
+            textLines: takenTexts,
+            box: boxOfLines(taken) || verse.box,
+            numInferred: true,
+        });
+    }
+    if (!parts.length) return null;
+
+    // Übrige Zeilen gehören zur letzten Strophe – eine Abweichung fällt dann im
+    // Textvergleich auf, statt hier stillschweigend zu verschwinden.
+    if (i < lines.length) {
+        const last = parts[parts.length - 1];
+        last.lines = [...last.lines, ...lines.slice(i)];
+        last.textLines = [...last.textLines, ...texts.slice(i)];
+        last.text = joinDehyphen(last.textLines);
+        last.box = boxOfLines(last.lines) || last.box;
+    }
+    return parts;
 }
 
 function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
     const strophen = lied.text?.strophenEinzeln || [];
     const N = strophen.length; // inkl. Strophe 1 (im Notensatz)
-    const numbered = ps.verses.filter((v) => v.num != null);
-    const stray = ps.verses.filter((v) => v.num == null);
     const title = lied.titel || `Lied ${ps.nummer}`;
-    // Kasten-Anker: die Box der genannten Strophe, sonst die Liednummer.
-    const boxFor = (num) => numbered.find((v) => v.num === num)?.box || ps.numberBox;
     const vc = (sev, detail, loc) =>
-        verseCount.push({ sev, id: lied.id, nummer: ps.nummer, title, detail, loc: loc || ps.numberBox });
+        verseCount.push({
+            sev,
+            id: lied.id,
+            nummer: ps.nummer,
+            title,
+            detail,
+            loc: loc || ps.numberBox,
+        });
 
-    if (stray.length) {
-        vc('warning', 'Text vor der ersten nummerierten Strophe (evtl. Strophe 1 als Text?)', stray[0].box);
+    // Strophen mit gedruckter Nummer …
+    const printed = ps.verses.filter((v) => v.num != null);
+
+    // … die vorher noch auf eine falsche Nummer geprüft werden. Trägt eine
+    // Strophe im Satz die falsche Nummer (Lied 24 druckt „1." über den Text von
+    // Strophe 2), ist das EIN Satzfehler – ohne diese Korrektur zerfällt er in
+    // drei Folgebefunde: der Text wird gegen die falsche DB-Strophe verglichen,
+    // die echte Nummer fehlt scheinbar („Lücke in der Nummerierung") und eine
+    // Strophe 1 steht scheinbar im Textblock. Maßgeblich ist der Text: Passt er
+    // eindeutig besser zu einer anderen DB-Strophe, ist die Nummer falsch.
+    for (const v of printed) {
+        const own =
+            v.num >= 1 && v.num <= N
+                ? similarity(canon(v.text), canon(dbVerseText(strophen[v.num - 1])))
+                : 0;
+        const hit = bestVerseMatch(v.text, strophen);
+        if (!hit || hit.num === v.num || hit.sim <= own + 0.15) continue;
+        // Nicht auf eine Nummer umbiegen, die eine andere Strophe zu Recht trägt.
+        const taken = printed.some(
+            (w) =>
+                w !== v &&
+                w.num === hit.num &&
+                similarity(canon(w.text), canon(dbVerseText(strophen[hit.num - 1]))) >= 0.8,
+        );
+        if (taken) continue;
+        vc(
+            'error',
+            `Strophe ${hit.num} ist im Satz als „${v.num}." nummeriert${v.num === 1 ? ' (Strophe 1 steht im Notensatz)' : ''}`,
+            v.box,
+        );
+        v.num = hit.num;
+        v.numFixed = true;
     }
 
+    // Die Nummern, die vor der ersten gedruckten stehen müssten (Strophe 1 steht
+    // im Notensatz). Genau diese Strophen kann ein Textblock ohne Nummer enthalten.
+    const firstPrinted = printed.length ? Math.min(...printed.map((v) => v.num)) : N + 1;
+    const expectedNums = [];
+    for (let k = 2; k < firstPrinted && k <= N; k++) expectedNums.push(k);
+
+    // Eine Textstrophe ohne Nummer ist ein Satzfehler (jede Strophe im Textblock
+    // muss ihre Nummer tragen). Lässt sie sich einer DB-Strophe zuordnen, wird
+    // sie danach trotzdem ganz normal mitgeprüft.
+    const verses = [];
+    for (const v of ps.verses) {
+        if (v.num != null) {
+            // Fehlt einer FOLGE-Strophe die Nummer, klebt ihr Text hinten an der
+            // Strophe davor (Lied 92: Strophe 4 hängt an der gedruckten „3."),
+            // denn splitVerses kann sie nicht von einer über die Seite laufenden
+            // Fortsetzung unterscheiden (Lied 29). Die DB kann es: Passt nur der
+            // Anfang zur eigenen Strophe und der Rest zur nächsten, sind es zwei
+            // – die zweite ohne Nummer. Ein Befund statt dreien (Textfehler +
+            // fehlende Strophe + Lücke).
+            const tail = [];
+            for (let k = v.num; k <= N; k++) tail.push(k);
+            const split = tail.length > 1 ? alignStrophen(v, tail, strophen) : null;
+            if (split && split.length > 1) {
+                split[0].numInferred = false; // deren Nummer steht ja im Satz
+                verses.push(split[0]);
+                for (const part of split.slice(1)) {
+                    vc(
+                        'error',
+                        `Strophennummer „${part.num}." fehlt im Satz vor „${trunc(part.text, 50)}" – Strophe ist unnummeriert gedruckt`,
+                        part.box,
+                    );
+                    verses.push(part);
+                }
+                continue;
+            }
+            verses.push(v);
+            continue;
+        }
+        const parts = expectedNums.length ? alignStrophen(v, expectedNums, strophen) : null;
+        if (!parts) {
+            // Nicht an der erwarteten Stelle zuzuordnen. Der Text verrät aber
+            // meist trotzdem, um welche Strophe es geht – das ist der Hinweis,
+            // den der Satz braucht (z. B. Strophe 2 ohne Nummer, während die
+            // folgende Strophe fälschlich die 2 trägt).
+            const hit = bestVerseMatch(v.text, strophen);
+            let hint = '– keiner DB-Strophe zuzuordnen';
+            if (hit && hit.num === 1) {
+                hint =
+                    '– entspricht DB-Strophe 1; die gehört in den Notensatz, nicht in den Textblock';
+            } else if (hit) {
+                hint = `– entspricht DB-Strophe ${hit.num}; Nummerierung im Satz prüfen`;
+            }
+            vc('error', `Textblock ohne Strophennummer: „${trunc(v.text, 60)}" ${hint}`, v.box);
+            verses.push(v);
+            continue;
+        }
+        for (const part of parts) {
+            vc(
+                'error',
+                `Strophennummer „${part.num}." fehlt im Satz vor „${trunc(part.text, 50)}" – Strophe ist unnummeriert gedruckt`,
+                part.box,
+            );
+            verses.push(part);
+        }
+    }
+    ps.verses = verses;
+
+    // Reihenfolge = Reihenfolge im Satz (inkl. der erschlossenen Nummern).
+    const numbered = verses.filter((v) => v.num != null);
+    // Kasten-Anker: die Box der genannten Strophe, sonst die Liednummer.
+    const boxFor = (num) => numbered.find((v) => v.num === num)?.box || ps.numberBox;
+
     if (!numbered.length) {
+        if (verses.length) return; // nicht zuordenbarer Textblock – schon gemeldet
         if (N > 2) {
-            vc('warning', `DB hat ${N} Strophen, aber im PDF keine Textstrophe gefunden – bitte prüfen`);
+            vc(
+                'warning',
+                `DB hat ${N} Strophen, aber im PDF keine Textstrophe gefunden – bitte prüfen`,
+            );
         } else {
             allUnderNotes.push({
                 id: lied.id,
@@ -892,8 +1369,35 @@ function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
     const minM = Math.min(...markers);
     const maxM = Math.max(...markers);
 
+    // Die Nummern müssen im Satz aufsteigend stehen (2 → 3 → 4 …), jede genau
+    // einmal und ohne Lücke dazwischen.
+    for (let i = 1; i < markers.length; i++) {
+        if (markers[i] < markers[i - 1]) {
+            vc(
+                'error',
+                `Strophen nicht aufsteigend nummeriert: Strophe ${markers[i]} steht im Satz nach Strophe ${markers[i - 1]}`,
+                boxFor(markers[i]),
+            );
+        }
+    }
+    const seen = new Map();
+    for (const m of markers) seen.set(m, (seen.get(m) || 0) + 1);
+    for (const [num, count] of seen) {
+        if (count > 1)
+            vc(
+                'error',
+                `Strophe ${num} kommt ${count}× vor (doppelte Strophennummer)`,
+                boxFor(num),
+            );
+    }
     for (let v = minM; v <= maxM; v++) {
-        if (!markers.includes(v)) vc('error', `Strophe ${v} fehlt (Lücke in der Nummerierung)`);
+        if (!seen.has(v)) {
+            vc(
+                'error',
+                `Strophe ${v} fehlt (Lücke in der Nummerierung ${minM}…${maxM})`,
+                boxFor(v - 1),
+            );
+        }
     }
     if (maxM < N) {
         vc(
@@ -906,7 +1410,11 @@ function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
     if (minM === 1) {
         vc('warning', 'Strophe 1 erscheint als Textblock (sollte im Notensatz stehen)', boxFor(1));
     } else if (minM > 3) {
-        vc('warning', `Text erst ab Strophe ${minM} – ungewöhnlich viele Strophen im Notensatz?`, boxFor(minM));
+        vc(
+            'warning',
+            `Text erst ab Strophe ${minM} – ungewöhnlich viele Strophen im Notensatz?`,
+            boxFor(minM),
+        );
     }
 
     // Text-Vergleich je Strophe.

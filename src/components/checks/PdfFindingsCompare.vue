@@ -29,6 +29,19 @@ const acks = useDruckCheckAcks();
 const showInfo = ref(false);
 const showAcked = ref(false);
 
+// Vollbild: Der Abgleich lebt vom Platz (links die Befunde, rechts die Seite).
+// Escape schließt wieder – die Tastenbindung hängt nur im Vollbild am Fenster.
+const fullscreen = ref(false);
+function onKeydown(e) {
+    if (e.key === 'Escape' && fullscreen.value) fullscreen.value = false;
+}
+function toggleFullscreen() {
+    fullscreen.value = !fullscreen.value;
+    // Breite/Maßstab neu messen, sobald das Layout steht (der ResizeObserver auf
+    // dem Scroller feuert dann ohnehin, aber der Connector soll sofort sitzen).
+    nextTick(scheduleConnector);
+}
+
 const findings = computed(() => {
     const out = [];
     for (const c of props.checks) {
@@ -72,6 +85,56 @@ const displayedFindings = computed(() =>
     showAcked.value ? [...visibleFindings.value, ...ackedFindings.value] : visibleFindings.value,
 );
 
+// Befunde eines Liedes gehören zusammen: ein falsch gesetzter Satz erzeugt oft
+// mehrere Befunde (Strophentext + Strophen-Vollständigkeit + Fußzeile). Sie
+// werden deshalb als ein Block gezeigt und lassen sich gemeinsam bestätigen.
+// Befunde ohne Lied (leere Seiten, Reihenfolge …) landen in einer eigenen Gruppe.
+const groups = computed(() => {
+    const map = new Map();
+    for (const f of visibleFindings.value) {
+        const key = f.id != null ? `id:${f.id}` : f.nummer != null ? `nr:${f.nummer}` : 'ohne';
+        let g = map.get(key);
+        if (!g) {
+            g = {
+                key,
+                id: f.id,
+                nummer: f.nummer,
+                title: '',
+                findings: [],
+                page: Infinity,
+                sev: f.sev,
+            };
+            map.set(key, g);
+        }
+        g.findings.push(f);
+        // Liedtitel steht in den Befunden, die nicht auf eine Strophe zeigen
+        // („Lied 24 · Strophe 3" ist kein Titel).
+        if (!g.title && f.title && !/^Lied\s+\S+\s+·/.test(f.title)) g.title = f.title;
+        if ((SEV[f.sev]?.rank ?? 9) < (SEV[g.sev]?.rank ?? 9)) g.sev = f.sev;
+        g.page = Math.min(g.page, f.loc?.page ?? Infinity);
+    }
+    return [...map.values()].sort(
+        (a, b) => a.page - b.page || (SEV[a.sev]?.rank ?? 9) - (SEV[b.sev]?.rank ?? 9),
+    );
+});
+
+const collapsed = ref(new Set());
+function toggleGroup(g) {
+    const next = new Set(collapsed.value);
+    if (next.has(g.key)) next.delete(g.key);
+    else next.add(g.key);
+    collapsed.value = next;
+    nextTick(scheduleConnector);
+}
+function ackGroup(g) {
+    acks.setAcked(
+        g.findings.map((f) => f.fp),
+        true,
+    );
+    if (g.findings.some((f) => f.key === selectedKey.value)) selectedKey.value = null;
+    nextTick(scheduleConnector);
+}
+
 function isCompare(f) {
     return f && (f.pdf != null || f.expected != null);
 }
@@ -104,7 +167,9 @@ function unackFinding(f) {
 }
 
 const selectedKey = ref(null);
-const selectedFinding = computed(() => findings.value.find((f) => f.key === selectedKey.value) || null);
+const selectedFinding = computed(
+    () => findings.value.find((f) => f.key === selectedKey.value) || null,
+);
 
 // --- Seiten / Maßstab ------------------------------------------------------
 const pages = computed(() => Array.from({ length: props.pageCount }, (_, i) => i + 1));
@@ -300,6 +365,7 @@ onMounted(() => {
     scrollEl.value?.addEventListener('scroll', scheduleConnector, { passive: true });
     findingsEl.value?.addEventListener('scroll', scheduleConnector, { passive: true });
     window.addEventListener('resize', scheduleConnector);
+    window.addEventListener('keydown', onKeydown);
 
     nextTick(() => {
         updatePaneWidth();
@@ -319,12 +385,13 @@ onBeforeUnmount(() => {
     scrollEl.value?.removeEventListener('scroll', scheduleConnector);
     findingsEl.value?.removeEventListener('scroll', scheduleConnector);
     window.removeEventListener('resize', scheduleConnector);
+    window.removeEventListener('keydown', onKeydown);
     if (rafId) cancelAnimationFrame(rafId);
 });
 </script>
 
 <template>
-    <div ref="compareEl" class="compare">
+    <div ref="compareEl" class="compare" :class="{ 'compare--fullscreen': fullscreen }">
         <!-- Linke Spalte: Befunde -->
         <div ref="findingsEl" class="findings">
             <div class="findings-toolbar">
@@ -335,77 +402,118 @@ onBeforeUnmount(() => {
                     hide-details
                     density="compact"
                 />
+                <v-spacer />
+                <v-btn
+                    :icon="fullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
+                    size="small"
+                    variant="text"
+                    :title="fullscreen ? 'Vollbild verlassen (Esc)' : 'Vollbild'"
+                    @click="toggleFullscreen"
+                />
             </div>
-            <div
-                v-for="f in visibleFindings"
-                :key="f.key"
-                class="finding-row"
-                :class="{ selected: f.key === selectedKey }"
-                :style="{ '--sev': SEV[f.sev]?.stroke }"
-                @click="select(f)"
-            >
-                <v-icon size="small" :color="SEV[f.sev]?.stroke">{{ SEV[f.sev]?.icon }}</v-icon>
-                <div class="finding-body">
-                    <div class="finding-title">
-                        <v-chip v-if="f.nummer" size="x-small" color="primary" variant="tonal">
-                            {{ f.nummer }}
-                        </v-chip>
-                        {{ f.checkTitle }}
-                    </div>
-                    <div class="finding-sub">{{ f.title }}</div>
-
-                    <!-- Vergleichs-Befund (Fußzeile / Strophe): PDF vs. Erwartet als
-                         Blöcke mit farbig markierten Wort-Unterschieden. -->
-                    <template v-if="f.key === selectedKey && isCompare(f)">
-                        <div class="diff-block">
-                            <div class="diff-label">PDF (aus Druck)</div>
-                            <div class="diff-text">
-                                <span
-                                    v-for="(seg, i) in diffOf(f).left"
-                                    :key="i"
-                                    :class="{ 'diff-del': seg.changed && seg.text.trim() }"
-                                >{{ seg.text }}</span>
-                            </div>
-                        </div>
-                        <div class="diff-block">
-                            <div class="diff-label">Erwartet (aus DB)</div>
-                            <div class="diff-text">
-                                <span
-                                    v-for="(seg, i) in diffOf(f).right"
-                                    :key="i"
-                                    :class="{ 'diff-add': seg.changed && seg.text.trim() }"
-                                >{{ seg.text }}</span>
-                            </div>
-                        </div>
-                    </template>
-                    <div
-                        v-else-if="f.detail"
-                        class="finding-detail"
-                        :class="{ 'finding-detail--full': f.key === selectedKey }"
-                    >
-                        {{ f.key === selectedKey ? fullDetail(f) : rowDetail(f) }}
-                    </div>
-
-                    <div class="finding-meta">
-                        <span v-if="f.loc">Seite {{ f.loc.page }}</span>
-                    </div>
-                </div>
-                <div class="finding-actions">
+            <div v-for="g in groups" :key="g.key" class="finding-group">
+                <!-- Kopfzeile eines Liedes: alle seine Befunde auf einen Blick,
+                     mit „alles bestätigen" für den ganzen Block. -->
+                <div class="group-header" @click="toggleGroup(g)">
+                    <v-icon size="small">
+                        {{ collapsed.has(g.key) ? 'mdi-chevron-right' : 'mdi-chevron-down' }}
+                    </v-icon>
+                    <v-icon size="small" :color="SEV[g.sev]?.stroke">{{ SEV[g.sev]?.icon }}</v-icon>
+                    <v-chip v-if="g.nummer" size="x-small" color="primary" variant="tonal">
+                        {{ g.nummer }}
+                    </v-chip>
+                    <span class="group-title">{{ g.title || 'Ohne Lied' }}</span>
+                    <span class="group-count">
+                        {{ g.findings.length }}
+                        {{ g.findings.length === 1 ? 'Befund' : 'Befunde' }} · Seite {{ g.page }}
+                    </span>
                     <v-btn
-                        icon="mdi-check-circle-outline"
+                        icon="mdi-check-all"
                         size="x-small"
                         variant="text"
-                        title="Als geprüft / gewollt bestätigen und ausblenden"
-                        @click.stop="ackFinding(f)"
+                        :title="
+                            g.findings.length === 1
+                                ? 'Befund bestätigen und ausblenden'
+                                : 'Alle Befunde dieses Liedes bestätigen und ausblenden'
+                        "
+                        @click.stop="ackGroup(g)"
                     />
                     <v-btn
-                        v-if="f.id != null"
+                        v-if="g.id != null"
                         icon="mdi-open-in-app"
                         size="x-small"
                         variant="text"
-                        @click.stop="emit('open-song', f.id)"
+                        title="Lied öffnen"
+                        @click.stop="emit('open-song', g.id)"
                     />
                 </div>
+
+                <template v-if="!collapsed.has(g.key)">
+                    <div
+                        v-for="f in g.findings"
+                        :key="f.key"
+                        class="finding-row"
+                        :class="{ selected: f.key === selectedKey }"
+                        :style="{ '--sev': SEV[f.sev]?.stroke }"
+                        @click="select(f)"
+                    >
+                        <v-icon size="small" :color="SEV[f.sev]?.stroke">{{
+                            SEV[f.sev]?.icon
+                        }}</v-icon>
+                        <div class="finding-body">
+                            <div class="finding-title">{{ f.checkTitle }}</div>
+                            <div class="finding-sub">{{ f.title }}</div>
+
+                            <!-- Vergleichs-Befund (Fußzeile / Strophe): PDF vs. Erwartet als
+                         Blöcke mit farbig markierten Wort-Unterschieden. -->
+                            <template v-if="f.key === selectedKey && isCompare(f)">
+                                <div class="diff-block">
+                                    <div class="diff-label">PDF (aus Druck)</div>
+                                    <div class="diff-text">
+                                        <span
+                                            v-for="(seg, i) in diffOf(f).left"
+                                            :key="i"
+                                            :class="{ 'diff-del': seg.changed && seg.text.trim() }"
+                                            >{{ seg.text }}</span
+                                        >
+                                    </div>
+                                </div>
+                                <div class="diff-block">
+                                    <div class="diff-label">Erwartet (aus DB)</div>
+                                    <div class="diff-text">
+                                        <span
+                                            v-for="(seg, i) in diffOf(f).right"
+                                            :key="i"
+                                            :class="{ 'diff-add': seg.changed && seg.text.trim() }"
+                                            >{{ seg.text }}</span
+                                        >
+                                    </div>
+                                </div>
+                            </template>
+                            <div
+                                v-else-if="f.detail"
+                                class="finding-detail"
+                                :class="{ 'finding-detail--full': f.key === selectedKey }"
+                            >
+                                {{ f.key === selectedKey ? fullDetail(f) : rowDetail(f) }}
+                            </div>
+
+                            <div class="finding-meta">
+                                <span v-if="f.loc">Seite {{ f.loc.page }}</span>
+                            </div>
+                        </div>
+                        <div class="finding-actions">
+                            <!-- Lied öffnen sitzt in der Gruppen-Kopfzeile. -->
+                            <v-btn
+                                icon="mdi-check-circle-outline"
+                                size="x-small"
+                                variant="text"
+                                title="Nur diesen Befund bestätigen und ausblenden"
+                                @click.stop="ackFinding(f)"
+                            />
+                        </div>
+                    </div>
+                </template>
             </div>
             <div v-if="!visibleFindings.length" class="pa-4 text-medium-emphasis text-center">
                 Keine offenen Befunde in dieser Ansicht.
@@ -431,7 +539,12 @@ onBeforeUnmount(() => {
                         <v-icon size="small" color="success">mdi-check-circle</v-icon>
                         <div class="finding-body">
                             <div class="finding-title">
-                                <v-chip v-if="f.nummer" size="x-small" color="primary" variant="tonal">
+                                <v-chip
+                                    v-if="f.nummer"
+                                    size="x-small"
+                                    color="primary"
+                                    variant="tonal"
+                                >
                                     {{ f.nummer }}
                                 </v-chip>
                                 {{ f.checkTitle }}
@@ -460,7 +573,10 @@ onBeforeUnmount(() => {
                 :key="p"
                 :ref="(el) => setSlot(el, p)"
                 class="page-slot"
-                :style="{ width: pageSize(p).width * scale + 'px', height: pageSize(p).height * scale + 'px' }"
+                :style="{
+                    width: pageSize(p).width * scale + 'px',
+                    height: pageSize(p).height * scale + 'px',
+                }"
             >
                 <canvas :ref="(el) => setCanvas(el, p)" class="page-canvas" />
                 <svg
@@ -495,8 +611,18 @@ onBeforeUnmount(() => {
                 :stroke="SEV[selectedFinding?.sev]?.stroke || '#888'"
                 stroke-width="2"
             />
-            <circle :cx="connector.x1" :cy="connector.y1" r="3.5" :fill="SEV[selectedFinding?.sev]?.stroke" />
-            <circle :cx="connector.x2" :cy="connector.y2" r="3.5" :fill="SEV[selectedFinding?.sev]?.stroke" />
+            <circle
+                :cx="connector.x1"
+                :cy="connector.y1"
+                r="3.5"
+                :fill="SEV[selectedFinding?.sev]?.stroke"
+            />
+            <circle
+                :cx="connector.x2"
+                :cy="connector.y2"
+                r="3.5"
+                :fill="SEV[selectedFinding?.sev]?.stroke"
+            />
         </svg>
     </div>
 </template>
@@ -509,20 +635,76 @@ onBeforeUnmount(() => {
     height: 80vh;
     min-height: 480px;
 }
+/* Vollbild: unter den Vuetify-Dialogen (2400), über dem Rest der Seite. */
+.compare--fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    height: 100vh;
+    min-height: 0;
+    padding: 12px;
+    background: rgb(var(--v-theme-background));
+}
+.compare--fullscreen .findings {
+    max-width: 560px;
+}
 .findings {
     flex: 0 0 40%;
     max-width: 460px;
     overflow-y: auto;
     border: 1px solid rgba(var(--v-border-color), 0.3);
     border-radius: 8px;
+    background: rgb(var(--v-theme-surface));
 }
 .findings-toolbar {
     position: sticky;
     top: 0;
     z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 4px 12px;
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+}
+/* Ein Lied = ein Block: Kopfzeile mit Nummer/Titel, darunter seine Befunde. */
+.finding-group {
+    border-bottom: 1px solid rgba(var(--v-border-color), 0.35);
+}
+.group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(var(--v-theme-on-surface), 0.04);
+    cursor: pointer;
+    user-select: none;
+}
+.group-header:hover {
+    background: rgba(var(--v-theme-primary), 0.07);
+}
+/* Die Liednummer darf nicht schrumpfen – sonst läuft sie aus ihrem Chip heraus.
+   Gekürzt wird stattdessen der Titel (er ist das einzige elastische Element). */
+.group-header .v-chip {
+    flex: 0 0 auto;
+}
+.group-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.86rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.group-count {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    color: rgba(var(--v-theme-on-surface), 0.5);
+    white-space: nowrap;
+}
+.finding-group .finding-row {
+    padding-left: 22px;
 }
 .finding-row {
     display: flex;
@@ -550,6 +732,9 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 6px;
+}
+.finding-title .v-chip {
+    flex: 0 0 auto;
 }
 .finding-sub {
     font-size: 0.8rem;
