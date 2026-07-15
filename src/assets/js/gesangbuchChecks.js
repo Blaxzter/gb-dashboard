@@ -874,6 +874,32 @@ export const CHECKS = [
         },
     },
     {
+        id: 'text-melodie-ohne-autor',
+        category: 'Redaktion',
+        title: 'Text und Melodie haben mindestens einen Autor',
+        description:
+            'Jedes genommene Lied soll sowohl beim Text als auch bei der Melodie mindestens einen Autor hinterlegt haben. Anders als der Check „Autor oder Copyright vorhanden“ (der ein Copyright genügen lässt) verlangt diese Prüfung je Seite einen echten Autoreneintrag. Gemeldet werden genommene Lieder, deren Autorenliste beim Text und/oder der Melodie leer ist (Issue #72).',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const fehlend = [];
+                if (!l.text?.authors?.length) fehlend.push('Text');
+                if (!l.melodie?.authors?.length) fehlend.push('Melodie');
+                if (fehlend.length) {
+                    items.push(songItem(l, `Kein Autor bei: ${fehlend.join(' & ')}`));
+                }
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Text und Melodie aller genommenen Lieder haben mindestens einen Autor.'
+                    : `${items.length} genommene(s) Lied(er) ohne Autor bei Text und/oder Melodie.`,
+                items,
+            );
+        },
+    },
+    {
         id: 'autoren-nicht-veroeffentlicht',
         category: 'Redaktion',
         title: 'Autoren sind „Veröffentlicht“',
