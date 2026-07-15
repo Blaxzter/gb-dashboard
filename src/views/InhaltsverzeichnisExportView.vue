@@ -14,7 +14,7 @@ import { isGenommen } from '@/assets/js/gesangbuchChecks';
 // (gesangbuchlied -> kategories) gearbeitet.
 
 const store = useAppStore();
-const { gesangbuchlieder, kategorie_inhaltsverzeichnisse } = storeToRefs(store);
+const { gesangbuchlieder, kategorie_inhaltsverzeichnisse, melodies } = storeToRefs(store);
 
 // „Bewertet und genommen" = status === 'accepted' (Issue #51). Es wird bewusst
 // nach dem Status gefiltert und nicht mehr nach der Kleiner-Kreis-Bewertung
@@ -158,6 +158,29 @@ const byNummer = (a, b) => {
 
 // 1. Nach Liednummer 2026 (= alphabetische Titel-Reihenfolge des Gesangbuchs).
 const alphabetical = computed(() => [...songs.value].sort(byNummer));
+
+// --- Nach Choralbuchnummer (Issue #73) ------------------------------------
+// Melodie-basiertes Inhaltsverzeichnis: alle Melodien mit einer
+// Choralbuchnummer, aufsteigend nach Nummer sortiert, mit Melodie-Titel.
+// Die Choralbuchnummer wird nur an Melodien vergeben, die von mindestens
+// einem „Bewertet und genommen"-Lied verwendet werden (siehe
+// Nummerngenerierung). Diese Liste ist bewusst unabhängig von den Lied-Filtern
+// oben und dient als Arbeitsmaterial zum schnellen Recherchieren und Abgleichen.
+// Die Objekte tragen absichtlich die Felder `nummer`/`titel`, damit die
+// Spalten-Copy-Helfer (copyNummernSpalte/copyTitelSpalte) direkt greifen.
+function choralbuchNummerOf(mel) {
+    const raw = mel?.choralbuchNummer;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+    return Number.isNaN(n) ? null : n;
+}
+
+const choralbuch = computed(() =>
+    melodies.value
+        .map((m) => ({ id: m.id, nummer: choralbuchNummerOf(m), titel: (m.titel || '').trim() }))
+        .filter((m) => m.nummer != null)
+        .sort((a, b) => a.nummer - b.nummer || byTitelCompare(a, b)),
+);
 
 // 2. Nach Kategorien, darin nach Liednummer 2026 (Titel-Reihenfolge). Ein Lied
 // erscheint unter jeder seiner Kategorien; Lieder ohne Kategorie unter
@@ -450,6 +473,19 @@ function copyAlphabetical() {
     copyToClipboard(text);
 }
 
+// --- Nach Choralbuchnummer (Issue #73) ------------------------------------
+function downloadChoralbuch() {
+    const rows = choralbuch.value.map((m) => [m.nummer, m.titel]);
+    download(
+        'inhaltsverzeichnis_choralbuchnummern.csv',
+        buildCsv(['choralbuch_nr', 'melodie_titel'], rows),
+    );
+}
+function copyChoralbuch() {
+    const text = choralbuch.value.map((m) => `${m.nummer}\t${m.titel}`).join('\n');
+    copyToClipboard(text);
+}
+
 // --- Nach Kategorien ------------------------------------------------------
 function downloadByCategory() {
     const rows = [];
@@ -548,9 +584,9 @@ function copyByTocCategory() {
     </div>
     <p class="text-body-2 text-medium-emphasis mb-4" style="max-width: 820px">
         Separater Export des Inhaltsverzeichnisses zum Importieren oder Kopieren – alphabetisch nach
-        Titel, nach den bestehenden Kategorien sowie nach den reduzierten
-        Inhaltsverzeichnis-Kategorien (Spalte E). Die CSV-Datei eignet sich zum Import, die
-        Schaltfläche „In Zwischenablage kopieren“ liefert eine direkt einfügbare
+        Titel, nach den bestehenden Kategorien, nach Choralbuchnummer (Melodien) sowie nach den
+        reduzierten Inhaltsverzeichnis-Kategorien (Spalte E). Die CSV-Datei eignet sich zum Import,
+        die Schaltfläche „In Zwischenablage kopieren“ liefert eine direkt einfügbare
         (Tabulator-getrennte) Fassung. Für den zweispaltigen Satz in InDesign gibt es zusätzlich je
         einen Copy-Button „Nummern“ und „Titel“, der nur die jeweilige Spalte (ein Wert pro Zeile)
         kopiert – bei den Kategorie-Ansichten pro Kategorie.
@@ -732,7 +768,90 @@ function copyByTocCategory() {
         </v-col>
     </v-row>
 
-    <!-- 3. Nach Inhaltsverzeichnis-Kategorien (Issue #53) -->
+    <!-- 3. Nach Choralbuchnummer (Melodien, Issue #73) -->
+    <v-row>
+        <v-col cols="12">
+            <v-card>
+                <v-card-title class="d-flex align-center ga-2">
+                    <v-icon>mdi-music-clef-treble</v-icon>
+                    Nach Choralbuchnummer (Melodien)
+                    <v-chip size="small" variant="tonal" class="ms-1">
+                        {{ choralbuch.length }} Melodien
+                    </v-chip>
+                </v-card-title>
+                <v-card-text>
+                    <div class="d-flex flex-wrap ga-2 mb-3">
+                        <v-btn
+                            color="primary"
+                            prepend-icon="mdi-download"
+                            :disabled="choralbuch.length === 0"
+                            @click="downloadChoralbuch"
+                        >
+                            CSV herunterladen
+                        </v-btn>
+                        <v-btn
+                            variant="tonal"
+                            prepend-icon="mdi-content-copy"
+                            :disabled="choralbuch.length === 0"
+                            @click="copyChoralbuch"
+                        >
+                            In Zwischenablage kopieren
+                        </v-btn>
+                    </div>
+                    <div class="d-flex flex-wrap align-center ga-2 mb-3">
+                        <span class="text-caption text-medium-emphasis">Spalten für InDesign:</span>
+                        <v-btn
+                            size="small"
+                            variant="tonal"
+                            prepend-icon="mdi-content-copy"
+                            :disabled="choralbuch.length === 0"
+                            @click="copyNummernSpalte(choralbuch)"
+                        >
+                            Nummern
+                        </v-btn>
+                        <v-btn
+                            size="small"
+                            variant="tonal"
+                            prepend-icon="mdi-content-copy"
+                            :disabled="choralbuch.length === 0"
+                            @click="copyTitelSpalte(choralbuch)"
+                        >
+                            Titel
+                        </v-btn>
+                    </div>
+                    <p class="text-caption text-medium-emphasis mb-2">
+                        Alle Melodien mit einer Choralbuchnummer, aufsteigend nach Nummer sortiert.
+                        Die Choralbuchnummer wird an Melodien vergeben, die von mindestens einem
+                        „Bewertet und genommen“-Lied verwendet werden – die Lied-Filter oben wirken
+                        sich hier nicht aus.
+                    </p>
+                    <div class="toc-preview">
+                        <v-table density="compact" hover>
+                            <thead>
+                                <tr>
+                                    <th style="width: 120px">Choralbuch-Nr.</th>
+                                    <th>Melodie-Titel</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="m in choralbuch" :key="m.id">
+                                    <td class="text-medium-emphasis">{{ m.nummer }}</td>
+                                    <td>{{ m.titel || '–' }}</td>
+                                </tr>
+                                <tr v-if="choralbuch.length === 0">
+                                    <td colspan="2" class="text-center text-medium-emphasis py-4">
+                                        Keine Melodien mit Choralbuchnummer.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </v-table>
+                    </div>
+                </v-card-text>
+            </v-card>
+        </v-col>
+    </v-row>
+
+    <!-- 4. Nach Inhaltsverzeichnis-Kategorien (Issue #53) -->
     <v-row>
         <v-col cols="12">
             <v-card>
