@@ -9,6 +9,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { diffTokens } from '@/assets/js/textDiff.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
+import NotenCompareDialog from '@/components/checks/NotenCompareDialog.vue';
 
 const props = defineProps({
     pdfDoc: { type: Object, default: null },
@@ -64,6 +65,14 @@ const findings = computed(() => {
                 nummer: it.nummer,
                 id: it.id,
                 loc: it.loc || null,
+                // Einzelne Fundstellen (z. B. je abweichendes Notenzeichen) – im
+                // Overlay als kleine Kästen, der Verbindungspunkt bleibt `loc`.
+                locs: it.locs || null,
+                // Dieselben Fundstellen in DB-Koordinaten – fürs Overlay auf der
+                // Original-Seite im Vergleichs-Dialog.
+                originalLocs: it.originalLocs || null,
+                // Datei-Id der DB-Notensatz-PDF für den Vergleichs-Dialog.
+                notentextId: it.notentextId || null,
             });
         }
     }
@@ -183,8 +192,34 @@ const refWidth = computed(() => {
 });
 const paneWidth = ref(600);
 const scale = computed(() => Math.max(0.2, (paneWidth.value - 28) / refWidth.value));
+// Kästen einer Seite: hat ein Befund Einzel-Fundstellen (`locs`), werden die
+// gezeigt (z. B. je abweichendes Notenzeichen ein Kasten) – sonst der eine
+// `loc`-Kasten. So markiert das Overlay die genauen Stellen statt eines großen
+// Rahmens; die Verbindungslinie hängt weiter an `loc`.
 function boxesForPage(p) {
-    return displayedFindings.value.filter((f) => f.loc && f.loc.page === p);
+    const out = [];
+    for (const f of displayedFindings.value) {
+        if (f.locs && f.locs.length) {
+            for (let i = 0; i < f.locs.length; i++) {
+                const l = f.locs[i];
+                if (l.page === p) out.push({ boxKey: `${f.key}#${i}`, f, rect: l.rect });
+            }
+        } else if (f.loc && f.loc.page === p) {
+            out.push({ boxKey: `${f.key}#loc`, f, rect: f.loc.rect });
+        }
+    }
+    return out;
+}
+
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+// Vergleichs-Dialog: Druck-Seite und Original-Notensatz nebeneinander, beide mit
+// den markierten Fundstellen.
+const compareOpen = ref(false);
+const compareFinding = ref(null);
+function openOriginal(f) {
+    if (!f.notentextId) return;
+    compareFinding.value = f;
+    compareOpen.value = true;
 }
 
 // --- DOM-Refs & Rendering --------------------------------------------------
@@ -505,6 +540,14 @@ onBeforeUnmount(() => {
                         <div class="finding-actions">
                             <!-- Lied öffnen sitzt in der Gruppen-Kopfzeile. -->
                             <v-btn
+                                v-if="f.notentextId"
+                                icon="mdi-compare"
+                                size="x-small"
+                                variant="text"
+                                title="Vergleich öffnen: Druck und Original nebeneinander"
+                                @click.stop="openOriginal(f)"
+                            />
+                            <v-btn
                                 icon="mdi-check-circle-outline"
                                 size="x-small"
                                 variant="text"
@@ -585,17 +628,17 @@ onBeforeUnmount(() => {
                     preserveAspectRatio="none"
                 >
                     <rect
-                        v-for="f in boxesForPage(p)"
-                        :key="f.key"
-                        :x="f.loc.rect.x"
-                        :y="f.loc.rect.y"
-                        :width="f.loc.rect.w"
-                        :height="f.loc.rect.h"
-                        :fill="f.key === selectedKey ? SEV[f.sev]?.color : 'transparent'"
-                        :stroke="SEV[f.sev]?.stroke"
-                        :stroke-width="f.key === selectedKey ? 1.6 : 0.7"
-                        :stroke-dasharray="f.key === selectedKey ? '0' : '2 2'"
-                        :opacity="f.key === selectedKey ? 1 : 0.5"
+                        v-for="b in boxesForPage(p)"
+                        :key="b.boxKey"
+                        :x="b.rect.x"
+                        :y="b.rect.y"
+                        :width="b.rect.w"
+                        :height="b.rect.h"
+                        :fill="b.f.key === selectedKey ? SEV[b.f.sev]?.color : 'transparent'"
+                        :stroke="SEV[b.f.sev]?.stroke"
+                        :stroke-width="b.f.key === selectedKey ? 1.6 : 0.7"
+                        :stroke-dasharray="b.f.key === selectedKey ? '0' : '2 2'"
+                        :opacity="b.f.key === selectedKey ? 1 : 0.5"
                         rx="1.5"
                     />
                 </svg>
@@ -624,6 +667,13 @@ onBeforeUnmount(() => {
                 :fill="SEV[selectedFinding?.sev]?.stroke"
             />
         </svg>
+
+        <NotenCompareDialog
+            v-model="compareOpen"
+            :finding="compareFinding"
+            :print-doc="pdfDoc"
+            :backend-url="backendUrl"
+        />
     </div>
 </template>
 

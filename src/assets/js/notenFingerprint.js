@@ -148,6 +148,49 @@ export function groupMusicPlacements(musicItems, width, height) {
 
 // --- Vergleich Druck ↔ DB --------------------------------------------------
 
+// Ab dieser Glyphen-Ähnlichkeit gilt der Druck als DIESELBE Gravur wie die
+// DB-Datei (nur mit ein paar abweichenden Zeichen). Getrennt wird damit sauber:
+// dieselbe Gravur liegt ≥ 0.90, eine ganz andere Datei bei ~0.75.
+export const SEQ_MATCH_MIN = 0.85;
+// Ein echter Anfang (abgeschnittener Notensatz): der Druck trifft den DB-Anfang
+// so gut, und hinten fehlen mindestens so viele Glyphen. Der Mindestschwanz
+// verhindert, dass ein einzelnes fehlendes Zeichen als „zweite Seite fehlt" gilt.
+const PREFIX_HEAD_MIN = 0.9;
+const PREFIX_MIN_TAIL = 8;
+
+// Levenshtein-Distanz (begrenzte Länge – Notensätze haben ~30–220 Glyphen).
+function levenshtein(a, b) {
+    const m = a.length;
+    const n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, i) => i);
+    let cur = new Array(n + 1);
+    for (let i = 1; i <= m; i++) {
+        cur[0] = i;
+        for (let j = 1; j <= n; j++) {
+            cur[j] = Math.min(
+                prev[j] + 1,
+                cur[j - 1] + 1,
+                prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+            );
+        }
+        [prev, cur] = [cur, prev];
+    }
+    return prev[n];
+}
+
+export function seqSimilarity(a, b) {
+    if (!a && !b) return 1;
+    return 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1);
+}
+
+function percentile(nums, p) {
+    if (!nums.length) return 0;
+    const s = [...nums].sort((a, b) => a - b);
+    return s[Math.min(s.length - 1, Math.floor(p * s.length))];
+}
+
 // Eine Platzierung gegen eine Fingerabdruck-Seite halten.
 //
 // Verglichen werden Item-ANFÄNGE: Item i der Platzierung beginnt bei Glyphe
@@ -156,44 +199,139 @@ export function groupMusicPlacements(musicItems, width, height) {
 //
 // Ergebnis:
 //   match: 'exact'  – Folge identisch
-//          'prefix' – Druck ist ein echter Anfang der DB-Datei: hinten fehlt
-//                     etwas (abgeschnittener Notensatz)
+//          'fuzzy'  – dieselbe Gravur, aber einzelne Glyphen weichen ab
+//                     (im Satz ersetztes/fehlendes Zeichen, z. B. eine Pause)
+//          'prefix' – Druck ist ein echter Anfang der DB-Datei: hinten fehlt ein
+//                     System (abgeschnittener Notensatz)
 //          'none'   – andere Datei
-//   dx/dy/residual – Verschiebung und größte Abweichung davon (in pt)
-//   missing        – Anzahl der im Druck fehlenden Glyphen (nur bei 'prefix')
+//   dx/dy    – Verschiebung (Median)
+//   residual – 75. Perzentil der Abweichung von der Verschiebung. Perzentil statt
+//              Maximum: ein paar ersetzte Glyphen sollen die Geometrie nicht
+//              sprengen (sonst sähe die richtige Fassung „verschoben" aus).
+//   sim/edits – Glyphen-Ähnlichkeit bzw. -Distanz zur DB-Datei
+//   missing   – Anzahl im Druck fehlender Glyphen (nur bei 'prefix')
 export function alignPlacement(placement, fpPage) {
     const ps = placement.seq;
     const ds = fpPage?.seq || '';
-    if (!ps || !ds) return { match: 'none', residual: Infinity, missing: 0 };
-
-    let match = 'none';
-    if (ps === ds) match = 'exact';
-    else if (ds.length > ps.length && ds.startsWith(ps)) match = 'prefix';
-    else return { match: 'none', residual: Infinity, missing: 0 };
+    if (!ps || !ds) return { match: 'none', residual: Infinity, missing: 0, sim: 0, edits: 0 };
 
     const dxs = [];
     const dys = [];
     for (const it of placement.items) {
+        if (it.off >= fpPage.x.length) continue;
         dxs.push(it.x - fpPage.x[it.off]);
         dys.push(it.yTop - fpPage.y[it.off]);
     }
-    // Median statt Mittelwert: ein einzelner Ausreißer soll die Verschiebung
-    // nicht verziehen, sondern als Abweichung sichtbar werden.
     const dx = median(dxs);
     const dy = median(dys);
-    let residual = 0;
-    for (let i = 0; i < dxs.length; i++) {
-        residual = Math.max(residual, Math.abs(dxs[i] - dx), Math.abs(dys[i] - dy));
-    }
-    return { match, dx, dy, residual, missing: match === 'prefix' ? ds.length - ps.length : 0 };
+    const devs = dxs.map((v, i) => Math.max(Math.abs(v - dx), Math.abs(dys[i] - dy)));
+    const residual = devs.length ? percentile(devs, 0.75) : Infinity;
+
+    const edits = levenshtein(ps, ds);
+    const sim = 1 - edits / Math.max(ps.length, ds.length, 1);
+    const missing = ds.length - ps.length;
+    let match;
+    if (ps === ds) match = 'exact';
+    else if (
+        missing >= PREFIX_MIN_TAIL &&
+        seqSimilarity(ps, ds.slice(0, ps.length)) >= PREFIX_HEAD_MIN
+    )
+        match = 'prefix';
+    else if (sim >= SEQ_MATCH_MIN) match = 'fuzzy';
+    else return { match: 'none', residual: Infinity, missing: 0, sim, edits };
+
+    return { match, dx, dy, residual, sim, edits, missing: match === 'prefix' ? missing : 0 };
 }
 
-// Wo steht in der DB-Datei das, was im Druck fehlt? Für die Meldung („das letzte
-// System fehlt") und um zu erkennen, dass es der SCHLUSS ist, nicht die Mitte.
-export function missingTailExtent(fpPage, fromIndex) {
-    const ys = fpPage.y.slice(fromIndex);
-    if (!ys.length) return null;
-    return { yMin: Math.min(...ys), yMax: Math.max(...ys), count: ys.length };
+// DB-Glyphen-Indizes, die im Druck FEHLEN oder ERSETZT wurden. Grundlage ist ein
+// Alignment (Needleman-Wunsch) der beiden Glyphen-Folgen: gesammelt werden die
+// DB-Glyphen ohne gleiches Gegenstück im Druck.
+function mismatchDbIndices(a, b) {
+    const m = a.length;
+    const n = b.length;
+    if (!m || !n) return [];
+    const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+    }
+    const idx = [];
+    let i = m;
+    let j = n;
+    while (i > 0 && j > 0) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        if (dp[i][j] === dp[i - 1][j - 1] + cost) {
+            if (cost) idx.push(j - 1);
+            i--;
+            j--;
+        } else if (dp[i][j] === dp[i][j - 1] + 1) {
+            idx.push(j - 1);
+            j--;
+        } else {
+            i--;
+        }
+    }
+    while (j > 0) {
+        idx.push(j - 1);
+        j--;
+    }
+    return idx.sort((p, q) => p - q);
+}
+
+// Benachbarte DB-Glyphen zu einer Fundstelle zusammenfassen. Ein ersetztes
+// Zeichen (etwa eine Pause) reißt im Alignment oft die Nachbarn mit (eine
+// vertauschte Halbe daneben) – ohne Bündelung stünden dort zwei, drei Kästchen
+// statt eines. Zusammengefasst wird, was in derselben Notenzeile (ähnliches y)
+// dicht beieinander liegt.
+function clusterIndices(fpPage, idxs) {
+    const items = idxs
+        .map((k) => ({ k, x: fpPage.x[k], y: fpPage.y[k] }))
+        .sort((a, b) => a.y - b.y || a.x - b.x);
+    const clusters = [];
+    for (const it of items) {
+        const c = clusters.find(
+            (cl) =>
+                it.y >= cl.yMin - 14 &&
+                it.y <= cl.yMax + 14 &&
+                it.x >= cl.xMin - 26 &&
+                it.x <= cl.xMax + 26,
+        );
+        if (c) {
+            c.ks.push(it.k);
+            c.xMin = Math.min(c.xMin, it.x);
+            c.xMax = Math.max(c.xMax, it.x);
+            c.yMin = Math.min(c.yMin, it.y);
+            c.yMax = Math.max(c.yMax, it.y);
+        } else {
+            clusters.push({ ks: [it.k], xMin: it.x, xMax: it.x, yMin: it.y, yMax: it.y });
+        }
+    }
+    return clusters;
+}
+
+// Die abweichenden Stellen als Kästen – je Fundstelle einer, auf BEIDEN Seiten:
+//   print    – in Druck-Koordinaten (DB-Position + Verschiebung), mit Seitennr.
+//   original – in Koordinaten der DB-Notensatz-PDF (für den Vergleichs-Dialog).
+// So markieren beide Overlays dieselbe Stelle.
+export function diffGlyphMarks(placement, fpPage, dx, dy, page) {
+    const clusters = clusterIndices(fpPage, mismatchDbIndices(placement.seq, fpPage.seq));
+    const PAD = 8;
+    const TOP = 15;
+    const BOT = 6;
+    const rect = (c, ox, oy) => ({
+        x: c.xMin + ox - PAD,
+        y: c.yMin + oy - TOP,
+        w: c.xMax - c.xMin + 2 * PAD,
+        h: c.yMax - c.yMin + TOP + BOT,
+    });
+    return {
+        print: clusters.map((c) => ({ page, rect: rect(c, dx, dy) })),
+        original: clusters.map((c) => ({ rect: rect(c, 0, 0) })),
+    };
 }
 
 // Beste DB-Fassung zu einer Platzierung suchen.

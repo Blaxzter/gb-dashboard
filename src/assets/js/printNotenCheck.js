@@ -20,6 +20,7 @@ import { resolveLiednummer2026 } from '@/assets/js/utils';
 import {
     GEOMETRY_TOLERANCE_PT,
     alignPlacement,
+    diffGlyphMarks,
     isFingerprintUsable,
     pickBestCandidate,
 } from '@/assets/js/notenFingerprint';
@@ -54,6 +55,17 @@ function placementBox(placement) {
             h: Math.max(...ys) - y + PAD,
         },
     };
+}
+
+// Umschließender Kasten mehrerer Diff-Kästen – Ziel für die Verbindungslinie und
+// das Scrollen, während die einzelnen kleinen Kästen die genauen Stellen zeigen.
+function boundingBox(boxes) {
+    if (!boxes.length) return null;
+    const x0 = Math.min(...boxes.map((b) => b.rect.x));
+    const y0 = Math.min(...boxes.map((b) => b.rect.y));
+    const x1 = Math.max(...boxes.map((b) => b.rect.x + b.rect.w));
+    const y1 = Math.max(...boxes.map((b) => b.rect.y + b.rect.h));
+    return { page: boxes[0].page, rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
 }
 
 // Die größte Platzierung einer Seite ist der Notensatz des Liedes; kleinere sind
@@ -180,6 +192,7 @@ export async function checkPrintNotensatz(
 
     const truncated = [];
     const wrongVersion = [];
+    const deviation = [];
     const unknownSource = [];
     const drift = [];
     const notCheckable = [];
@@ -229,10 +242,13 @@ export async function checkPrintNotensatz(
         // nicht zuordnen konnte (Seite ohne Liednummer und ohne Textblock).
         const ist = best.lied;
         const title = (lied || ist).titel || `Lied ${ps.nummer ?? ist.liednummer2026}`;
+        // Datei-Id der zugeordneten DB-Fassung – für den „Original ansehen"-Knopf.
+        const notentextId = ist.notentext || null;
         const base = {
             id: (lied || ist).id,
             nummer: ps.nummer ?? resolveLiednummer2026(ist, byId),
             title,
+            notentextId,
         };
         const viaNoten = lied
             ? ''
@@ -287,14 +303,41 @@ export async function checkPrintNotensatz(
             continue;
         }
 
-        // Richtige Datei, aber die Noten stehen nicht dort, wo sie stehen müssten.
-        // Kein harter Fehler: meist ein neuer Export mit minimal anderem Satz.
-        if (best.residual > GEOMETRY_TOLERANCE_PT) {
+        // Dieselbe Gravur, aber einzelne Zeichen weichen ab: Beim Platzieren wurde
+        // ein Glyph ersetzt oder fehlt im Satz-Font (typisch eine Pause – ein
+        // echter Satzfehler, das gedruckte Zeichen stimmt dann nicht). Statt „kein
+        // Treffer" zu melden, werden die abweichenden Stellen einzeln markiert, mit
+        // Knopf zum Original.
+        if (best.match === 'fuzzy') {
+            const marks = diffGlyphMarks(placement, best.fpPage, best.dx, best.dy, page);
+            const n = marks.print.length || best.edits;
+            deviation.push({
+                ...base,
+                sev: 'error',
+                detail:
+                    `Der gedruckte Notensatz weicht an ${n} Stelle${n === 1 ? '' : 'n'} von der ` +
+                    `Notensatz-Datei ab (${best.edits} Notenzeichen unterschiedlich). Vermutlich ` +
+                    `wurde beim Platzieren ein Zeichen ersetzt oder fehlt im Satz-Font (z. B. eine ` +
+                    `Pause). Die abweichenden Stellen sind markiert – „Vergleich öffnen" zeigt Druck ` +
+                    `und Original nebeneinander.` +
+                    viaNoten,
+                loc: boundingBox(marks.print) || placementBox(placement),
+                locs: marks.print.length ? marks.print : null,
+                // Dieselben Stellen in Koordinaten der DB-PDF – fürs Overlay im
+                // Vergleichs-Dialog auf der Original-Seite.
+                originalLocs: marks.original.length ? marks.original : null,
+            });
+            continue;
+        }
+
+        // Richtige Datei, exakt gleiche Zeichen, aber verschoben. Kein harter
+        // Fehler: meist ein neuer Export mit minimal anderem Satz.
+        if (best.match === 'exact' && best.residual > GEOMETRY_TOLERANCE_PT) {
             drift.push({
                 ...base,
                 sev: 'warning',
                 detail:
-                    `Notensatz weicht um bis zu ${best.residual.toFixed(1)} pt von der ` +
+                    `Notensatz weicht um ${best.residual.toFixed(1)} pt von der ` +
                     `Notensatz-Datei ab (die Notenfolge stimmt). Vermutlich wurde die Datei nach dem ` +
                     `Satz neu exportiert – bitte prüfen, ob im Satz die aktuelle Fassung liegt.` +
                     viaNoten,
@@ -303,7 +346,15 @@ export async function checkPrintNotensatz(
         }
     }
 
-    return { truncated, wrongVersion, unknownSource, drift, notCheckable, checked: jobs.length };
+    return {
+        truncated,
+        wrongVersion,
+        deviation,
+        unknownSource,
+        drift,
+        notCheckable,
+        checked: jobs.length,
+    };
 }
 
 // Die Befunde als Checks im Format von CheckCategory.vue. `makeCheck` kommt aus
@@ -336,6 +387,20 @@ export function notensatzChecks(result, makeCheck) {
                 okSummary: 'Jede Seite trägt den Notensatz ihrer eigenen Fassung',
                 problemSummary: (i) =>
                     `${i.length} Seite(n) mit dem Notensatz einer anderen Fassung`,
+            },
+        ),
+    );
+    checks.push(
+        makeCheck(
+            'noten-abweichung',
+            CAT_NOTEN,
+            'Notenzeichen unverändert übernommen',
+            'Der gedruckte Notensatz ist dieselbe Gravur wie in der Datenbank, aber einzelne Notenzeichen weichen ab – beim Platzieren wurde ein Glyph ersetzt oder fehlt im Satz-Font (typisch eine Pause). Die abweichenden Stellen sind im PDF-Abgleich einzeln markiert; über „Original ansehen" lässt sich die Notensatz-Datei zum Vergleich öffnen.',
+            result.deviation,
+            {
+                okSummary: 'Alle Notenzeichen stimmen mit der Datenbank überein',
+                problemSummary: (i) =>
+                    `${i.length} Notensatz/Notensätze mit abweichenden Notenzeichen`,
             },
         ),
     );
