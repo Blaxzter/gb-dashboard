@@ -5,7 +5,15 @@ import VuePdfEmbed from 'vue-pdf-embed';
 import CheckCategory from '@/components/checks/CheckCategory.vue';
 import PdfFindingsCompare from '@/components/checks/PdfFindingsCompare.vue';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
-import { extractPdfSongs, comparePrintPdf, applyAcks } from '@/assets/js/printPdfCheck.js';
+import {
+    extractPdfSongs,
+    comparePrintPdf,
+    applyAcks,
+    makeCheck,
+    assignItemFingerprints,
+} from '@/assets/js/printPdfCheck.js';
+import { checkPrintNotensatz, notensatzChecks } from '@/assets/js/printNotenCheck.js';
+import { createFingerprintLoader } from '@/assets/js/notenFingerprintLoader.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
 
 const store = useAppStore();
@@ -26,6 +34,9 @@ const checks = ref(null);
 const extracted = ref(null);
 const pdf_doc = ref(null); // geladenes PDFDocumentProxy – wird wiederverwendet
 const only_problems = ref(false);
+// Notensatz-Abgleich: läuft nach der Textprüfung, weil er ggf. Noten-PDFs
+// nachladen muss (siehe notenFingerprintLoader).
+const noten_progress = ref(null); // { done, total, fetched }
 const expandSignal = ref(0);
 const collapseSignal = ref(0);
 const tab = ref('compare');
@@ -49,6 +60,7 @@ function resetResults() {
     checks.value = null;
     extracted.value = null;
     pdf_doc.value = null;
+    noten_progress.value = null;
     if (source.value) {
         URL.revokeObjectURL(source.value);
         source.value = null;
@@ -74,6 +86,11 @@ async function onLoaded(pdf) {
         const result = await extractPdfSongs(pdf);
         extracted.value = result;
         checks.value = comparePrintPdf(result, alle_lieder.value);
+        // Textprüfung steht – erst jetzt der Notensatz-Abgleich. Er ist der
+        // langsamere Teil (ggf. Noten-PDFs nachladen), das Ergebnis der
+        // Textprüfung soll darauf nicht warten.
+        processing.value = false;
+        await runNotensatzCheck(result);
         // Bei Problemen den PDF-Abgleich zeigen, sonst die Prüfliste (mit „alles OK").
         const hasProblems = checks.value.some(
             (c) => c.status === 'error' || c.status === 'warning',
@@ -84,6 +101,37 @@ async function onLoaded(pdf) {
         error.value = 'Fehler beim Auslesen der PDF: ' + (e?.message || e);
     } finally {
         processing.value = false;
+        noten_progress.value = null;
+    }
+}
+
+// Notensatz gegen die Datenbank prüfen. Fehlschläge hier dürfen die Textprüfung
+// nicht mitreißen – die steht schon und ist für sich nützlich.
+async function runNotensatzCheck(result) {
+    try {
+        let fetched = 0;
+        noten_progress.value = { done: 0, total: 0, fetched: 0 };
+        const loadFingerprint = createFingerprintLoader({
+            backendUrl: import.meta.env.VITE_BACKEND_URL,
+            onFetch: () => {
+                fetched++;
+            },
+        });
+        const res = await checkPrintNotensatz(result, alle_lieder.value, {
+            loadFingerprint,
+            onProgress: (done, total) => {
+                noten_progress.value = { done, total, fetched };
+            },
+        });
+        checks.value = [
+            ...checks.value,
+            ...assignItemFingerprints(notensatzChecks(res, makeCheck)),
+        ];
+    } catch (e) {
+        console.error('Notensatz-Abgleich fehlgeschlagen', e);
+        error.value = 'Der Notensatz-Abgleich ist fehlgeschlagen: ' + (e?.message || e);
+    } finally {
+        noten_progress.value = null;
     }
 }
 function onLoadError(e) {
@@ -195,10 +243,14 @@ function openSong(id) {
                 <div class="text-medium-emphasis mb-3">
                     Sicherheitsnetz vor dem Druck: Die fertige Druck-PDF wird gegen die aktuellen
                     „Bewertet und genommen“-Lieder geprüft – Liednummern, Reihenfolge, fehlende/
-                    zusätzliche Lieder, Strophentexte (2..n) und Fußzeilen.
-                    <strong>Strophe 1</strong>
-                    steht im Notensatz (Vektor, kein Text) und wird nicht geprüft. Zusätzliche
-                    Vorspann-/Leerseiten werden automatisch übersprungen.
+                    zusätzliche Lieder, Strophentexte (2..n) und Fußzeilen. Zusätzlich wird der
+                    <strong>Notensatz</strong>
+                    mit der Notensatz-Datei aus der Datenbank abgeglichen: ob die richtige Fassung
+                    platziert wurde (deutsch statt fremdsprachig) und ob sie vollständig gedruckt
+                    ist. Der
+                    <strong>Text der 1. Strophe</strong>
+                    steht als Bild unter den Noten und lässt sich nicht Wort für Wort prüfen.
+                    Zusätzliche Vorspann-/Leerseiten werden automatisch übersprungen.
                 </div>
 
                 <div
@@ -288,6 +340,25 @@ function openSong(id) {
                     prepend-icon="mdi-information"
                 >
                     Hinweise: {{ summary.info }}
+                </v-chip>
+
+                <!-- Der Notensatz-Abgleich läuft nach der Textprüfung weiter. Ohne
+                 diesen Hinweis sähe das Ergebnis fertig aus, obwohl noch Befunde
+                 dazukommen können. -->
+                <v-chip
+                    v-if="noten_progress"
+                    color="primary"
+                    variant="tonal"
+                    prepend-icon="mdi-music-clef-treble"
+                >
+                    <v-progress-circular indeterminate size="14" width="2" class="me-2" />
+                    Notensatz-Abgleich
+                    {{
+                        noten_progress.total ? `${noten_progress.done}/${noten_progress.total}` : ''
+                    }}
+                    <template v-if="noten_progress.fetched">
+                        · {{ noten_progress.fetched }} Notensätze werden nachgeladen
+                    </template>
                 </v-chip>
 
                 <!-- Bestätigte Befunde sind ausgeblendet – sie müssen trotzdem sichtbar

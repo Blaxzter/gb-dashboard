@@ -6,6 +6,7 @@ import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
 import { scanSvgBake, computeSvgEquality } from '@/assets/js/svgCompare.js';
 import { analyzePdfAlignment } from '@/assets/js/pdfAlign.js';
 import { applyCorrections } from '@/assets/js/lyricsAlign.js';
+import { fingerprintFromFile } from '@/assets/js/notenFingerprintLoader.js';
 import { isRein, isGenommen } from '@/assets/js/gesangbuchChecks.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
 import PdfCompareDialog from '@/components/upload/PdfCompareDialog.vue';
@@ -895,12 +896,26 @@ async function processItem(item) {
         // dem letzten Export neue Noten erhalten haben (Issue #22). SVG ->
         // notentext_svg bumpt notentext_uploaded_at NICHT.
         const notesUploadedAt = item.kind === 'pdf' ? new Date().toISOString() : null;
-        await patchLiedField(
-            item.liedId,
-            field,
-            uploaded.id,
-            notesUploadedAt ? { notentext_uploaded_at: notesUploadedAt } : null,
-        );
+        const extra = notesUploadedAt ? { notentext_uploaded_at: notesUploadedAt } : {};
+
+        // Fingerabdruck der Noten-Glyphen mitschreiben: Damit prüft der
+        // Druck-Check, ob im Satz wirklich dieser Notensatz steht – und ob er
+        // vollständig gedruckt wurde (printNotenCheck.js). Ohne ihn müsste er
+        // die Noten-PDF jedes Liedes einzeln nachladen.
+        //
+        // Nur für `notentext`: Der Wert gehört zu genau dieser Datei (er trägt
+        // ihre Id) und wird zusammen mit ihr gesetzt – so kann er nicht
+        // veralten. Schlägt es fehl, ist das kein Grund, den Upload scheitern zu
+        // lassen: Der Check lädt die PDF dann eben nach.
+        if (field === 'notentext') {
+            try {
+                extra.notentext_fingerprint = await fingerprintFromFile(item.file, uploaded.id);
+            } catch (e) {
+                console.warn('Notensatz-Fingerabdruck konnte nicht berechnet werden', e);
+            }
+        }
+
+        await patchLiedField(item.liedId, field, uploaded.id, extra);
         // sync local store
         store.file.push(uploaded);
         const idx = store.gesangbuchlied.findIndex((l) => l.id === item.liedId);
@@ -909,6 +924,9 @@ async function processItem(item) {
             store.gesangbuchlied[idx][fileField] = uploaded;
             if (notesUploadedAt) {
                 store.gesangbuchlied[idx].notentext_uploaded_at = notesUploadedAt;
+            }
+            if (extra.notentext_fingerprint) {
+                store.gesangbuchlied[idx].notentext_fingerprint = extra.notentext_fingerprint;
             }
         }
         item.status = 'done';
