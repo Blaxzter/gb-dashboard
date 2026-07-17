@@ -22,6 +22,7 @@
 import { resolveLiednummer2026, similarity, status_mapping } from '@/assets/js/utils';
 import { buildFooter } from '@/assets/js/authorFormat';
 import { isGenommen } from '@/assets/js/gesangbuchChecks';
+import { groupMusicPlacements, isMusicGlyphString } from '@/assets/js/notenFingerprint';
 
 // --- Text-Normalisierung ---------------------------------------------------
 
@@ -156,6 +157,7 @@ async function extractPageItems(page) {
     const content = await page.getTextContent();
     const items = [];
     const offPage = [];
+    const musicItems = []; // für den Notensatz-Abgleich (notenFingerprint.js)
     let musicCount = 0; // Notensatz-Glyphen AUF der Seite → hier beginnt ein Lied
     let musicTop = null;
     for (const it of content.items) {
@@ -173,6 +175,17 @@ async function extractPageItems(page) {
             if (inPage && it.str.replace(/\s/g, '')) {
                 musicCount++;
                 if (musicTop == null || yTop < musicTop) musicTop = yTop;
+            }
+            // Reihenfolge des Content-Streams beibehalten: Sie ist die Reihenfolge,
+            // in der auch die Notensatz-PDF ihre Glyphen schreibt, und damit die
+            // Grundlage des Vergleichs.
+            if (isMusicGlyphString(it.str)) {
+                musicItems.push({
+                    str: it.str.replace(/\s/g, ''),
+                    x,
+                    yTop,
+                    font: it.fontName || '',
+                });
             }
             continue;
         }
@@ -196,7 +209,15 @@ async function extractPageItems(page) {
         if (inPage) items.push(item);
         else offPage.push(item);
     }
-    return { items, offPage, musicCount, musicTop, width: viewport.width, height: viewport.height };
+    return {
+        items,
+        offPage,
+        musicItems,
+        musicCount,
+        musicTop,
+        width: viewport.width,
+        height: viewport.height,
+    };
 }
 
 // Text, der zum Notensatz gehört, nicht zum Lied: Der platzierte Notensatz
@@ -424,9 +445,14 @@ export async function extractPdfSongs(pdfDoc) {
 
     for (let p = 1; p <= pageCount; p++) {
         const page = await pdfDoc.getPage(p);
-        const { items, offPage, musicCount, musicTop, width, height } =
+        const { items, offPage, musicItems, musicCount, musicTop, width, height } =
             await extractPageItems(page);
         pageSizes[p] = { width, height };
+        // Platzierte Notensätze der Seite (für den Abgleich gegen die DB-Datei).
+        const placements = groupMusicPlacements(musicItems, width, height).map((pl) => ({
+            ...pl,
+            page: p,
+        }));
 
         if (offPage.length) {
             clipped.push({
@@ -494,12 +520,14 @@ export async function extractPdfSongs(pdfDoc) {
                 choralBox: choralItem ? { page: p, rect: bboxOfItems([choralItem]) } : null,
                 pages: [p],
                 lines: [...lines],
+                placements: [...placements],
             };
             songs.push(cur);
         } else if (cur) {
             // Fortsetzungsseite eines mehrseitigen Liedes (kein Notensatz).
             cur.pages.push(p);
             cur.lines.push(...lines);
+            cur.placements.push(...placements);
         } else {
             // Text vor dem ersten Lied → Vorspann/Deckblatt.
             introPages.push(p);
@@ -553,7 +581,7 @@ function deriveStatus(items, forced) {
 // Zusätzlich werden `forced`, `okSummary` und `problemSummary` mitgeführt, damit
 // applyAcks() den Status neu berechnen kann, wenn einzelne Items bestätigt
 // (ausgeblendet) werden.
-function makeCheck(
+export function makeCheck(
     id,
     category,
     title,
@@ -746,6 +774,9 @@ export function comparePrintPdf(extracted, dbSongs) {
         const { pairs, extraPdf } = assignVersions(occs, dbCands);
         for (const { ps, lied } of pairs) {
             matchedDbIds.add(lied.id);
+            // Zuordnung festhalten: Der Notensatz-Abgleich (printNotenCheck.js)
+            // prüft den platzierten Notensatz gegen genau diese DB-Fassung.
+            ps.liedId = lied.id;
             recognized.push({
                 id: lied.id,
                 nummer: ps.nummer,
@@ -818,6 +849,7 @@ export function comparePrintPdf(extracted, dbSongs) {
 
         const lied = best.lied;
         matchedDbIds.add(lied.id);
+        ps.liedId = lied.id;
         songNumber.push({
             sev: 'error',
             id: lied.id,
@@ -1063,11 +1095,17 @@ export function comparePrintPdf(extracted, dbSongs) {
         );
     }
 
-    // Jedem Befund-Item einen stabilen Fingerprint geben (für „Bestätigt").
+    assignItemFingerprints(checks);
+
+    return checks;
+}
+
+// Jedem Befund-Item einen stabilen Fingerprint geben (für „Bestätigt"). Auch von
+// printNotenCheck.js genutzt, dessen Checks später dazukommen.
+export function assignItemFingerprints(checks) {
     for (const c of checks) {
         for (const it of c.items) it.fp = itemFingerprint(c.id, it);
     }
-
     return checks;
 }
 

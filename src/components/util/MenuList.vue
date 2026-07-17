@@ -67,7 +67,11 @@ export default {
                 items: [
                     { name: 'Dashboard', route: '/dashboard', icon: 'mdi-home' },
                     { name: 'Kalender', route: '/kalender', icon: 'mdi-calendar-month' },
-                    { name: 'Gesangbuch<wbr>lieder', route: '/gesangbuchlieder', icon: 'mdi-music' },
+                    {
+                        name: 'Gesangbuch<wbr>lieder',
+                        route: '/gesangbuchlieder',
+                        icon: 'mdi-music',
+                    },
                     {
                         name: 'Neue Lieder &amp; Melodien',
                         route: '/neue-lieder',
@@ -168,6 +172,12 @@ export default {
                         name: 'Nummerngenerierung',
                         route: '/nummerngenerierung',
                         icon: 'mdi-shield-crown',
+                        requiredRoles: superadminRoles,
+                    },
+                    {
+                        name: 'Noten-Fingerabdrücke',
+                        route: '/noten-fingerabdruecke',
+                        icon: 'mdi-fingerprint',
                         requiredRoles: superadminRoles,
                     },
                 ],

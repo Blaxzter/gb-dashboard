@@ -100,9 +100,7 @@ const routes = [
                 path: 'autoren-datencheck/:id?',
                 name: 'AutorenDatencheck',
                 component: () =>
-                    import(
-                        /* webpackChunkName: "home" */ '@/views/AutorenDatencheckView.vue'
-                    ),
+                    import(/* webpackChunkName: "home" */ '@/views/AutorenDatencheckView.vue'),
             },
             {
                 path: 'autoren-mailing',
@@ -161,6 +159,15 @@ const routes = [
                 component: () =>
                     import(
                         /* webpackChunkName: "nummerngenerierung" */ '@/views/NummerngenerierungView.vue'
+                    ),
+            },
+            {
+                path: 'noten-fingerabdruecke',
+                name: 'NotenFingerabdruecke',
+                meta: { requiredRoles: superadminRoles },
+                component: () =>
+                    import(
+                        /* webpackChunkName: "noten-fingerprint" */ '@/views/NotenFingerprintView.vue'
                     ),
             },
         ],
