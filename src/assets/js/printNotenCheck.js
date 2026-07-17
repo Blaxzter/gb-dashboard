@@ -6,9 +6,10 @@
 // warum das trägt, steht in notenFingerprint.js.
 //
 // Gemeldet werden drei Dinge:
-//   * Der Notensatz ist im Druck ABGESCHNITTEN – die gedruckten Glyphen sind ein
-//     echter Anfang der DB-Datei, hinten fehlt ein System („die zweite Seite
-//     wurde vergessen").
+//   * Im Druck steht nur der ANFANG des Notensatzes – die gedruckten Glyphen
+//     sind ein echter Anfang der DB-Datei, hinten fehlt ein System. Der
+//     Notensatz ist länger als eine Seite und seine zweite Seite (Fortsetzung)
+//     fehlt im Druck.
 //   * Es steht die FALSCHE FASSUNG auf der Seite – der Notensatz passt
 //     geometrisch besser zu einer anderen DB-Fassung desselben Liedes (typisch:
 //     die fremdsprachige statt der deutschen).
@@ -20,7 +21,6 @@ import {
     GEOMETRY_TOLERANCE_PT,
     alignPlacement,
     isFingerprintUsable,
-    missingTailExtent,
     pickBestCandidate,
 } from '@/assets/js/notenFingerprint';
 
@@ -54,27 +54,6 @@ function placementBox(placement) {
             h: Math.max(...ys) - y + PAD,
         },
     };
-}
-
-// Kasten um den im Druck fehlenden Schluss – umgerechnet aus DB-Koordinaten in
-// die Seite: Der Notensatz wird unskaliert platziert, es zählt nur die
-// Verschiebung. Der Kasten liegt damit dort, wo das fehlende System stünde.
-function missingBox(placement, fpPage, fromIndex, align, pageSize) {
-    const ext = missingTailExtent(fpPage, fromIndex);
-    if (!ext || !pageSize) return placementBox(placement);
-    const xs = fpPage.x.slice(fromIndex);
-    const x = Math.min(...xs) + align.dx - 2;
-    const y = ext.yMin + align.dy - 14;
-    const rect = {
-        x,
-        y,
-        w: Math.max(...xs) - Math.min(...xs) + 16,
-        h: ext.yMax - ext.yMin + 28,
-    };
-    // Fällt der Schluss ganz aus der Seite (genau dann fehlt er ja), den Kasten
-    // an die Unterkante klemmen – sonst zeigt das Overlay ins Leere.
-    const maxY = pageSize.height - rect.h;
-    return { page: placement.page, rect: { ...rect, y: Math.min(Math.max(rect.y, 0), maxY) } };
 }
 
 // Die größte Platzierung einer Seite ist der Notensatz des Liedes; kleinere sind
@@ -142,7 +121,7 @@ export async function checkPrintNotensatz(
     dbSongs,
     { loadFingerprint, onProgress } = {},
 ) {
-    const { songs: pdfSongs, pageSizes = {} } = extracted;
+    const { songs: pdfSongs } = extracted;
 
     const byId = {};
     for (const l of dbSongs) byId[l.id] = l.liednummer2026;
@@ -282,29 +261,28 @@ export async function checkPrintNotensatz(
             continue;
         }
 
-        // Abgeschnitten: Der Druck ist ein echter ANFANG der DB-Datei.
+        // Nur der Anfang gedruckt: Die gedruckten Glyphen sind ein echter ANFANG
+        // der DB-Datei, der Schluss fehlt. Fachlich heißt das fast immer, dass
+        // der Notensatz länger als eine Seite ist und im Satz seine Fortsetzung
+        // fehlt (die zweite Notensatz-Seite dieses Liedes wurde nicht platziert)
+        // – NICHT, dass eine PDF beschnitten wurde. Anker ist der sichtbare
+        // Notensatz selbst; der fehlende Teil steht ja gerade nicht auf der Seite.
         if (best.match === 'prefix') {
-            const ext = missingTailExtent(best.fpPage, placement.seq.length);
             truncated.push({
                 ...base,
                 sev: 'error',
                 detail:
-                    `Notensatz unvollständig gedruckt: Die letzten ${best.missing} Notenzeichen der ` +
-                    `Notensatz-Datei fehlen im Druck (gedruckt ${placement.seq.length} von ` +
-                    `${best.fpPage.seq.length}). Der Schluss des Notensatzes ist beim Platzieren ` +
-                    `abgeschnitten worden – er braucht eine zweite Seite.` +
+                    `Im Druck steht nur der Anfang des Notensatzes – ${placement.seq.length} von ` +
+                    `${best.fpPage.seq.length} Notenzeichen. Das letzte System (${best.missing} ` +
+                    `Notenzeichen) fehlt: Der Notensatz ist länger als eine Seite, und im Druck ` +
+                    `fehlt seine zweite Seite. Bitte prüfen, ob hier eine zweite Notensatz-Seite ` +
+                    `(Fortsetzung) im Satz platziert werden muss.` +
                     viaNoten,
-                loc: missingBox(
-                    placement,
-                    best.fpPage,
-                    placement.seq.length,
-                    best,
-                    pageSizes[page],
-                ),
-                pdf: `${placement.seq.length} Notenzeichen gedruckt`,
-                expected: `${best.fpPage.seq.length} Notenzeichen in der Datenbank${
-                    ext ? ` (fehlender Schluss ab y≈${Math.round(ext.yMin)} pt)` : ''
-                }`,
+                loc: placementBox(placement),
+                pdf: `${placement.seq.length} von ${best.fpPage.seq.length} Notenzeichen gedruckt`,
+                expected:
+                    `${best.fpPage.seq.length} Notenzeichen in der Datenbank – die zweite Seite ` +
+                    `(letzte ${best.missing} Notenzeichen) fehlt im Druck`,
             });
             continue;
         }
@@ -338,12 +316,12 @@ export function notensatzChecks(result, makeCheck) {
             'noten-truncated',
             CAT_NOTEN,
             'Notensatz vollständig gedruckt',
-            'Der platzierte Notensatz muss alle Notenzeichen der Notensatz-Datei enthalten. Sind es nur die ersten, ist der Notensatz beim Platzieren abgeschnitten worden – das letzte System fehlt im Druck und braucht eine zweite Seite.',
+            'Der gedruckte Notensatz muss alle Notenzeichen der Notensatz-Datei enthalten. Steht im Druck nur der Anfang, ist der Notensatz länger als eine Seite und seine Fortsetzung fehlt – die zweite Notensatz-Seite dieses Liedes wurde nicht in den Satz übernommen.',
             result.truncated,
             {
                 okSummary: 'Alle Notensätze sind vollständig gedruckt',
                 problemSummary: (i) =>
-                    `${i.length} unvollständig gedruckte(r) Notensatz/Notensätze`,
+                    `${i.length} Notensatz/Notensätze, bei denen die zweite Seite im Druck fehlt`,
             },
         ),
     );
