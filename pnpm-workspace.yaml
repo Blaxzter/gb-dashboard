@@ -2,3 +2,8 @@ allowBuilds:
   core-js: true
   esbuild: true
   vue-demi: true
+
+# Sicherheits-Overrides fuer transitive Deps (pnpm >=10 liest overrides hier,
+# nicht mehr aus package.json). form-data <4.0.6: CRLF-Injection via axios.
+overrides:
+  form-data: '>=4.0.6'

@@ -1,0 +1,20 @@
+# Dependabot: automatische Dependency-Update-PRs.
+# pnpm-Lockfiles werden vom "npm"-Ecosystem mit abgedeckt.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Kleinere/Patch-Updates gebündelt, damit nicht pro Paket ein PR entsteht.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

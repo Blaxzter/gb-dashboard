@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Corepack aktiviert das in package.json gepinnte pnpm (packageManager: pnpm@11.x).
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Faengt Lockfile-Inkonsistenzen (z. B. overrides-/pnpm-Version-Drift) sofort ab.
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Informativ (blockiert PRs nicht): einige verbleibende High-Advisories sind
+      # dev-/build-only, ohne veroeffentlichten Fix (lodash) oder nur per
+      # Major-Upgrade behebbar (pdfjs-dist). Ergebnis erscheint im Job-Log.
+      - name: Audit (high & critical, informativ)
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Build
+        run: pnpm build

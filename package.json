@@ -3,6 +3,7 @@
     "version": "0.0.0",
     "private": true,
     "type": "module",
+    "packageManager": "pnpm@11.15.0",
     "scripts": {
         "dev": "vite",
         "build": "vite build",
@@ -55,12 +56,5 @@
         "vite": "^7.3.5",
         "vite-plugin-vue-devtools": "^8.0.0",
         "vite-plugin-vuetify": "^2.0.3"
-    },
-    "pnpm": {
-        "overrides": {
-            "braces": ">=3.0.3",
-            "cross-spawn": ">=7.0.5",
-            "nanoid": ">=3.3.8"
-        }
     }
 }
