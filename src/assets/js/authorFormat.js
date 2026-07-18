@@ -16,6 +16,21 @@ export function formatYearRange(geburtsjahr, sterbejahr) {
     return `(${geburtsjahr || ''}${sterbejahr ? `–${sterbejahr}` : ''})`;
 }
 
+// Hängt einen Suffix an einen bereits formatierten String an. Beginnt der Suffix
+// (nach evtl. führenden Leerzeichen) mit einem Interpunktionszeichen (","/";"),
+// wird KEIN trennendes Leerzeichen davorgesetzt (Issue #76):
+//   appendSuffix('unbekannt', '; aus dem …')            -> 'unbekannt; aus dem …'
+//   appendSuffix('Lehmann (1932–2025)', '„Bitte Gott…"') -> 'Lehmann (1932–2025) „Bitte Gott…"'
+// Leerer Suffix lässt `base` unverändert; ist `base` leer, wird der Suffix
+// (ohne führende Leerzeichen) allein zurückgegeben.
+export function appendSuffix(base, suffix) {
+    if (suffix == null) return base;
+    const suf = String(suffix).trimStart();
+    if (!suf) return base;
+    if (!base) return suf;
+    return /^[,;]/.test(suf) ? base + suf : `${base} ${suf}`;
+}
+
 // Ein einzelner Autor:
 //   {Praefix} {Vorname} {Nachname} (Jahre) {Suffix} {Ursprungsautor} (Jahre)
 // Leere Bestandteile (inkl. fehlender Vorname, Issue #23) werden samt
@@ -30,16 +45,18 @@ export function formatAuthorEntry(author) {
     if (name) parts.push(name);
     const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
     if (years) parts.push(years);
-    if (author.autorSuffix) parts.push(author.autorSuffix);
+
+    // Suffix nach denselben Interpunktions-Regeln wie im Footer (Issue #76).
+    let s = appendSuffix(parts.join(' '), author.autorSuffix);
 
     const u = author.ursprungsAutorObj;
     if (u && typeof u === 'object') {
         const uName = [u.vorname, u.nachname].filter(Boolean).join(' ');
-        if (uName) parts.push(uName);
         const uYears = formatYearRange(u.geburtsjahr, u.sterbejahr);
-        if (uYears) parts.push(uYears);
+        const uStr = [uName, uYears].filter(Boolean).join(' ');
+        if (uStr) s = s ? `${s} ${uStr}` : uStr;
     }
-    return parts.join(' ');
+    return s;
 }
 
 // Liste von Autoren als ", "-getrennter String, optional gefolgt von
@@ -83,7 +100,7 @@ function formatFooterAuthorEntry(author) {
 
     const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
     if (years) s = s ? `${s} ${years}` : years;
-    if (author.autorSuffix) s += s ? ` ${author.autorSuffix}` : author.autorSuffix;
+    s = appendSuffix(s, author.autorSuffix);
 
     const ursprung = formatFooterUrsprungsAutor(author.ursprungsAutorObj);
     if (ursprung) s += s ? ` ${ursprung}` : ursprung;
@@ -105,9 +122,22 @@ function footerCopyright(copyright) {
 //   © {Lied-Copyright}
 // Sind Text- und Melodie-Autor gleich: "Text und Melodie: {Autor}".
 // Leere Bestandteile (Copyright, Autor) werden samt führendem Trenner weggelassen.
+//
+// Lied-spezifische Zusatz-Suffixe (Issue #77): `textAutorExtraSuffix` und
+// `melodieAutorExtraSuffix` sitzen direkt am Gesangbuchlied (nicht am Autor bzw.
+// an der Melodie) und werden – nach denselben Interpunktions-Regeln wie ein
+// normaler Suffix (Issue #76) – an den jeweiligen Autorenblock angehängt. So
+// kann z. B. die Originalmelodie nur bei diesem Lied ergänzt werden, ohne beim
+// Original-Lied desselben Melodie-Autors zu erscheinen.
 export function buildFooter(lied) {
-    const textAuthors = formatFooterAuthors(lied?.text?.authors);
-    const melodyAuthors = formatFooterAuthors(lied?.melodie?.authors);
+    const textAuthors = appendSuffix(
+        formatFooterAuthors(lied?.text?.authors),
+        lied?.textAutorExtraSuffix,
+    );
+    const melodyAuthors = appendSuffix(
+        formatFooterAuthors(lied?.melodie?.authors),
+        lied?.melodieAutorExtraSuffix,
+    );
     const textCr = footerCopyright(lied?.text?.copyright);
     const melodyCr = footerCopyright(lied?.melodie?.copyright);
     const liedCr = footerCopyright(lied?.copyright);
