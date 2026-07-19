@@ -17,7 +17,17 @@ import { fingerprintNotenPdf, isFingerprintUsable } from '@/assets/js/notenFinge
 // zuerst und schaltet dann auf seinen „fake worker" um – die PDFs würden also im
 // Haupt-Thread geparst und die Oberfläche einfrieren (der Druck-Check liest im
 // Notfall über 100 Noten-PDFs).
-import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.js?url';
+//
+// Bewusst die NICHT-minifizierte `pdf.worker.js` (nicht `.min.js`): Im aktuellen
+// pnpm-Install ist die Store-Verknüpfung der `.min.js`-Dateien dieses Pakets
+// kaputt – `pdf.worker.min.js` enthält pdf.js 3.13.1, während der Haupt-Thread
+// (`pdf.js`) 2.9.359 ist. Ein Worker mit anderer Major-Version spricht ein
+// anderes Message-Protokoll: der 2.9.359-Main-Thread wirft beim Deserialisieren
+// der Worker-Antwort `N.toString is not a function` – der Fehler landet im
+// internen Message-Handler, NICHT in `getDocument().promise`, das Promise
+// settlet nie und der Notentext-Upload hängt still (Spinner endlos). Die
+// nicht-minifizierte Datei ist korrekt 2.9.359 und passt zum Main-Thread.
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
 
 // pdf.js liegt hier als eigene Abhängigkeit (vue-pdf-embed bündelt seine Kopie
 // intern und exportiert sie nicht). Die Version ist bewusst auf die von
@@ -39,15 +49,42 @@ async function getPdfjs() {
     return pdfjsPromise;
 }
 
+// Schlägt der pdf.js-Worker fehl (z. B. Versions-Mismatch), kann der Fehler im
+// internen Message-Handler landen statt `getDocument().promise` zu rejecten –
+// dann würde das Promise nie settlen und der Aufrufer (Upload/Druck-Check) hinge
+// still für immer. Deshalb ein harter Timeout: settlet die Analyse nicht, wird
+// abgebrochen und der Aufrufer bekommt einen Fehler zum Fangen (der Upload läuft
+// dann ohne Fingerabdruck weiter, der Druck-Check lädt die PDF eben nach).
+const GET_DOCUMENT_TIMEOUT_MS = 20000;
+
 // Fingerabdruck aus einer Notensatz-PDF (ArrayBuffer/Uint8Array) rechnen.
 export async function fingerprintFromPdfBytes(bytes, fileId) {
     const pdfjs = await getPdfjs();
-    const doc = await pdfjs.getDocument({
+    const loadingTask = pdfjs.getDocument({
         data: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
         // Die Glyphen kommen aus dem Text-Layer; gerendert wird nichts. Ohne
         // diesen Schalter lädt pdf.js die eingebetteten Fonts unnötig.
         disableFontFace: true,
-    }).promise;
+    });
+    let timeoutId;
+    let doc;
+    try {
+        doc = await Promise.race([
+            loadingTask.promise,
+            new Promise((_, reject) => {
+                timeoutId = setTimeout(
+                    () => reject(new Error('pdf.js getDocument Timeout – Worker antwortet nicht')),
+                    GET_DOCUMENT_TIMEOUT_MS,
+                );
+            }),
+        ]);
+    } catch (e) {
+        clearTimeout(timeoutId);
+        // Hängenden/laufenden Ladevorgang samt Worker abbrechen.
+        loadingTask.destroy?.();
+        throw e;
+    }
+    clearTimeout(timeoutId);
     try {
         return await fingerprintNotenPdf(doc, fileId);
     } finally {
