@@ -1,7 +1,7 @@
-# Use node 19 as the base image
-FROM node:20-slim as build-stage
+# Use node 22 as the base image (pnpm 11 requires Node >= 22.13)
+FROM node:22-slim AS build-stage
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@11.15.0
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -18,7 +18,7 @@ COPY . .
 # Build the application
 RUN pnpm run build
 
-FROM nginx:stable-alpine as production-stage
+FROM nginx:stable-alpine AS production-stage
 
 # Install envsubst
 RUN apk add --no-cache gettext
