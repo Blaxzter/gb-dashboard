@@ -1,4 +1,7 @@
 allowBuilds:
+  # dev-only nativer File-Watcher (via vite-plugin-vue-devtools -> @vue/devtools).
+  # Build-Script freigeben, sonst bricht pnpm 11 den Install ab (ERR_PNPM_IGNORED_BUILDS).
+  '@parcel/watcher': true
   core-js: true
   esbuild: true
   vue-demi: true
