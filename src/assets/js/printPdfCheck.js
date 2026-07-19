@@ -697,6 +697,7 @@ export function comparePrintPdf(extracted, dbSongs) {
     const verseText = [];
     const verseCount = [];
     const footer = [];
+    const copyrightScope = []; // Issue #78: Melodie-Copyright unklar der Melodie zugeordnet
     const allUnderNotes = [];
     const anmerkung = [];
 
@@ -788,6 +789,7 @@ export function comparePrintPdf(extracted, dbSongs) {
             compareChoral(ps, lied, { choral });
             compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
             compareFooter(ps, lied, { footer });
+            compareCopyrightScope(ps, lied, { copyrightScope });
             for (const line of ps.footerAnmerkung) {
                 anmerkung.push({
                     id: lied.id,
@@ -871,6 +873,7 @@ export function comparePrintPdf(extracted, dbSongs) {
         // Satzfehler. Strophen und Fußzeile werden ganz normal geprüft.
         compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
         compareFooter(ps, lied, { footer });
+        compareCopyrightScope(ps, lied, { copyrightScope });
     }
 
     // Fehlende Lieder: genommen + Nummer, aber keine zugeordnete PDF-Fassung.
@@ -1021,6 +1024,20 @@ export function comparePrintPdf(extracted, dbSongs) {
             {
                 okSummary: 'Alle geprüften Fußzeilen stimmen überein',
                 problemSummary: (i) => `${i.length} abweichende Fußzeile(n)`,
+            },
+        ),
+    );
+    checks.push(
+        makeCheck(
+            'copyright-scope',
+            CAT_FOOTER,
+            'Copyright-Zuordnung (nur Melodie)',
+            'Ist im Redaktionssystem ein Copyright nur für die Melodie hinterlegt (nicht für den Text und nicht für das ganze Lied), muss die „© …"-Angabe im Druck direkt hinter der „Melodie: …"-Zeile stehen. Rutscht sie aus Platzgründen in eine eigene Zeile darunter, sieht sie aus wie ein Copyright für das ganze Lied – dann ist die Zuordnung nicht mehr eindeutig (Issue #78).',
+            copyrightScope,
+            {
+                okSummary: 'Melodie-Copyrights sind eindeutig der Melodie zugeordnet',
+                problemSummary: (i) =>
+                    `${i.length} Lied(er) mit mehrdeutig gesetztem Melodie-Copyright`,
             },
         ),
     );
@@ -1476,6 +1493,45 @@ function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
             loc: v.box || ps.numberBox,
         });
     }
+}
+
+// Issue #78: Gilt laut Redaktionssystem NUR die Melodie ein Copyright (kein Text-
+// und kein Lied-Copyright), muss das „© …" im Druck direkt hinter der „Melodie:"-
+// Zeile stehen. Rutscht es aus Platzgründen in eine eigene Zeile, ist nicht mehr
+// erkennbar, ob es nur zur Melodie oder zum ganzen Lied gehört – dann Hinweis.
+//
+// Warum eine allein stehende „©"-Zeile hier eindeutig das umbrochene Melodie-
+// Copyright ist: buildFooter setzt das Melodie-Copyright inline an die Melodie-
+// Zeile; allein stellt es nur das Lied-Copyright (lied.copyright) – und das ist
+// bei „nur Melodie" per Voraussetzung leer. Eine „©"-Zeile für sich kann also
+// nur die umgebrochene Melodie-Rechteangabe sein.
+function compareCopyrightScope(ps, lied, { copyrightScope }) {
+    const trimmed = (v) => (v == null ? '' : String(v).trim());
+    const melodyCr = trimmed(lied?.melodie?.copyright);
+    const textCr = trimmed(lied?.text?.copyright);
+    const liedCr = trimmed(lied?.copyright);
+    // Nur relevant, wenn ausschließlich die Melodie ein Copyright hat.
+    if (!melodyCr || textCr || liedCr) return;
+
+    const lines = ps.footerLines || [];
+    // Trägt die Melodie-Zeile das „©" bereits inline (auch „Melodie und Rechte:" /
+    // „Melodie und Satz:" / „Text und Melodie:"), ist die Zuordnung eindeutig.
+    const melodyLine = lines.find((l) =>
+        /^\s*(text und melodie|melodie und satz|melodie und rechte|melodie)\s*:/i.test(l),
+    );
+    if (melodyLine && /©/.test(melodyLine)) return;
+
+    // Steht das „©" dagegen allein in einer eigenen Zeile, ist es mehrdeutig.
+    if (!lines.some((l) => FOOTER_COPYRIGHT.test(l))) return;
+
+    copyrightScope.push({
+        sev: 'warning',
+        id: lied.id,
+        nummer: ps.nummer,
+        title: lied.titel || `Lied ${ps.nummer}`,
+        detail: 'Copyright gilt laut Redaktionssystem nur für die Melodie, steht im Druck aber in einer eigenen Zeile unter „Melodie: …" – dadurch wirkt es wie ein Copyright für das ganze Lied. Bitte direkt hinter die Melodie-Zeile setzen.',
+        loc: ps.footerBox || ps.numberBox,
+    });
 }
 
 function compareFooter(ps, lied, { footer }) {
