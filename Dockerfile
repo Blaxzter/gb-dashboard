@@ -6,11 +6,12 @@ RUN npm install -g pnpm@11.15.0
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
-COPY package*.json ./
+# Copy manifest, lockfile and workspace config (allowBuilds + overrides live
+# in pnpm-workspace.yaml and must be present before install)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Install dependencies
-RUN pnpm install
+# Install dependencies from the frozen lockfile
+RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the application files to the working directory
 COPY . .
