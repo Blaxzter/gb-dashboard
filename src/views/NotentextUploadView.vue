@@ -1441,7 +1441,10 @@ async function shareSummary() {
             >
                 <div
                     class="item-thumb"
-                    :class="{ 'item-thumb--clickable': item.kind === 'svg' && item.previewUrl }"
+                    :class="{
+                        'item-thumb--clickable': item.kind === 'svg' && item.previewUrl,
+                        'item-thumb--sheet': item.kind === 'svg' && item.previewUrl,
+                    }"
                     :title="item.kind === 'svg' && item.previewUrl ? 'Vorschau vergrößern' : ''"
                     @click="openPreviewDialog(item)"
                 >
@@ -2076,14 +2079,23 @@ async function shareSummary() {
     width: 96px;
     height: 128px;
     flex-shrink: 0;
-    background: #fafafa;
-    border: 1px solid #eee;
+    /* Theme-abhängige, leicht abgesetzte Fläche (statt fixem Weiß) – so wirkt
+       das Kästchen hinter dem PDF-/MXL-/Finale-/MIDI-Icon im Dark Mode nicht
+       wie ein grell leuchtender weißer Block. */
+    background: rgb(var(--v-theme-surface-light));
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
     border-radius: 4px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+}
+/* SVG-Vorschau zeigt schwarze Noten auf transparentem Grund – die brauchen
+   auch im Dark Mode einen hellen Hintergrund (wie das Noten-Canvas). */
+.item-thumb--sheet {
+    background: #fafafa;
+    border-color: #eee;
 }
 .item-thumb--clickable {
     cursor: zoom-in;
@@ -2109,13 +2121,14 @@ async function shareSummary() {
     border: 1px solid #eee;
 }
 .item-row-separator {
-    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    border-top: 1px dashed rgba(var(--v-theme-on-surface), 0.12);
 }
 .summary-pre {
     white-space: pre-wrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.8rem;
-    background-color: #f7f7f7;
+    background-color: rgba(var(--v-theme-on-surface), 0.05);
+    color: rgb(var(--v-theme-on-surface));
     padding: 12px;
     border-radius: 4px;
     margin: 0;
