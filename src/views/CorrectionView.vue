@@ -1030,16 +1030,16 @@ const get_color = (category) => {
     transform: translate(-50%, -50%);
     z-index: 2;
     pointer-events: none;
-    background-color: #fcfcfc;
+    background-color: rgb(var(--v-theme-surface));
     padding: 20px 0px;
 }
 
 .splitpanes.default-theme .splitpanes__pane {
-    background-color: #fcfcfc;
+    background-color: rgb(var(--v-theme-surface));
 }
 
 .splitpanes__splitter {
-    background-color: #ccc;
+    background-color: rgb(var(--v-theme-surface-light));
     position: relative;
 }
 .splitpanes__splitter:before {
@@ -1048,7 +1048,7 @@ const get_color = (category) => {
     left: 0 !important;
     top: 0 !important;
     transition: opacity 0.4s !important;
-    background-color: rgba(237, 237, 237, 0.3) !important;
+    background-color: rgba(var(--v-theme-on-surface), 0.12) !important;
     opacity: 0 !important;
     z-index: 1 !important;
 }

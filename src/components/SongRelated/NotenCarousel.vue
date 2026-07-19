@@ -135,7 +135,7 @@
             />
             <div
                 v-else-if="is_image_selected"
-                class="bg-white d-flex justify-center align-center"
+                class="bg-surface d-flex justify-center align-center"
                 style="height: 100vh; padding: 16px"
             >
                 <img

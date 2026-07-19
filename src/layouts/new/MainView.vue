@@ -1,5 +1,5 @@
 <template>
-    <v-main class="bg-grey-lighten-3">
+    <v-main>
         <v-container fluid class="main-container">
             <v-row>
                 <v-col v-if="$vuetify.display.lgAndUp" cols="2">

@@ -413,7 +413,7 @@ watch(showFilter, (newValue) => {
     cursor: pointer;
 
     &:hover {
-        background-color: #f5f5f5;
+        background-color: rgba(var(--v-theme-on-surface), 0.08);
     }
 }
 </style>

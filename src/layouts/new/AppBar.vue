@@ -17,6 +17,23 @@
 
             <v-spacer></v-spacer>
 
+            <!-- Umschalter helles / dunkles Design -->
+            <v-tooltip
+                :text="isDark ? 'Zum hellen Design wechseln' : 'Zum dunklen Design wechseln'"
+                location="bottom"
+            >
+                <template #activator="{ props }">
+                    <v-btn
+                        :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"
+                        variant="text"
+                        density="comfortable"
+                        class="me-2"
+                        v-bind="props"
+                        @click="toggleTheme"
+                    ></v-btn>
+                </template>
+            </v-tooltip>
+
             <!-- add tooltip  -->
             <v-tooltip
                 v-if="is_kleiner_kreis && $vuetify.display.lgAndUp"
@@ -63,11 +80,16 @@
 //
 import MenuComponent from '@/components/util/MenuComponent.vue';
 import { useUserStore } from '@/store/user';
+import { useThemeToggle } from '@/composables/useThemeToggle';
 
 export default {
     name: 'AppBar',
     components: {
         MenuComponent,
+    },
+    setup() {
+        const { isDark, toggle } = useThemeToggle();
+        return { isDark, toggleTheme: toggle };
     },
     data: () => ({
         userStore: useUserStore(),

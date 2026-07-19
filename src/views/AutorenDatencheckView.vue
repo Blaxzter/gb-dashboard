@@ -1682,13 +1682,13 @@ onMounted(loadReview);
     width: 84px;
     flex: 0 0 84px;
     font-size: 0.7rem;
-    color: rgba(0, 0, 0, 0.6);
+    color: rgba(var(--v-theme-on-surface), 0.6);
 }
 .strip-track {
     position: relative;
     flex: 1 1 auto;
     height: 16px;
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(var(--v-theme-on-surface), 0.08);
     border-radius: 4px;
 }
 .strip-bar {
@@ -1698,7 +1698,7 @@ onMounted(loadReview);
     min-width: 6px;
     border-radius: 4px;
     border-width: 1px;
-    border-color: rgba(0, 0, 0, 0.18);
+    border-color: rgba(var(--v-theme-on-surface), 0.25);
     opacity: 0.9;
 }
 .strip-point {
@@ -1714,6 +1714,6 @@ onMounted(loadReview);
     justify-content: space-between;
     margin-left: 84px;
     font-size: 0.65rem;
-    color: rgba(0, 0, 0, 0.5);
+    color: rgba(var(--v-theme-on-surface), 0.5);
 }
 </style>

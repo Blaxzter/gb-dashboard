@@ -976,7 +976,7 @@ i.mdi-circle.mdi.v-icon.notranslate.v-theme--light.v-icon--size-default:before {
 }
 
 .v-data-table__tr:hover {
-    background-color: #cbd5e1;
+    background-color: rgba(var(--v-theme-on-surface), 0.06);
 }
 
 .v-data-table__td {

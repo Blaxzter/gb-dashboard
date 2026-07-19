@@ -154,7 +154,7 @@ export default {
         <div
             v-else
             class="d-flex align-center justify-center fill-height"
-            :class="{ 'bg-grey': screenMode !== 'sing-mode' && screenMode !== 'print' }"
+            :class="{ 'bg-surface-light': screenMode !== 'sing-mode' && screenMode !== 'print' }"
         >
             <vue-pdf-embed
                 :height="screenMode === 'print' && maxHeight ? maxHeight : 300"

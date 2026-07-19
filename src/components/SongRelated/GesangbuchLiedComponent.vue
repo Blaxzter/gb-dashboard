@@ -15,7 +15,11 @@
                     <div
                         class="card-header"
                         v-bind="props"
-                        :style="copied ? 'color: #1867c0' : 'color: black'"
+                        :style="
+                            copied
+                                ? 'color: rgb(var(--v-theme-primary))'
+                                : 'color: rgb(var(--v-theme-on-surface))'
+                        "
                         @click="copyPathInClipboard"
                     >
                         <!--  Clipboard icon        -->
@@ -140,7 +144,7 @@
                     </v-chip-group>
                     <span
                         v-if="canEditCategories && !selectedSong?.kategories?.length"
-                        class="text-grey-darken-1 text-body-2 me-2"
+                        class="text-medium-emphasis text-body-2 me-2"
                     >
                         Keine Kategorien
                     </span>
@@ -265,7 +269,7 @@
             >
                 <v-sheet
                     v-if="author_source?.src?.length || author_source.copyright"
-                    color="grey-lighten-4"
+                    color="surface-light"
                     rounded="lg"
                     class="mb-3 pa-3"
                 >
@@ -279,12 +283,12 @@
                     >
                         <div class="me-2">{{ index + 1 }}.</div>
                         <div class="d-flex flex-column">
-                            <div class="text-grey-darken-2">{{ author.autorPrefix || '' }}</div>
+                            <div class="text-medium-emphasis">{{ author.autorPrefix || '' }}</div>
                             <div>
                                 {{ author.vorname }} {{ author.nachname }}
                                 {{ formatYearRange(author.geburtsjahr, author.sterbejahr) }}
                             </div>
-                            <div class="text-grey-darken-2">
+                            <div class="text-medium-emphasis">
                                 {{ author.autorSuffix || '' }}
                                 {{ ursprungLabel(author?.ursprungsAutorObj) }}
                             </div>
@@ -292,7 +296,7 @@
                     </div>
                     <div
                         v-if="author_source.copyright"
-                        class="text-grey-darken-2 text-body-2 white-space-pre"
+                        class="text-medium-emphasis text-body-2 white-space-pre"
                     >
                         © {{ author_source.copyright }}
                     </div>
@@ -305,7 +309,7 @@
                     selectedSong?.einreicherName ||
                     selectedSong?.text?.korrekturlesung1
                 "
-                color="grey-lighten-4"
+                color="surface-light"
                 rounded="lg"
                 class="mb-3 pa-3"
             >
@@ -338,7 +342,7 @@
                     selectedSong?.text?.anmerkung ||
                     selectedSong?.melodie?.anmerkung
                 "
-                color="grey-lighten-4"
+                color="surface-light"
                 rounded="lg"
                 class="mb-3 pa-3"
             >
@@ -361,7 +365,7 @@
 
             <v-sheet
                 v-if="is_kleiner_kreis && is_kleiner_kreis_ansicht"
-                color="grey-lighten-4"
+                color="surface-light"
                 rounded="lg"
                 class="mb-3 pa-3"
             >
@@ -438,7 +442,7 @@
                         selectedSong?.deutscheLiedfassung ||
                         selectedSong?.melodie?.choralbuchNummer)
                 "
-                color="grey-lighten-4"
+                color="surface-light"
                 rounded="lg"
                 class="mb-3 pa-3"
             >
@@ -450,7 +454,7 @@
                     <span class="text-subtitle-1 font-weight-medium"> Choralbuch Nr.: </span>
                     <span> {{ selectedSong?.melodie?.choralbuchNummer }} </span>
                 </div>
-                <div v-if="deutsche_liedfassung_id" class="text-grey-darken-2">
+                <div v-if="deutsche_liedfassung_id" class="text-medium-emphasis">
                     <v-icon icon="mdi-link-variant" size="small" class="me-1" />
                     <span>Liednummer übernommen von deutscher Liedfassung: </span>
                     <a
@@ -466,7 +470,7 @@
 
             <v-sheet
                 v-if="selectedSong?.liednummer2000"
-                color="grey-lighten-4"
+                color="surface-light"
                 rounded="lg"
                 class="mb-3 pa-3"
             >

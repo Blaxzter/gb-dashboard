@@ -24,7 +24,7 @@
                 >
                     <div
                         v-if="file.type === 'application/pdf'"
-                        class="d-flex align-center justify-center fill-height bg-grey"
+                        class="d-flex align-center justify-center fill-height bg-surface-light"
                     >
                         <vue-pdf-embed
                             height="300"

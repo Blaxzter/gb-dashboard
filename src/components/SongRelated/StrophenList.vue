@@ -898,7 +898,7 @@ export default {
 
 .ki-review-collapsed-text {
     font-size: 0.8rem;
-    color: rgba(0, 0, 0, 0.6);
+    color: rgba(var(--v-theme-on-surface), 0.6);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

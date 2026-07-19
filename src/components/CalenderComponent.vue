@@ -29,7 +29,7 @@
                     selectedEvent.start && selectedEvent.start.format('DD.MM.YYYY')
                 }}</strong>
             </v-card-title>
-            <v-card-subtitle class="bg-grey-lighten-2 py-2">
+            <v-card-subtitle class="bg-surface-light py-2">
                 <strong>Arbeitskreis:</strong>
                 {{ selectedEvent.event.arbeitskreis_name }}
             </v-card-subtitle>

@@ -1,87 +1,87 @@
 <template>
-    <div class="background">
-        <v-img src="/src/assets/images/header-banner.jpg" alt="Hintergrund bild" cover />
-    </div>
-    <div class="login-wrapper d-flex align-center justify-center">
-        <div class="login-card">
-            <div>
-                <!-- on dashboard show logo -->
-                <v-img
-                    src="/src/assets/images/logo.png"
-                    style="display: block; margin: auto; max-width: 150px"
-                />
-            </div>
-            <!-- slogan -->
-            <div class="d-flex justify-center mt-8">
-                <span class="mb-4 text-body-1"
-                    >Willkommen auf der Seite fürs<br />Gesangbuch 2026</span
-                >
-            </div>
+    <v-theme-provider with-background class="login-page">
+        <!-- Unscharfes Hintergrundbild + theme-abhängiger Schleier -->
+        <div class="login-backdrop">
+            <v-img
+                src="/src/assets/images/header-banner.jpg"
+                alt="Hintergrundbild"
+                cover
+                height="100%"
+            />
+            <div class="login-scrim"></div>
+        </div>
 
-            <v-container fluid>
-                <v-form
-                    ref="form"
-                    v-model="valid"
-                    lazy-validation
-                    class="d-flex flex-column align-center"
-                >
+        <div class="login-wrapper d-flex align-center justify-center pa-4">
+            <v-card class="login-card pa-6 pa-sm-8" rounded="xl" elevation="12">
+                <v-img src="/src/assets/images/logo.png" class="mx-auto" max-width="140" />
+
+                <div class="text-center mt-6">
+                    <div class="text-h6 font-weight-bold">Willkommen</div>
+                    <div class="text-body-2 text-medium-emphasis mt-1">
+                        Einstiegs- und Übersichtsseite fürs Gesangbuch 2026
+                    </div>
+                </div>
+
+                <v-form ref="form" v-model="valid" lazy-validation class="mt-8">
                     <v-text-field
                         v-model="email"
-                        style="max-width: 300px"
                         :rules="[rules.required]"
-                        label="Benutzernamen"
+                        label="Benutzername"
                         required
-                        class="mb-3 w-100"
+                        class="mb-2"
                         variant="outlined"
+                        prepend-inner-icon="mdi-account-outline"
+                        autocomplete="username"
                         @keydown.enter.prevent="submit"
                     ></v-text-field>
 
                     <v-text-field
                         v-model="password"
-                        style="max-width: 300px"
-                        class="w-100"
                         :rules="[rules.required]"
-                        :append-icon="show_password ? 'mdi-eye' : 'mdi-eye-off'"
+                        :append-inner-icon="show_password ? 'mdi-eye' : 'mdi-eye-off'"
                         :type="show_password ? 'text' : 'password'"
                         label="Passwort"
                         variant="outlined"
+                        prepend-inner-icon="mdi-lock-outline"
+                        autocomplete="current-password"
                         @keydown.enter.prevent="submit"
-                        @click:append="show_password = !show_password"
+                        @click:append-inner="show_password = !show_password"
                     ></v-text-field>
 
-                    <div class="w-100" style="max-width: 300px">
-                        <v-checkbox
-                            v-model="remember_me"
-                            label="Eingeloggt bleiben"
-                            class="mb-3"
-                        ></v-checkbox>
-                    </div>
+                    <v-checkbox
+                        v-model="remember_me"
+                        label="Eingeloggt bleiben"
+                        density="comfortable"
+                        hide-details
+                        class="mb-2"
+                    ></v-checkbox>
 
-                    <v-alert
-                        v-if="loginError"
-                        type="error"
-                        dismissible
-                        transition="scale-transition"
-                    >
-                        {{ loginError }}
-                    </v-alert>
-
-                    <div class="d-flex justify-center align-center flex-column mt-4">
-                        <v-btn
-                            size="large"
-                            style="width: 200px"
-                            :loading="loadingLogin"
-                            :disabled="!validate_login"
-                            color="success"
-                            @click="submit"
+                    <v-expand-transition>
+                        <v-alert
+                            v-if="loginError"
+                            type="error"
+                            variant="tonal"
+                            density="comfortable"
+                            class="mb-4"
                         >
-                            Login
-                        </v-btn>
-                    </div>
+                            {{ loginError }}
+                        </v-alert>
+                    </v-expand-transition>
+
+                    <v-btn
+                        block
+                        size="large"
+                        color="primary"
+                        :loading="loadingLogin"
+                        :disabled="!validate_login"
+                        @click="submit"
+                    >
+                        Anmelden
+                    </v-btn>
                 </v-form>
-            </v-container>
+            </v-card>
         </div>
-    </div>
+    </v-theme-provider>
 </template>
 
 <script>
@@ -164,34 +164,47 @@ export default {
 };
 </script>
 
-<style>
-.background {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: -1000;
+<style scoped lang="scss">
+.login-page {
+    position: relative;
+    min-height: 100vh;
+}
+
+.login-backdrop {
     position: fixed;
-    height: 100vh;
-    width: 100vw;
-    filter: blur(3px) opacity(0.7);
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+
+    :deep(.v-img) {
+        // Leicht hochskalieren, damit der Weichzeichner keine harten Ränder zeigt.
+        filter: blur(4px);
+        transform: scale(1.06);
+    }
+}
+
+// Theme-abhängiger Schleier: hellt das Bild im Light-Mode auf und dunkelt es
+// im Dark-Mode ab, damit die Karte in beiden Themes gut lesbar bleibt.
+.login-scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--v-theme-surface), 0.55);
 }
 
 .login-wrapper {
-    height: 100vh;
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+}
 
+.login-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+@media (max-width: 600px) {
     .login-card {
-        background-color: white;
-        padding: 2rem;
-        border-radius: 10px;
-        max-width: 400px;
-        min-width: 400px;
-
-        @media (max-width: 960px) {
-            min-width: 100%;
-            min-height: 100%;
-            border-radius: 0;
-            padding: 2rem 0.5rem;
-        }
+        max-width: 100%;
     }
 }
 </style>

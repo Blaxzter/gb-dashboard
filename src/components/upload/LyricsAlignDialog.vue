@@ -828,7 +828,7 @@ const SOURCE_CHIP_COLORS = { pdf: 'primary', note: 'success', manual: 'warning' 
                 </div>
                 <div v-else class="d-flex" style="overflow: hidden">
                     <div class="d-flex flex-column flex-grow-1" style="min-width: 0">
-                        <div class="d-flex align-center ga-2 pa-2 bg-grey-lighten-3" style="flex-shrink: 0">
+                        <div class="d-flex align-center ga-2 pa-2 bg-surface-light" style="flex-shrink: 0">
                             <v-tooltip text="T oder Leertaste zum Umschalten" location="bottom">
                                 <template #activator="{ props }">
                                     <v-btn-toggle
@@ -946,7 +946,7 @@ const SOURCE_CHIP_COLORS = { pdf: 'primary', note: 'success', manual: 'warning' 
                     <template v-if="show_pdf_side && pdf_object_url">
                         <v-divider vertical />
                         <div class="d-flex flex-column flex-grow-1" style="min-width: 0">
-                            <div class="d-flex align-center ga-2 pa-2 bg-grey-lighten-3" style="flex-shrink: 0">
+                            <div class="d-flex align-center ga-2 pa-2 bg-surface-light" style="flex-shrink: 0">
                                 <v-icon size="small">mdi-file-pdf-box</v-icon>
                                 <span class="text-caption font-weight-medium">PDF-Referenz</span>
                                 <v-spacer />

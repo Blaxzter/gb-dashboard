@@ -582,7 +582,7 @@ v-if="group.author.geburtsjahr || group.author.sterbejahr"
                         </template>
                         <template v-if="group.unbewertet.length > 0">
                             <tr>
-                                <td colspan="4" class="font-weight-bold bg-grey-lighten-4">
+                                <td colspan="4" class="font-weight-bold bg-surface-light">
                                     Noch unbewertet ({{ group.unbewertet.length }})
                                 </td>
                             </tr>
@@ -647,7 +647,7 @@ v-if="group.author.geburtsjahr || group.author.sterbejahr"
     white-space: pre-wrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.85rem;
-    background-color: #f7f7f7;
+    background-color: rgb(var(--v-theme-surface-light));
     padding: 12px;
     border-radius: 4px;
     margin: 0;
