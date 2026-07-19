@@ -1,38 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { seedStaticTokenAuth, gotoReady } from './helpers';
 
 // Smoke-Test „wie ein Mensch": eine Liedansicht aus dem echten Backend laden,
 // prüfen dass das Notentext-PDF angezeigt wird und ein paar Knöpfe bedienen.
-//
-// Login-Bootstrap ohne interaktives Login: die App liest VITE_AUTH_TOKEN aus
-// .env; wir setzen nur die localStorage-Flags, damit autoLogin() läuft und der
-// axios-Interceptor den statischen Token anhängt (siehe axiossConfig.js /
-// store/user.js). Läuft daher NICHT als PR-Gate, sondern lokal/nightly.
+// Läuft NICHT als PR-Gate, sondern lokal/nightly (siehe e2e/README.md).
 
 // Bekanntes Lied mit Notentext-PDF (per Directus-API ausgewählt).
 const SONG = { id: 2, titel: 'Ich bin ein Kind auf Erden' };
 
 test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-        localStorage.setItem('username', 'e2e-smoke');
-        localStorage.setItem('use_static_token', 'true');
-        localStorage.setItem('static_token_kind', 'default');
-    });
+    await seedStaticTokenAuth(page);
 });
 
-// Cold-Start des Vite-Dev-Servers kann den ersten Chunk-Load mit HTTP 504
-// ("Outdated Optimize Dep") quittieren -> bis zu dreimal neu laden.
-async function gotoSong(page) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-        await page.goto(`/lied/${SONG.id}`);
-        try {
-            await expect(page.getByText(SONG.titel).first()).toBeVisible({ timeout: 15_000 });
-            return;
-        } catch {
-            /* reload and retry */
-        }
-    }
-    throw new Error(`Liedansicht /lied/${SONG.id} nicht geladen`);
-}
+const gotoSong = (page) =>
+    gotoReady(page, `/lied/${SONG.id}`, (p) => p.getByText(SONG.titel).first());
 
 test('Liedansicht lädt aus dem Backend', async ({ page }) => {
     await gotoSong(page);
