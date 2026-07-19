@@ -36,8 +36,8 @@ importers:
         specifier: ^3.0.7
         version: 3.0.7(datatables.net@2.3.8)(vue@3.5.40(typescript@5.4.5))
       jquery:
-        specifier: ^3.7.1
-        version: 3.7.1
+        specifier: ^4.0.0
+        version: 4.0.0
       jspdf:
         specifier: ^4.2.1
         version: 4.2.1
@@ -1467,8 +1467,8 @@ packages:
     resolution: {integrity: sha512-7vuh85V5cdDofPyxn58nrPjBktZo0u9x1g8WtjQol+jZDaE+fhN+cIvTj11GndBnMnyfrUOG1sZQxCdjKh+DKg==}
     engines: {node: '>= 10.13.0'}
 
-  jquery@3.7.1:
-    resolution: {integrity: sha512-m4avr8yL8kmFN8psrbFFFmB/If14iN5o9nw/NgnnM+kybDJpRsAynV2BsfpTYrTRysYUdADVD7CkUUizgkpLfg==}
+  jquery@4.0.0:
+    resolution: {integrity: sha512-TXCHVR3Lb6TZdtw1l3RTLf8RBWVGexdxL6AC8/e0xZKEpBflBsjh9/8LXw+dkNFuOyW9B7iB3O1sP7hS0Kiacg==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -3098,7 +3098,7 @@ snapshots:
 
   datatables.net@2.3.8:
     dependencies:
-      jquery: 3.7.1
+      jquery: 4.0.0
 
   date-fns-tz@2.0.1(date-fns@2.30.0):
     dependencies:
@@ -3499,7 +3499,7 @@ snapshots:
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
-  jquery@3.7.1: {}
+  jquery@4.0.0: {}
 
   js-tokens@4.0.0: {}
 
