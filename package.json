@@ -18,7 +18,7 @@
         "@popperjs/core": "^2.11.8",
         "axios": "^1.18.1",
         "chart.js": "^4.5.1",
-        "chroma-js": "^2.4.2",
+        "chroma-js": "^3.2.0",
         "core-js": "^3.49.0",
         "datatables.net": "^2.3.8",
         "datatables.net-vue3": "^3.0.7",
