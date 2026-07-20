@@ -376,6 +376,26 @@ const filtered_gesangbuchlieder = computed(() => {
     return filtered_gesangbuchlied;
 });
 
+// Pagination: Ohne sie wurde für JEDES gefilterte Lied ein Expansion-Panel-Titel
+// gerendert (jeder mit mehreren v-tooltip-Overlays) – bei vielen Treffern
+// tausende Overlays im DOM, wodurch jeder Hover/jede Interaktion einen Reflow
+// über den gesamten Baum auslöste. Jetzt werden nur die Panels der aktuellen
+// Seite gerendert. Der schwere Panel-Inhalt (Noten/Strophen) ist ohnehin lazy
+// (eager=false) und lädt erst beim Aufklappen.
+const perPage = 25;
+const page = ref(1);
+const pageCount = computed(() =>
+    Math.max(1, Math.ceil(filtered_gesangbuchlieder.value.length / perPage)),
+);
+const paged_gesangbuchlieder = computed(() => {
+    const start = (page.value - 1) * perPage;
+    return filtered_gesangbuchlieder.value.slice(start, start + perPage);
+});
+// Seite klemmen, falls die Trefferzahl (z. B. durch einen Filter) schrumpft.
+watch(pageCount, (len) => {
+    if (page.value > len) page.value = len;
+});
+
 // Geöffneten Zustand an die URL koppeln, damit ein in der Korrektur-Ansicht
 // geöffnetes Lied verlinkbar ist und beim Neuladen wiederhergestellt wird.
 // Es werden zwei Zustände unterschieden (Muster aus der Checks-Ansicht, issue #2):
@@ -444,8 +464,12 @@ const openFromRoute = () => {
     const id = route.params.id;
     if (id == null || id === '') return;
     const idNum = parseInt(id, 10);
-    const lied = filtered_gesangbuchlieder.value.find((l) => l.id === idNum);
-    if (!lied) return;
+    const idx = filtered_gesangbuchlieder.value.findIndex((l) => l.id === idNum);
+    if (idx === -1) return;
+    const lied = filtered_gesangbuchlieder.value[idx];
+    // Auf die Seite springen, auf der das verlinkte Lied liegt, damit sein
+    // Panel im DOM steht und geöffnet/angescrollt werden kann.
+    page.value = Math.floor(idx / perPage) + 1;
     if (openPanel.value == null) {
         openPanel.value = idNum;
         scrollToPanel(idNum);
@@ -642,9 +666,22 @@ const get_color = (category) => {
         <v-alert outlined color="warning" icon="mdi-alert">Keine Lieder gefunden</v-alert>
     </div>
     <div v-else class="mt-5">
+        <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
+            <span class="text-body-2 text-medium-emphasis">
+                {{ filtered_gesangbuchlieder.length }} Lieder
+            </span>
+            <v-pagination
+                v-if="pageCount > 1"
+                v-model="page"
+                :length="pageCount"
+                :total-visible="7"
+                density="comfortable"
+                rounded="circle"
+            />
+        </div>
         <v-expansion-panels v-model="openPanel">
             <v-expansion-panel
-                v-for="lied in filtered_gesangbuchlieder"
+                v-for="lied in paged_gesangbuchlieder"
                 :key="lied.id"
                 :value="lied.id"
                 :data-lied-id="lied.id"
@@ -989,6 +1026,15 @@ const get_color = (category) => {
                 </v-expansion-panel-text>
             </v-expansion-panel>
         </v-expansion-panels>
+        <div v-if="pageCount > 1" class="d-flex justify-center mt-4">
+            <v-pagination
+                v-model="page"
+                :length="pageCount"
+                :total-visible="7"
+                density="comfortable"
+                rounded="circle"
+            />
+        </div>
     </div>
 
     <v-dialog v-model="song_dialog" width="700" @close="modalClose">

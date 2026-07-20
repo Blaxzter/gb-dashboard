@@ -3,8 +3,14 @@
         <div class="text-h4 mb-5">Bereits eingetragene Gesangbuchlieder</div>
     </div>
 
-    <v-data-table
-        style="min-height: 600px"
+    <!-- Virtualisierte Tabelle: rendert nur die sichtbaren Zeilen, statt alle
+         (bei "alle Rows" sonst ~30k DOM-Knoten / tausende Tooltip-Overlays →
+         jeder Hover/Sort erzwang einen Reflow über den ganzen DOM). Zeigt
+         weiterhin alle Lieder, nur eben virtuell gescrollt – daher kein Footer/
+         keine Pagination. Braucht eine feste Höhe + fixed-header. -->
+    <v-data-table-virtual
+        height="calc(100dvh - 190px)"
+        fixed-header
         :headers="headers"
         :items="filtered_gesangbuchlieder"
         :search="search"
@@ -398,7 +404,7 @@
         <template #[`item.bewertung_kleiner_kreis`]="{ item }">
             <BewerungKleinerKreisDatatableEntry :item="item" />
         </template>
-    </v-data-table>
+    </v-data-table-virtual>
 
     <v-dialog v-model="song_dialog" width="90vw" max-width="1100" @close="modalClose">
         <GesangbuchLiedComponent
