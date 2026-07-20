@@ -65,6 +65,9 @@ const findings = computed(() => {
                 nummer: it.nummer,
                 id: it.id,
                 loc: it.loc || null,
+                // Maß-Annotation (Strophen-Abstand): im Overlay ein Doppelpfeil
+                // statt eines Kastens, `dim.pt` ist der gemessene Wert.
+                dim: it.dim || null,
                 // Einzelne Fundstellen (z. B. je abweichendes Notenzeichen) – im
                 // Overlay als kleine Kästen, der Verbindungspunkt bleibt `loc`.
                 locs: it.locs || null,
@@ -204,11 +207,39 @@ function boxesForPage(p) {
                 const l = f.locs[i];
                 if (l.page === p) out.push({ boxKey: `${f.key}#${i}`, f, rect: l.rect });
             }
-        } else if (f.loc && f.loc.page === p) {
+        } else if (f.loc && f.loc.page === p && !f.dim) {
             out.push({ boxKey: `${f.key}#loc`, f, rect: f.loc.rect });
         }
     }
     return out;
+}
+
+// Maß-Annotationen (Strophen-Abstand): statt eines Kastens ein senkrechter
+// Doppelpfeil (↕) im Zwischenraum, mit Grenzlinien (Unter-/Oberkante der beiden
+// Strophen) und dem gemessenen Wert beschriftet.
+const AH = 1.5; // halbe Pfeilspitzen-Größe (pt)
+function dimsForPage(p) {
+    const out = [];
+    for (const f of displayedFindings.value) {
+        if (f.dim && f.loc && f.loc.page === p) {
+            out.push({ boxKey: `${f.key}#dim`, f, rect: f.loc.rect, pt: f.dim.pt });
+        }
+    }
+    return out;
+}
+// x-Position der Maßlinie: leicht vom linken Rand der Strophe eingerückt.
+function dimX(rect) {
+    return rect.x + Math.min(10, rect.w * 0.2);
+}
+// Pfeilspitze nach oben (Scheitel bei y) bzw. nach unten – als Polygon-Punkte.
+function arrowUp(x, y) {
+    return `${x},${y} ${x - AH},${y + AH * 1.6} ${x + AH},${y + AH * 1.6}`;
+}
+function arrowDown(x, y) {
+    return `${x},${y} ${x - AH},${y - AH * 1.6} ${x + AH},${y - AH * 1.6}`;
+}
+function fmtDim(pt) {
+    return `${pt.toFixed(1).replace('.', ',')} pt`;
 }
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -641,6 +672,71 @@ onBeforeUnmount(() => {
                         :opacity="b.f.key === selectedKey ? 1 : 0.5"
                         rx="1.5"
                     />
+                    <!-- Strophen-Abstand: Doppelpfeil im Zwischenraum statt Kasten. -->
+                    <g
+                        v-for="d in dimsForPage(p)"
+                        :key="d.boxKey"
+                        :opacity="d.f.key === selectedKey ? 1 : 0.7"
+                    >
+                        <rect
+                            v-if="d.f.key === selectedKey"
+                            :x="d.rect.x"
+                            :y="d.rect.y"
+                            :width="d.rect.w"
+                            :height="d.rect.h"
+                            :fill="SEV[d.f.sev]?.color"
+                            rx="1"
+                        />
+                        <!-- Grenzlinien: Unterkante obere Strophe, Oberkante untere Strophe. -->
+                        <line
+                            :x1="d.rect.x"
+                            :y1="d.rect.y"
+                            :x2="d.rect.x + d.rect.w"
+                            :y2="d.rect.y"
+                            :stroke="SEV[d.f.sev]?.stroke"
+                            stroke-width="0.35"
+                            stroke-dasharray="2 1.5"
+                        />
+                        <line
+                            :x1="d.rect.x"
+                            :y1="d.rect.y + d.rect.h"
+                            :x2="d.rect.x + d.rect.w"
+                            :y2="d.rect.y + d.rect.h"
+                            :stroke="SEV[d.f.sev]?.stroke"
+                            stroke-width="0.35"
+                            stroke-dasharray="2 1.5"
+                        />
+                        <!-- Maßlinie mit Doppelpfeil (↕). -->
+                        <line
+                            :x1="dimX(d.rect)"
+                            :y1="d.rect.y"
+                            :x2="dimX(d.rect)"
+                            :y2="d.rect.y + d.rect.h"
+                            :stroke="SEV[d.f.sev]?.stroke"
+                            :stroke-width="d.f.key === selectedKey ? 0.8 : 0.5"
+                        />
+                        <polygon
+                            :points="arrowUp(dimX(d.rect), d.rect.y)"
+                            :fill="SEV[d.f.sev]?.stroke"
+                        />
+                        <polygon
+                            :points="arrowDown(dimX(d.rect), d.rect.y + d.rect.h)"
+                            :fill="SEV[d.f.sev]?.stroke"
+                        />
+                        <text
+                            :x="dimX(d.rect) + 3"
+                            :y="d.rect.y + d.rect.h / 2"
+                            :fill="SEV[d.f.sev]?.stroke"
+                            font-size="6"
+                            dominant-baseline="middle"
+                            paint-order="stroke"
+                            stroke="#fff"
+                            stroke-width="1"
+                            style="font-weight: 700"
+                        >
+                            {{ fmtDim(d.pt) }}
+                        </text>
+                    </g>
                 </svg>
                 <div class="page-label">{{ p }}</div>
             </div>

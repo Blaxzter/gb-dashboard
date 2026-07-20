@@ -696,6 +696,7 @@ export function comparePrintPdf(extracted, dbSongs) {
     const choral = [];
     const verseText = [];
     const verseCount = [];
+    const verseSpacing = [];
     const footer = [];
     const copyrightScope = []; // Issue #78: Melodie-Copyright unklar der Melodie zugeordnet
     const allUnderNotes = [];
@@ -788,6 +789,7 @@ export function comparePrintPdf(extracted, dbSongs) {
             });
             compareChoral(ps, lied, { choral });
             compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
+            checkVerseSpacing(ps, lied, { verseSpacing });
             compareFooter(ps, lied, { footer });
             compareCopyrightScope(ps, lied, { copyrightScope });
             for (const line of ps.footerAnmerkung) {
@@ -872,6 +874,7 @@ export function comparePrintPdf(extracted, dbSongs) {
         // das steht schon im Befund oben und wäre nur ein zweiter für denselben
         // Satzfehler. Strophen und Fußzeile werden ganz normal geprüft.
         compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
+        checkVerseSpacing(ps, lied, { verseSpacing });
         compareFooter(ps, lied, { footer });
         compareCopyrightScope(ps, lied, { copyrightScope });
     }
@@ -1010,6 +1013,19 @@ export function comparePrintPdf(extracted, dbSongs) {
             {
                 okSummary: 'Strophen-Anzahl und -Nummerierung stimmen',
                 problemSummary: (i) => `${i.length} Auffälligkeit(en) bei den Strophen`,
+            },
+        ),
+    );
+    checks.push(
+        makeCheck(
+            'verse-spacing',
+            CAT_VERSE,
+            'Strophen-Abstand',
+            'Zwischen den Textstrophen muss ein fester Absatzabstand von genau 9 pt stehen (zusätzlich zum normalen Zeilenabstand). Gemessen wird der Grundlinien-Abstand über den Strophenumbruch abzüglich des Durchschusses des Liedes – nur zwischen zwei nummerierten Strophen auf derselben Seite messbar.',
+            verseSpacing,
+            {
+                okSummary: 'Alle geprüften Strophenabstände betragen 9 pt',
+                problemSummary: (i) => `${i.length} abweichende(r) Strophenabstand/-abstände`,
             },
         ),
     );
@@ -1491,6 +1507,110 @@ function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
             pdf: v.text,
             expected: dbText,
             loc: v.box || ps.numberBox,
+        });
+    }
+}
+
+// --- Strophen-Abstand (Layout) ---------------------------------------------
+//
+// Der Satz setzt zwischen die Textstrophen einen festen Absatzabstand (im
+// InDesign-Absatzformat „Abstand davor/danach"). Sollwert: genau 9 pt. Gemessen
+// wird der ZUSÄTZLICHE Abstand zwischen dem Ende einer Strophe und dem Beginn der
+// nächsten – also der Grundlinien-Abstand über den Strophenumbruch abzüglich des
+// normalen Zeilenabstands (Durchschuss) des Liedes. Dadurch ist die Prüfung
+// unabhängig von der Schriftgröße.
+//
+// Grenzen: messbar nur zwischen zwei nummerierten Textstrophen auf DERSELBEN
+// Seite (über einen Seitenumbruch hinweg gibt es keinen Abstand zu messen). Den
+// Durchschuss erschließt die Funktion aus den Zeilenabständen innerhalb der
+// Strophen (Median); fehlt er (lauter einzeilige Strophen), lässt sich der
+// Absatzabstand nicht bestimmen und die Prüfung entfällt still. Aus einem
+// zusammenhängenden Textblock „herausgelöste" Folgestrophen (Nummer fehlt im
+// Satz, `numInferred`) werden übersprungen – zwischen ihnen steht gerade KEIN
+// echter Absatzumbruch, und der Satzfehler ist bereits über die Strophen-
+// Vollständigkeit gemeldet.
+
+const VERSE_SPACING_PT = 9; // Sollwert des Absatzabstands
+const VERSE_SPACING_TOL = 0.1; // erlaubte Abweichung (PDF-Extraktions-Rauschen)
+
+// Grundlinien-Abstände innerhalb der Strophen – Stichprobe für den Durchschuss.
+function intraLineGaps(verses) {
+    const gaps = [];
+    for (const v of verses) {
+        const ls = v.lines || [];
+        for (let i = 1; i < ls.length; i++) {
+            if (ls[i].page === ls[i - 1].page) {
+                const d = ls[i].yTop - ls[i - 1].yTop;
+                if (d > 0) gaps.push(d);
+            }
+        }
+    }
+    return gaps;
+}
+
+// Kasten über den Zwischenraum zweier Strophen (für das PDF-Overlay). Bewusst der
+// Zwischenraum SELBST: von der Unterkante der letzten Zeile von a (Grundlinie +
+// Unterlänge) bis zur Oberkante der ersten Zeile von b (Grundlinie − Oberlänge) –
+// NICHT Grundlinie→Grundlinie, sonst läge die erste Zeile von b mit im Kasten und
+// es sähe aus wie „Unterkante a → Unterkante b". Breite = über beide Strophen, als
+// Grundlinie für die Grenzlinien im Overlay.
+function spacingBox(a, b, page) {
+    const aLast = a.lines[a.lines.length - 1];
+    const bFirst = b.lines[0];
+    const items = [...a.lines, ...b.lines].filter((l) => l.page === page).flatMap((l) => l.items);
+    const rect = bboxOfItems(items);
+    const gapTop = aLast.yTop + aLast.size * 0.3;
+    const gapBottom = bFirst.yTop - bFirst.size * 0.9;
+    return {
+        page,
+        rect: {
+            x: rect ? rect.x : 40,
+            y: gapTop,
+            w: rect ? rect.w : 200,
+            h: Math.max(gapBottom - gapTop, 3),
+        },
+    };
+}
+
+const fmtPt = (n) => n.toFixed(1).replace('.', ',');
+
+// Absatzabstand aller nummerierten Textstrophen eines Liedes prüfen (Soll 9 pt).
+function checkVerseSpacing(ps, lied, { verseSpacing }) {
+    // Textstrophen in Satz-Reihenfolge (von oben nach unten, seitenweise).
+    const verses = (ps.verses || [])
+        .filter((v) => v.lines && v.lines.length)
+        .map((v) => ({ v, page: v.lines[0].page, y: v.lines[0].yTop }))
+        .sort((A, B) => A.page - B.page || A.y - B.y)
+        .map((x) => x.v);
+    if (verses.length < 2) return;
+
+    const leadingGaps = intraLineGaps(verses);
+    if (!leadingGaps.length) return; // Durchschuss nicht bestimmbar → still übergehen
+    const leading = median(leadingGaps);
+
+    for (let i = 1; i < verses.length; i++) {
+        const a = verses[i - 1];
+        const b = verses[i];
+        // Nur echte Absatzumbrüche zwischen zwei nummerierten Strophen; aus einem
+        // Block herausgelöste (unnummerierte) Folgestrophen überspringen.
+        if (a.num == null || b.num == null || b.numInferred) continue;
+        const aLast = a.lines[a.lines.length - 1];
+        const bFirst = b.lines[0];
+        if (aLast.page !== bFirst.page) continue; // Seitenumbruch – nicht messbar
+        const baselineGap = bFirst.yTop - aLast.yTop;
+        if (baselineGap <= 0) continue;
+        const spacing = baselineGap - leading;
+        if (Math.abs(spacing - VERSE_SPACING_PT) <= VERSE_SPACING_TOL) continue;
+        verseSpacing.push({
+            sev: 'warning',
+            id: lied.id,
+            nummer: ps.nummer,
+            title: `Lied ${ps.nummer} · Strophen ${a.num}–${b.num}`,
+            detail: `Absatzabstand Strophe ${a.num}→${b.num}: ${fmtPt(spacing)} pt statt ${VERSE_SPACING_PT} pt`,
+            // `dim` markiert den Befund fürs Overlay als Maß-Annotation (Doppelpfeil
+            // statt Kasten); `pt` ist der gemessene Absatzabstand.
+            dim: { pt: spacing },
+            loc: spacingBox(a, b, aLast.page),
         });
     }
 }
