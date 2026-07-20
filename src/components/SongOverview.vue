@@ -985,7 +985,12 @@ i.mdi-circle.mdi.v-icon.notranslate.v-theme--light.v-icon--size-default:before {
     background-color: rgba(var(--v-theme-on-surface), 0.06);
 }
 
-.v-data-table__td {
+/* Body-Zellen transparent, damit der Row-Hover (.v-data-table__tr:hover)
+   durchscheint. Nur auf tbody beschränken: in Vuetify 4 tragen auch die
+   Header-<th> die Klasse .v-data-table__td, sonst würde dieses
+   `transparent !important` den Hintergrund des fixed-header überschreiben
+   (Row-Inhalt scheint dann durch die klebende Kopfzeile). */
+.v-data-table tbody .v-data-table__td {
     background-color: transparent !important;
 }
 </style>
