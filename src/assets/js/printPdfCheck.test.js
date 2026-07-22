@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { canon, footerSignature, footerSignaturesMatch } from '@/assets/js/printPdfCheck';
+import {
+    canon,
+    compareCopyrightScope,
+    footerSignature,
+    footerSignaturesMatch,
+} from '@/assets/js/printPdfCheck';
 
 describe('canon (Vergleichsform)', () => {
     it('vereinheitlicht typografische Anführungszeichen', () => {
@@ -48,5 +53,66 @@ describe('footerSignaturesMatch', () => {
     });
     it('erkennt echte Abweichungen', () => {
         expect(footerSignaturesMatch('Text: Bach', 'Text: Mozart')).toBe(false);
+    });
+});
+
+describe('compareCopyrightScope (nur Melodie hat Copyright, Issue #78)', () => {
+    // Lied mit Copyright ausschließlich an der Melodie.
+    const lied = {
+        id: 1,
+        titel: 'Gottes Stern',
+        copyright: '',
+        text: { copyright: '' },
+        melodie: { copyright: 'Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel' },
+    };
+    const run = (footerLines, footerLineX) => {
+        const copyrightScope = [];
+        compareCopyrightScope({ nummer: '220', footerLines, footerLineX }, lied, {
+            copyrightScope,
+        });
+        return copyrightScope;
+    };
+
+    it('meldet nichts, wenn das © inline hinter der Melodie-Zeile steht', () => {
+        expect(
+            run(
+                ['Text: Ulrike Gehde (1959)', 'Melodie: Christian Lahusen © Bärenreiter'],
+                [27.6, 28.4],
+            ),
+        ).toEqual([]);
+    });
+    it('meldet nichts, wenn die ©-Zeile eingerückt unter der Melodie-Zeile steht', () => {
+        // Werte aus test_input_4.pdf, Seite 72 (Nr. 220).
+        expect(
+            run(
+                [
+                    'Text: Ulrike Gehde (1959)',
+                    'Melodie: Christian Lahusen (1886–1975) „Wisst ihr noch, wie es geschehen?"',
+                    '© Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel',
+                ],
+                [27.6, 28.4, 54.6],
+            ),
+        ).toEqual([]);
+    });
+    it('warnt, wenn die ©-Zeile bündig am linken Rand steht', () => {
+        const items = run(
+            [
+                'Text: Ulrike Gehde (1959)',
+                'Melodie: Christian Lahusen (1886–1975)',
+                '© Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel',
+            ],
+            [27.6, 28.4, 27.9],
+        );
+        expect(items).toHaveLength(1);
+        expect(items[0].sev).toBe('warning');
+    });
+    it('meldet nichts, wenn auch der Text ein Copyright hat', () => {
+        const copyrightScope = [];
+        compareCopyrightScope(
+            { nummer: '220', footerLines: ['Melodie: X', '© Verlag'], footerLineX: [27.6, 27.6] },
+            { ...lied, text: { copyright: 'Verlag' } },
+            { copyrightScope },
+        );
+        expect(copyrightScope).toEqual([]);
     });
 });

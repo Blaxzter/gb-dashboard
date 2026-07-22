@@ -316,8 +316,19 @@ function groupLines(items, sizeHint) {
         line.x = line.items[0].x;
         line.size = median(line.items.map((i) => i.size));
         line.text = buildLineText(line.items);
+        // Linker Rand des sichtbaren Textes: InDesign schreibt Einrückungen teils
+        // als führende Leerzeichen INNERHALB des Items, die x-Position der Zeile
+        // bleibt dabei am Satzspiegel. Für „ist die Zeile eingerückt?" zählt aber
+        // der erste sichtbare Buchstabe, deshalb hier die Leerzeichen mitrechnen.
+        line.textX = line.x + leadingSpaceWidth(line.items[0]);
     }
     return lines.filter((l) => l.text.trim() !== '');
+}
+
+// Breite der führenden Leerzeichen eines Items (Näherung: Leerzeichen ≈ 0,25 em).
+function leadingSpaceWidth(item) {
+    const n = (String(item?.str || '').match(/^\s*/) || [''])[0].length;
+    return n * (item?.size || 10) * 0.25;
 }
 
 // Zeilentext aus den Items zusammensetzen; Leerzeichen nur bei echter x-Lücke.
@@ -555,6 +566,9 @@ export async function extractPdfSongs(pdfDoc) {
 
         song.verses = splitVerses(bodyLines);
         song.footerLines = footerLineObjs.map((l) => l.text);
+        // Linker Rand jeder Fußzeile (inkl. führender Leerzeichen) – nötig, um
+        // eingerückte Fortsetzungszeilen zu erkennen (siehe compareCopyrightScope).
+        song.footerLineX = footerLineObjs.map((l) => l.textX);
         song.footerText = song.footerLines.join('\n');
         song.footerAnmerkung = song.footerLines.filter((l) => FOOTER_UNVERIFIABLE.test(l));
         song.footerBox = boxOfLines(footerLineObjs);
@@ -1048,7 +1062,7 @@ export function comparePrintPdf(extracted, dbSongs) {
             'copyright-scope',
             CAT_FOOTER,
             'Copyright-Zuordnung (nur Melodie)',
-            'Ist im Redaktionssystem ein Copyright nur für die Melodie hinterlegt (nicht für den Text und nicht für das ganze Lied), muss die „© …"-Angabe im Druck direkt hinter der „Melodie: …"-Zeile stehen. Rutscht sie aus Platzgründen in eine eigene Zeile darunter, sieht sie aus wie ein Copyright für das ganze Lied – dann ist die Zuordnung nicht mehr eindeutig (Issue #78).',
+            'Ist im Redaktionssystem ein Copyright nur für die Melodie hinterlegt (nicht für den Text und nicht für das ganze Lied), muss im Druck erkennbar bleiben, dass es zur Melodie gehört: entweder direkt hinter der „Melodie: …"-Zeile oder in einer eingerückten Zeile darunter. Steht die „© …"-Angabe dagegen bündig am linken Rand in einer eigenen Zeile, sieht sie aus wie ein Copyright für das ganze Lied – dann ist die Zuordnung nicht mehr eindeutig (Issue #78).',
             copyrightScope,
             {
                 okSummary: 'Melodie-Copyrights sind eindeutig der Melodie zugeordnet',
@@ -1616,16 +1630,27 @@ function checkVerseSpacing(ps, lied, { verseSpacing }) {
 }
 
 // Issue #78: Gilt laut Redaktionssystem NUR die Melodie ein Copyright (kein Text-
-// und kein Lied-Copyright), muss das „© …" im Druck direkt hinter der „Melodie:"-
-// Zeile stehen. Rutscht es aus Platzgründen in eine eigene Zeile, ist nicht mehr
-// erkennbar, ob es nur zur Melodie oder zum ganzen Lied gehört – dann Hinweis.
+// und kein Lied-Copyright), muss im Druck erkennbar bleiben, dass sich das „© …"
+// auf die Melodie-Zeile bezieht und nicht auf das ganze Lied. Zwei Schreibweisen
+// sind dafür zulässig:
+//   1. inline direkt hinter der „Melodie: …"-Zeile, oder
+//   2. in einer eigenen Zeile darunter, die gegenüber dem linken Rand der
+//      Fußzeile EINGERÜCKT ist (Fortsetzungszeile, siehe Bild in Issue #78).
+// Nur wenn das „©" bündig am linken Rand in einer eigenen Zeile steht, sieht es
+// aus wie ein Copyright für das ganze Lied – dann Hinweis.
 //
 // Warum eine allein stehende „©"-Zeile hier eindeutig das umbrochene Melodie-
 // Copyright ist: buildFooter setzt das Melodie-Copyright inline an die Melodie-
 // Zeile; allein stellt es nur das Lied-Copyright (lied.copyright) – und das ist
 // bei „nur Melodie" per Voraussetzung leer. Eine „©"-Zeile für sich kann also
 // nur die umgebrochene Melodie-Rechteangabe sein.
-function compareCopyrightScope(ps, lied, { copyrightScope }) {
+
+// Ab wie viel Vorsprung zum linken Fußzeilenrand eine Zeile als eingerückt gilt.
+// Der Satz rückt die Fortsetzungszeile deutlich ein (Beispiel Nr. 220: ~26 pt);
+// kleine Werte entstehen dagegen aus Extraktions-Rauschen (< 1 pt).
+const FOOTER_INDENT_MIN_PT = 4;
+
+export function compareCopyrightScope(ps, lied, { copyrightScope }) {
     const trimmed = (v) => (v == null ? '' : String(v).trim());
     const melodyCr = trimmed(lied?.melodie?.copyright);
     const textCr = trimmed(lied?.text?.copyright);
@@ -1641,15 +1666,22 @@ function compareCopyrightScope(ps, lied, { copyrightScope }) {
     );
     if (melodyLine && /©/.test(melodyLine)) return;
 
-    // Steht das „©" dagegen allein in einer eigenen Zeile, ist es mehrdeutig.
-    if (!lines.some((l) => FOOTER_COPYRIGHT.test(l))) return;
+    // Steht das „©" in einer eigenen Zeile: nur bündig am linken Rand mehrdeutig.
+    const crIdx = lines.findIndex((l) => FOOTER_COPYRIGHT.test(l));
+    if (crIdx === -1) return;
+    const xs = ps.footerLineX || [];
+    const left = Math.min(...xs.filter((x) => Number.isFinite(x)));
+    const crX = xs[crIdx];
+    if (Number.isFinite(crX) && Number.isFinite(left) && crX - left >= FOOTER_INDENT_MIN_PT) {
+        return; // eingerückte Fortsetzungszeile → Zuordnung bleibt erkennbar
+    }
 
     copyrightScope.push({
         sev: 'warning',
         id: lied.id,
         nummer: ps.nummer,
         title: lied.titel || `Lied ${ps.nummer}`,
-        detail: 'Copyright gilt laut Redaktionssystem nur für die Melodie, steht im Druck aber in einer eigenen Zeile unter „Melodie: …" – dadurch wirkt es wie ein Copyright für das ganze Lied. Bitte direkt hinter die Melodie-Zeile setzen.',
+        detail: 'Copyright gilt laut Redaktionssystem nur für die Melodie, steht im Druck aber bündig in einer eigenen Zeile unter „Melodie: …" – dadurch wirkt es wie ein Copyright für das ganze Lied. Bitte direkt hinter die Melodie-Zeile setzen oder die Zeile einrücken.',
         loc: ps.footerBox || ps.numberBox,
     });
 }
