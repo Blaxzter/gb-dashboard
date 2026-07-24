@@ -16,6 +16,7 @@
 
 import _ from 'lodash';
 import { status_mapping } from '@/assets/js/utils';
+import { isFingerprintUsable } from '@/assets/js/notenFingerprint';
 
 // "Genommen" = Lieder mit Status 'accepted' ("Bewertet und genommen").
 export const GENOMMEN_STATUS = 'accepted';
@@ -1471,6 +1472,38 @@ export const CHECKS = [
                     ? 'Alle genommenen Lieder haben einen Notentext.'
                     : `${fehlt.length} genommene(s) Lied(er) ohne Notentext.`,
                 fehlt.map((l) => songItem(l)),
+            );
+        },
+    },
+    {
+        id: 'notentext-mehrseitig',
+        category: 'Export-Bereitschaft',
+        title: 'Notentext-PDF hat genau eine Seite',
+        description:
+            'Im Feld „Notentext“ liegt die erste Notensatz-Seite als einseitige PDF; eine zweite Seite gehört als eigene Datei in das Feld „notentext_seite2“. Liegt stattdessen eine mehrseitige PDF im Notentext-Feld, wird beim Satz nur ihre erste Seite platziert – die restlichen Systeme fehlen dann stillschweigend im Druck. Geprüft wird über den gespeicherten Notensatz-Fingerabdruck (er hält je PDF-Seite einen Eintrag); Lieder ohne aktuellen Fingerabdruck können hier nicht geprüft werden und erscheinen in der Fingerabdruck-Ansicht.',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                const fp = l.notentext_fingerprint;
+                if (!isFingerprintUsable(fp, l.notentext)) return;
+                if (fp.pages.length < 2) return;
+                const mitNoten = fp.pages.filter((p) => p?.seq?.length).length;
+                items.push(
+                    songItem(
+                        l,
+                        `Notentext-PDF hat ${fp.pages.length} Seiten` +
+                            (mitNoten > 1 ? ` (${mitNoten} davon mit Notensatz)` : '') +
+                            ' – Seite 2 gehört als eigene Datei in „notentext_seite2“',
+                    ),
+                );
+            });
+            return result(
+                items.length === 0,
+                'error',
+                items.length === 0
+                    ? 'Alle Notentext-PDFs sind einseitig.'
+                    : `${items.length} genommene(s) Lied(er) mit mehrseitiger Notentext-PDF.`,
+                items,
             );
         },
     },

@@ -27,6 +27,11 @@ import {
 
 const CAT_NOTEN = 'Notensatz';
 
+// Ab so vielen Notenzeichen zählt eine Seite der Notensatz-Datei als „echte"
+// Notensatz-Seite, die im Druck stehen muss (eine leere Folgeseite oder ein
+// einzelnes verirrtes Zeichen lösen keinen Befund aus).
+const MIN_PAGE_GLYPHS = 8;
+
 // Vergleichsschlüssel einer Liednummer (wie in printPdfCheck.js).
 function numKey(v) {
     const m = String(v ?? '').match(/^\s*0*(\d+)\s*([a-zA-Z]?)/);
@@ -190,12 +195,22 @@ export async function checkPrintNotensatz(
         onProgress?.(++done, needed.size);
     }
 
+    // Alle Platzierungen der ganzen Druck-PDF: Eine gedruckte zweite Notensatz-
+    // Seite beginnt in extractPdfSongs ein eigenes (nummernloses) PDF-Lied –
+    // ob eine Datei-Seite gedruckt ist, lässt sich also nur über das ganze
+    // Dokument prüfen, nicht innerhalb eines PDF-Liedes (Lied 265, Seiten
+    // 135/136 der Test-PDF 171–356).
+    const allPlacements = pdfSongs.flatMap((s) => (s.placements || []).filter((p) => p.seq.length));
+
     const truncated = [];
     const wrongVersion = [];
     const deviation = [];
     const unknownSource = [];
     const drift = [];
     const notCheckable = [];
+    // Je (Lied, Datei-Seite) nur ein Befund „Seite fehlt im Druck" – auch wenn
+    // mehrere Platzierungen desselben Liedes geprüft werden.
+    const reportedMissingPages = new Set();
 
     for (const { ps, placement, lied, cands } of jobs) {
         const page = placement.page;
@@ -275,6 +290,46 @@ export async function checkPrintNotensatz(
                 loc: placementBox(placement),
             });
             continue;
+        }
+
+        // Fehlende Datei-Seite: Die Notensatz-Datei hat WEITERE Seiten mit
+        // Notenzeichen, die nirgends im Druck platziert sind. Der Treffer oben
+        // sagt nur „die gedruckte Seite stimmt" – er sagt nicht, dass die Datei
+        // vollständig gedruckt ist. Typische Ursache ist eine mehrseitige PDF im
+        // Feld `notentext` (Seite 2 gehört als eigene Datei in
+        // `notentext_seite2`): InDesign platziert nur EINE Seite der Datei, die
+        // restlichen Systeme fehlen dann stillschweigend (Lied 356, Seite 262
+        // der Test-PDF 171–356). Nur eine Warnung, weil der eigentliche Fehler
+        // der falsche Upload ist – den meldet der Gesangbuch-Check
+        // „notentext-mehrseitig" als Fehler.
+        const istFp = fps.get(ist.id);
+        if (istFp?.pages?.length > 1) {
+            const bestIdx = istFp.pages.indexOf(best.fpPage);
+            istFp.pages.forEach((fpPage, idx) => {
+                if (fpPage === best.fpPage) return;
+                if (!fpPage.seq || fpPage.seq.length < MIN_PAGE_GLYPHS) return;
+                const key = `${ist.id}:${idx}`;
+                if (reportedMissingPages.has(key)) return;
+                const covered = allPlacements.some(
+                    (pl) => alignPlacement(pl, fpPage).match !== 'none',
+                );
+                if (covered) return;
+                reportedMissingPages.add(key);
+                truncated.push({
+                    ...base,
+                    sev: 'warning',
+                    detail:
+                        `Die Notensatz-Datei hat ${istFp.pages.length} Seiten, im Druck platziert ist nur ` +
+                        `Seite ${bestIdx + 1} (${placement.seq.length} Notenzeichen). Die ${fpPage.seq.length} ` +
+                        `Notenzeichen von Seite ${idx + 1} stehen nirgends im Druck – vermutlich liegt eine ` +
+                        `mehrseitige PDF im Feld „notentext" (Seite 2 gehört als eigene Datei in ` +
+                        `„notentext_seite2"), und beim Satz wurde nur eine Seite platziert.` +
+                        viaNoten,
+                    loc: placementBox(placement),
+                    pdf: `Nur Seite ${bestIdx + 1} der Notensatz-Datei ist im Druck platziert`,
+                    expected: `Seite ${idx + 1} der Notensatz-Datei (${fpPage.seq.length} Notenzeichen) muss ebenfalls gedruckt werden`,
+                });
+            });
         }
 
         // Nur der Anfang gedruckt: Die gedruckten Glyphen sind ein echter ANFANG
@@ -367,7 +422,7 @@ export function notensatzChecks(result, makeCheck) {
             'noten-truncated',
             CAT_NOTEN,
             'Notensatz vollständig gedruckt',
-            'Der gedruckte Notensatz muss alle Notenzeichen der Notensatz-Datei enthalten. Steht im Druck nur der Anfang, ist der Notensatz länger als eine Seite und seine Fortsetzung fehlt – die zweite Notensatz-Seite dieses Liedes wurde nicht in den Satz übernommen.',
+            'Der gedruckte Notensatz muss alle Notenzeichen der Notensatz-Datei enthalten. Steht im Druck nur der Anfang, ist der Notensatz länger als eine Seite und seine Fortsetzung fehlt – die zweite Notensatz-Seite dieses Liedes wurde nicht in den Satz übernommen. Hat die Notensatz-Datei selbst mehrere Seiten, muss jede davon im Druck platziert sein; fehlt eine komplett, liegt vermutlich eine mehrseitige PDF im Feld „notentext" (Seite 2 gehört als eigene Datei in „notentext_seite2“) – das wird als Warnung gemeldet, den falschen Upload selbst meldet der Gesangbuch-Check „Notentext-PDF hat genau eine Seite“.',
             result.truncated,
             {
                 okSummary: 'Alle Notensätze sind vollständig gedruckt',
