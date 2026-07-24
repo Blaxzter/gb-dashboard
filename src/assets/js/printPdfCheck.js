@@ -278,7 +278,15 @@ function clampRectToPage(rect, width, height) {
 // deshalb über ihren Schriftgrad: Sie ist deutlich größer gesetzt als der
 // Fließtext. Die Choralbuchnummer hat dagegen fast Fließtextgröße und wird
 // relativ zur Liednummer gesucht (gleiche Randspalte, direkt darunter).
-function detectNumbers(items, pageHeight, sizeHint) {
+//
+// In dieses Fenster ragt allerdings der Notensatz hinein: Er bringt eigene
+// Ziffern mit (Triolen-„3", Taktzahlen, Fingersätze), die keine Private-Use-
+// Glyphen sind und deshalb nicht als Rauschen wegfallen. Auf Seite 150 (Lied
+// 275) steht so eine Triolen-3 zwischen Lied- und Choralbuchnummer und wurde
+// als Choralbuchnummer gelesen. Unterschieden wird über Schrift und Grad: Lied-
+// und Choralbuchnummer stehen im selben Stil (nur kleiner gesetzt), die
+// Notensatz-Ziffern in dessen eigener Schrift und deutlich kleiner.
+export function detectNumbers(items, pageHeight, sizeHint) {
     const nums = items.filter(
         (i) => i.yTop < pageHeight * 0.5 && /^\d{1,3}[a-zA-Z]?$/.test(i.str.trim()),
     );
@@ -286,14 +294,23 @@ function detectNumbers(items, pageHeight, sizeHint) {
         .filter((i) => i.size >= sizeHint * 1.4)
         .sort((a, b) => b.size - a.size || a.yTop - b.yTop)[0];
     if (!numberItem) return { numberItem: null, choralItem: null };
-    const choralItem =
-        nums.find(
+    // Kandidaten: gleiche Randspalte, direkt unter der Liednummer, kleiner als
+    // sie – aber nicht winzig (Choralbuchnummer 11 pt zu Liednummer 20 pt,
+    // Notensatz-Ziffern rund 6 pt). Der nächstliegende gewinnt.
+    const below = nums
+        .filter(
             (i) =>
                 i !== numberItem &&
+                i.size < numberItem.size &&
+                i.size >= numberItem.size * 0.4 &&
                 Math.abs(i.x - numberItem.x) < 40 &&
                 i.yTop > numberItem.yTop &&
                 i.yTop - numberItem.yTop < 60,
-        ) || null;
+        )
+        .sort((a, b) => a.yTop - b.yTop);
+    // Schrift der Liednummer bevorzugt; sonst der nächstliegende Kandidat,
+    // damit ein anderer Satz der Nummern die Erkennung nicht ganz verliert.
+    const choralItem = below.find((i) => i.font === numberItem.font) || below[0] || null;
     return { numberItem, choralItem };
 }
 
@@ -553,8 +570,15 @@ export async function extractPdfSongs(pdfDoc) {
         // auf einer Seite die Fußzeile den Rest verschluckt.
         let footerEnd = song.lines.length;
         if (footerStart !== -1) {
+            const footerSize = song.lines[footerStart].size;
             for (let i = footerStart + 1; i < song.lines.length; i++) {
-                const t = song.lines[i].text;
+                const line = song.lines[i];
+                // Eine umbrochene Fußzeile kann wie ein Strophenanfang aussehen
+                // („… ‚Te Deum laudamus‘ / ⏎ 4. Jahrhundert", Lied 223) – sie
+                // steht aber in Fußzeilen-Schriftgröße (7 pt, Strophen 10,8 pt)
+                // und beendet die Fußzeile nicht.
+                if (footerSize && line.size && line.size <= footerSize + 1) continue;
+                const t = line.text;
                 if (/^\s*\d{1,2}[.)]\s/.test(t) || /^\s*\d{1,3}\s*$/.test(t)) {
                     footerEnd = i;
                     break;

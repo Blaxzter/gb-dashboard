@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     canon,
     compareCopyrightScope,
+    detectNumbers,
     footerSignature,
     footerSignaturesMatch,
 } from '@/assets/js/printPdfCheck';
@@ -114,5 +115,53 @@ describe('compareCopyrightScope (nur Melodie hat Copyright, Issue #78)', () => {
             { copyrightScope },
         );
         expect(copyrightScope).toEqual([]);
+    });
+});
+
+describe('detectNumbers (Lied- und Choralbuchnummer)', () => {
+    const PAGE_HEIGHT = 481.9;
+    const SIZE_HINT = 10.8;
+    // Kopfsteg wie im Druck: Liednummer 20 pt, Choralbuchnummer 11 pt darunter,
+    // beide in derselben Schrift.
+    const liednummer = { str: '275', x: 275.4, yTop: 48.7, width: 30, size: 20, font: 'f_num' };
+    const choralnummer = { str: '168', x: 280.9, yTop: 70.4, width: 16.1, size: 11, font: 'f_num' };
+
+    it('erkennt beide Nummern', () => {
+        const { numberItem, choralItem } = detectNumbers(
+            [liednummer, choralnummer],
+            PAGE_HEIGHT,
+            SIZE_HINT,
+        );
+        expect(numberItem?.str).toBe('275');
+        expect(choralItem?.str).toBe('168');
+    });
+
+    it('hält Notensatz-Ziffern (Triole) aus der Choralbuchnummer heraus', () => {
+        // Seite 150 / Lied 275: die Triolen-„3" steht in der Notensatz-Schrift
+        // zwischen den beiden Nummern und stand vor pdf.js in der Item-Liste.
+        const triole = { str: '3', x: 246.6, yTop: 80.6, width: 3.2, size: 6.36, font: 'f_music' };
+        const { choralItem } = detectNumbers(
+            [triole, liednummer, choralnummer],
+            PAGE_HEIGHT,
+            SIZE_HINT,
+        );
+        expect(choralItem?.str).toBe('168');
+    });
+
+    it('liefert keine Choralbuchnummer, wenn nur Notensatz-Ziffern darunter stehen', () => {
+        const triole = { str: '3', x: 246.6, yTop: 80.6, width: 3.2, size: 6.36, font: 'f_music' };
+        const { numberItem, choralItem } = detectNumbers(
+            [liednummer, triole],
+            PAGE_HEIGHT,
+            SIZE_HINT,
+        );
+        expect(numberItem?.str).toBe('275');
+        expect(choralItem).toBe(null);
+    });
+
+    it('liefert nichts ohne groß gesetzte Liednummer', () => {
+        const { numberItem, choralItem } = detectNumbers([choralnummer], PAGE_HEIGHT, SIZE_HINT);
+        expect(numberItem).toBe(null);
+        expect(choralItem).toBe(null);
     });
 });
