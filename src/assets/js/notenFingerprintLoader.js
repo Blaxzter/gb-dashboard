@@ -18,15 +18,16 @@ import { fingerprintNotenPdf, isFingerprintUsable } from '@/assets/js/notenFinge
 // Haupt-Thread geparst und die Oberfläche einfrieren (der Druck-Check liest im
 // Notfall über 100 Noten-PDFs).
 //
-// Bewusst die NICHT-minifizierte `pdf.worker.js` (nicht `.min.js`): Im aktuellen
-// pnpm-Install ist die Store-Verknüpfung der `.min.js`-Dateien dieses Pakets
-// kaputt – `pdf.worker.min.js` enthält pdf.js 3.13.1, während der Haupt-Thread
-// (`pdf.js`) 2.9.359 ist. Ein Worker mit anderer Major-Version spricht ein
-// anderes Message-Protokoll: der 2.9.359-Main-Thread wirft beim Deserialisieren
-// der Worker-Antwort `N.toString is not a function` – der Fehler landet im
-// internen Message-Handler, NICHT in `getDocument().promise`, das Promise
-// settlet nie und der Notentext-Upload hängt still (Spinner endlos). Die
-// nicht-minifizierte Datei ist korrekt 2.9.359 und passt zum Main-Thread.
+// Bewusst die NICHT-minifizierte `pdf.worker.js` (nicht `.min.js`): In einem
+// früheren Install enthielt `pdf.worker.min.js` pdf.js 3.13.1, während der
+// Haupt-Thread (`pdf.js`) 2.9.359 war. Ein Worker mit anderer Major-Version
+// spricht ein anderes Message-Protokoll: der Main-Thread wirft dann beim
+// Deserialisieren der Worker-Antwort `N.toString is not a function` – der
+// Fehler landet im internen Message-Handler, NICHT in `getDocument().promise`,
+// das Promise settlet nie und der Notentext-Upload hängt still. Die
+// nicht-minifizierte Datei ist verlässlich 2.9.359 und passt zum Main-Thread.
+// (Dieselbe Fehlermeldung kann auch aus dem Fake-Worker kommen – siehe
+// `getDocumentWithOwnWorker` weiter unten.)
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
 
 // pdf.js liegt hier als eigene Abhängigkeit (vue-pdf-embed bündelt seine Kopie
@@ -49,6 +50,35 @@ async function getPdfjs() {
     return pdfjsPromise;
 }
 
+// `vue3-pdf-app` (steckt in MediaComponent) bringt eine eigene, minifizierte
+// pdf.js 2.4.456 mit und legt deren Worker-Code beim Laden des Chunks als
+// `window.pdfjsWorker` global ab. Genau diesen Globals prüft unsere pdf.js in
+// `PDFWorker._initialize()`: ist er gesetzt, baut sie gar keinen eigenen
+// Web-Worker mehr, sondern einen „fake worker", der über `LoopbackPort` mit dem
+// fremden 2.4.456-Handler redet. Das fliegt auf, sobald von dort ein Fehler
+// zurückkommt: `LoopbackPort` klont Objekte per `Object.create(null)`, und weil
+// die minifizierten Exception-Klassen einen unbekannten `name` tragen, landet
+// `wrapReason()` im default-Zweig und ruft `reason.toString()` auf einem Objekt
+// ohne Prototyp – `N.toString is not a function`, geworfen im Message-Handler
+// statt im Promise. `getDocument()` settlet dann nie, jeder Fingerabdruck läuft
+// in den Timeout unten, und der Upload schreibt kein `notentext_fingerprint`
+// mehr. Es genügt, irgendwann in derselben SPA-Sitzung eine Liedansicht mit
+// MediaComponent geöffnet zu haben – der Globals bleibt danach gesetzt.
+//
+// `_initialize()` läuft synchron in `getDocument()`, deshalb reicht es, den
+// fremden Globals für genau diesen Aufruf auszublenden. vue3-pdf-app braucht
+// ihn danach unverändert weiter (es hat keine eigene Worker-Datei und rendert
+// bewusst im Haupt-Thread), und vue-pdf-embed bringt seinen eigenen Worker mit.
+function getDocumentWithOwnWorker(pdfjs, params) {
+    const foreign = globalThis.pdfjsWorker;
+    globalThis.pdfjsWorker = undefined;
+    try {
+        return pdfjs.getDocument(params);
+    } finally {
+        globalThis.pdfjsWorker = foreign;
+    }
+}
+
 // Schlägt der pdf.js-Worker fehl (z. B. Versions-Mismatch), kann der Fehler im
 // internen Message-Handler landen statt `getDocument().promise` zu rejecten –
 // dann würde das Promise nie settlen und der Aufrufer (Upload/Druck-Check) hinge
@@ -60,7 +90,7 @@ const GET_DOCUMENT_TIMEOUT_MS = 20000;
 // Fingerabdruck aus einer Notensatz-PDF (ArrayBuffer/Uint8Array) rechnen.
 export async function fingerprintFromPdfBytes(bytes, fileId) {
     const pdfjs = await getPdfjs();
-    const loadingTask = pdfjs.getDocument({
+    const loadingTask = getDocumentWithOwnWorker(pdfjs, {
         data: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
         // Die Glyphen kommen aus dem Text-Layer; gerendert wird nichts. Ohne
         // diesen Schalter lädt pdf.js die eingebetteten Fonts unnötig.
