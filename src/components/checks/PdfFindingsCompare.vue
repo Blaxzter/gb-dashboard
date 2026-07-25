@@ -9,6 +9,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { diffTokens } from '@/assets/js/textDiff.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
+import AckConfirmDialog from '@/components/checks/AckConfirmDialog.vue';
 import NotenCompareDialog from '@/components/checks/NotenCompareDialog.vue';
 
 const props = defineProps({
@@ -16,6 +17,9 @@ const props = defineProps({
     checks: { type: Array, required: true },
     pageSizes: { type: Object, required: true },
     pageCount: { type: Number, required: true },
+    // Temporär bestätigte Befunde wieder als offene Befunde führen (inkl. Kästen
+    // auf der Seite). Die Bestätigung selbst bleibt bestehen.
+    revealAcked: { type: Boolean, default: false },
 });
 const emit = defineEmits(['open-song']);
 
@@ -88,10 +92,15 @@ const findings = computed(() => {
     return out;
 });
 const shownBySeverity = (f) => showInfo.value || f.sev === 'error' || f.sev === 'warning';
+// Bestätigt UND ausgeblendet – im „einblenden"-Modus laufen bestätigte Befunde
+// ganz normal in der offenen Liste mit (samt Schweregrad und Kasten auf der Seite).
+const isHidden = (f) => !props.revealAcked && acks.isAcked(f.fp);
 const visibleFindings = computed(() =>
-    findings.value.filter((f) => f.loc && shownBySeverity(f) && !acks.isAcked(f.fp)),
+    findings.value.filter((f) => f.loc && shownBySeverity(f) && !isHidden(f)),
 );
-const ackedFindings = computed(() => findings.value.filter((f) => f.loc && acks.isAcked(f.fp)));
+const ackedFindings = computed(() =>
+    props.revealAcked ? [] : findings.value.filter((f) => f.loc && acks.isAcked(f.fp)),
+);
 // Findet-Kästen auf den Seiten: offene Befunde plus (falls eingeblendet) bestätigte.
 const displayedFindings = computed(() =>
     showAcked.value ? [...visibleFindings.value, ...ackedFindings.value] : visibleFindings.value,
@@ -138,13 +147,66 @@ function toggleGroup(g) {
     collapsed.value = next;
     nextTick(scheduleConnector);
 }
+function openFindingsOf(g) {
+    return g.findings.filter((f) => !acks.isAcked(f.fp));
+}
+function groupFullyAcked(g) {
+    return !openFindingsOf(g).length;
+}
 function ackGroup(g) {
     acks.setAcked(
-        g.findings.map((f) => f.fp),
+        openFindingsOf(g).map((f) => f.fp),
         true,
     );
-    if (g.findings.some((f) => f.key === selectedKey.value)) selectedKey.value = null;
+    if (!props.revealAcked && g.findings.some((f) => f.key === selectedKey.value)) {
+        selectedKey.value = null;
+    }
     nextTick(scheduleConnector);
+}
+// Gegenstück im „einblenden"-Modus: ein Lied komplett wieder öffnen.
+function unackGroup(g) {
+    acks.setAcked(
+        g.findings.map((f) => f.fp),
+        false,
+    );
+    nextTick(scheduleConnector);
+}
+
+// Bestätigen („kein Fehler") geht nur über die Rückfrage – vorher landete ein
+// Befund mit einem Klick im Ausgeblendet-Topf, ohne dass er geprüft war.
+// Zurücknehmen bleibt ohne Rückfrage.
+const ack_dialog = ref(false);
+const ack_pending = ref(null);
+function askAckFinding(f) {
+    ack_pending.value = {
+        kind: 'finding',
+        finding: f,
+        count: 1,
+        label: f.checkTitle,
+        detail: f.title,
+    };
+    ack_dialog.value = true;
+}
+function askAckGroup(g) {
+    ack_pending.value = {
+        kind: 'group',
+        group: g,
+        count: openFindingsOf(g).length,
+        label: [g.nummer ? `Lied ${g.nummer}` : null, g.title || 'Ohne Lied']
+            .filter(Boolean)
+            .join(' · '),
+        detail: openFindingsOf(g)
+            .map((f) => f.checkTitle)
+            .join(', '),
+    };
+    ack_dialog.value = true;
+}
+function confirmAck() {
+    const p = ack_pending.value;
+    ack_pending.value = null;
+    if (!p) return;
+    if (p.kind === 'group') ackGroup(p.group);
+    else ackFinding(p.finding);
 }
 
 function isCompare(f) {
@@ -167,7 +229,8 @@ function ackFinding(f) {
     const i = list.findIndex((x) => x.key === f.key);
     const next = list[i + 1] || list[i - 1] || null;
     acks.toggle(f.fp);
-    if (selectedKey.value === f.key) {
+    // Im „einblenden"-Modus bleibt der Befund stehen – dann auch die Auswahl.
+    if (!props.revealAcked && selectedKey.value === f.key) {
         if (next) select(next);
         else selectedKey.value = null;
     }
@@ -493,16 +556,27 @@ onBeforeUnmount(() => {
                         {{ g.findings.length }}
                         {{ g.findings.length === 1 ? 'Befund' : 'Befunde' }} · Seite {{ g.page }}
                     </span>
+                    <!-- Im „einblenden"-Modus kann ein Lied schon komplett bestätigt
+                         sein – dann ist der Weg zurück der sinnvolle Knopf. -->
                     <v-btn
+                        v-if="groupFullyAcked(g)"
+                        icon="mdi-restore"
+                        size="x-small"
+                        variant="text"
+                        title="Bestätigungen dieses Liedes zurücknehmen"
+                        @click.stop="unackGroup(g)"
+                    />
+                    <v-btn
+                        v-else
                         icon="mdi-check-all"
                         size="x-small"
                         variant="text"
                         :title="
-                            g.findings.length === 1
+                            openFindingsOf(g).length === 1
                                 ? 'Befund bestätigen und ausblenden'
-                                : 'Alle Befunde dieses Liedes bestätigen und ausblenden'
+                                : 'Alle offenen Befunde dieses Liedes bestätigen und ausblenden'
                         "
-                        @click.stop="ackGroup(g)"
+                        @click.stop="askAckGroup(g)"
                     />
                     <v-btn
                         v-if="g.id != null"
@@ -527,7 +601,19 @@ onBeforeUnmount(() => {
                             SEV[f.sev]?.icon
                         }}</v-icon>
                         <div class="finding-body">
-                            <div class="finding-title">{{ f.checkTitle }}</div>
+                            <div class="finding-title">
+                                <!-- Nur im „einblenden"-Modus: dieser Befund ist
+                                     eigentlich schon bestätigt. -->
+                                <v-icon
+                                    v-if="acks.isAcked(f.fp)"
+                                    size="x-small"
+                                    color="success"
+                                    :title="acks.ackedAtLabel(f.fp) || 'bereits bestätigt'"
+                                >
+                                    mdi-check-circle
+                                </v-icon>
+                                {{ f.checkTitle }}
+                            </div>
                             <div class="finding-sub">{{ f.title }}</div>
 
                             <!-- Vergleichs-Befund (Fußzeile / Strophe): PDF vs. Erwartet als
@@ -579,11 +665,20 @@ onBeforeUnmount(() => {
                                 @click.stop="openOriginal(f)"
                             />
                             <v-btn
+                                v-if="acks.isAcked(f.fp)"
+                                icon="mdi-restore"
+                                size="x-small"
+                                variant="text"
+                                title="Bestätigung zurücknehmen"
+                                @click.stop="unackFinding(f)"
+                            />
+                            <v-btn
+                                v-else
                                 icon="mdi-check-circle-outline"
                                 size="x-small"
                                 variant="text"
                                 title="Nur diesen Befund bestätigen und ausblenden"
-                                @click.stop="ackFinding(f)"
+                                @click.stop="askAckFinding(f)"
                             />
                         </div>
                     </div>
@@ -608,6 +703,7 @@ onBeforeUnmount(() => {
                         :key="f.key"
                         class="finding-row acked"
                         :class="{ selected: f.key === selectedKey }"
+                        :title="acks.ackedAtLabel(f.fp)"
                         @click="select(f)"
                     >
                         <v-icon size="small" color="success">mdi-check-circle</v-icon>
@@ -769,6 +865,14 @@ onBeforeUnmount(() => {
             :finding="compareFinding"
             :print-doc="pdfDoc"
             :backend-url="backendUrl"
+        />
+
+        <AckConfirmDialog
+            v-model="ack_dialog"
+            :label="ack_pending?.label || ''"
+            :detail="ack_pending?.detail || ''"
+            :count="ack_pending?.count || 1"
+            @confirm="confirmAck"
         />
     </div>
 </template>

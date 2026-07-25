@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { STATUS } from '@/assets/js/gesangbuchChecks.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
+import AckConfirmDialog from '@/components/checks/AckConfirmDialog.vue';
 
 const props = defineProps({
     // { name, checks: [...], problems: Number }
@@ -31,7 +32,19 @@ function toggleAcked(id) {
     else next.add(id);
     ackedOpen.value = next;
 }
-function toggleItemAck(item) {
+// Bestätigen nur mit Rückfrage – Zurücknehmen dagegen sofort (das ist der
+// unkritische Weg zurück).
+const ack_dialog = ref(false);
+const ack_pending = ref(null);
+function askItemAck(item, check) {
+    ack_pending.value = { fp: item.fp, label: check.title, detail: item.title };
+    ack_dialog.value = true;
+}
+function confirmItemAck() {
+    if (ack_pending.value?.fp) acks.toggle(ack_pending.value.fp);
+    ack_pending.value = null;
+}
+function undoItemAck(item) {
     acks.toggle(item.fp);
 }
 
@@ -156,18 +169,42 @@ watch(
                                                 mdi-pound
                                             </v-icon>
                                         </template>
-                                        <v-list-item-title>{{ item.title }}</v-list-item-title>
+                                        <v-list-item-title>
+                                            <!-- Nur im „eingeblendet"-Modus zu sehen: der Befund
+                                                 ist eigentlich schon bestätigt. -->
+                                            <v-icon
+                                                v-if="allowAck && acks.isAcked(item.fp)"
+                                                size="x-small"
+                                                color="success"
+                                                class="me-1"
+                                                :title="
+                                                    acks.ackedAtLabel(item.fp) ||
+                                                    'bereits bestätigt'
+                                                "
+                                            >
+                                                mdi-check-circle
+                                            </v-icon>
+                                            {{ item.title }}
+                                        </v-list-item-title>
                                         <v-list-item-subtitle v-if="item.detail">
                                             {{ item.detail }}
                                         </v-list-item-subtitle>
                                         <template #append>
                                             <v-btn
-                                                v-if="allowAck && item.fp"
+                                                v-if="allowAck && item.fp && acks.isAcked(item.fp)"
+                                                icon="mdi-restore"
+                                                size="x-small"
+                                                variant="text"
+                                                title="Bestätigung zurücknehmen"
+                                                @click.stop="undoItemAck(item)"
+                                            />
+                                            <v-btn
+                                                v-else-if="allowAck && item.fp"
                                                 icon="mdi-check-circle-outline"
                                                 size="x-small"
                                                 variant="text"
                                                 title="Als geprüft / gewollt bestätigen und ausblenden"
-                                                @click.stop="toggleItemAck(item)"
+                                                @click.stop="askItemAck(item, check)"
                                             />
                                             <v-icon
                                                 v-if="item.id != null"
@@ -203,6 +240,7 @@ watch(
                                         v-for="(item, idx) in check.ackedItems"
                                         :key="'ack-' + (item.fp ?? idx)"
                                         class="acked-item"
+                                        :title="acks.ackedAtLabel(item.fp)"
                                     >
                                         <template #prepend>
                                             <v-chip
@@ -226,7 +264,7 @@ watch(
                                                 size="x-small"
                                                 variant="text"
                                                 title="Bestätigung zurücknehmen"
-                                                @click.stop="toggleItemAck(item)"
+                                                @click.stop="undoItemAck(item)"
                                             />
                                         </template>
                                     </v-list-item>
@@ -237,6 +275,13 @@ watch(
                 </v-expand-transition>
             </v-card>
         </div>
+
+        <AckConfirmDialog
+            v-model="ack_dialog"
+            :label="ack_pending?.label || ''"
+            :detail="ack_pending?.detail || ''"
+            @confirm="confirmItemAck"
+        />
     </div>
 </template>
 

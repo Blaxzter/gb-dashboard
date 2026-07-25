@@ -144,8 +144,12 @@ function onLoadError(e) {
 // Bestätigte (abgehakte) Befunde ausblenden und Status neu berechnen. Wirkt auf
 // Zusammenfassung, „alles OK"-Banner und die Prüfliste. Der PDF-Abgleich bekommt
 // die Roh-Checks und blendet dort selbst aus (mit „Bestätigt"-Bereich).
+// Temporär (nur diese Sitzung, nichts wird gespeichert): bestätigte Befunde
+// wieder als offene Befunde zeigen – zum Gegenlesen vor dem Druck, ohne die
+// Bestätigungen zurückzunehmen. Sie zählen dann auch wieder in Fehler/Warnungen.
+const reveal_acked = ref(false);
 const effectiveChecks = computed(() =>
-    checks.value ? applyAcks(checks.value, acks.isAcked) : null,
+    checks.value ? applyAcks(checks.value, reveal_acked.value ? () => false : acks.isAcked) : null,
 );
 const summary = computed(() => {
     const counts = { ok: 0, info: 0, warning: 0, error: 0 };
@@ -185,9 +189,15 @@ function collapseAll() {
 // Bestätigte („abgehakte") Befunde: Anzahl im Kopf zeigen und zurücknehmen
 // können – sonst bleiben sie unsichtbar im localStorage liegen und man rätselt,
 // warum ein bekannter Befund nicht mehr auftaucht.
-const acked_count = computed(() =>
-    (effectiveChecks.value || []).reduce((n, c) => n + (c.ackedItems?.length || 0), 0),
-);
+// Aus den Roh-Checks gezählt, nicht aus `ackedItems` – sonst stünde die Zahl bei
+// eingeblendeten Bestätigungen auf 0 und der Umschalter verschwände.
+const acked_count = computed(() => {
+    let n = 0;
+    for (const c of checks.value || []) {
+        for (const it of c.items || []) if (acks.isAcked(it.fp)) n++;
+    }
+    return n;
+});
 const reset_dialog = ref(false);
 function resetAcks() {
     acks.clear();
@@ -366,13 +376,37 @@ function openSong(id) {
                 <v-spacer />
                 <v-chip
                     v-if="acked_count"
-                    color="success"
+                    :color="reveal_acked ? 'warning' : 'success'"
                     variant="flat"
-                    prepend-icon="mdi-check-all"
-                    :title="`${acked_count} bestätigte Befund(e) sind ausgeblendet`"
+                    :prepend-icon="reveal_acked ? 'mdi-eye' : 'mdi-check-all'"
+                    :title="
+                        reveal_acked
+                            ? `${acked_count} bestätigte Befund(e) werden gerade wieder als offen gezeigt – nur zur Ansicht, die Bestätigungen bleiben gespeichert`
+                            : `${acked_count} bestätigte Befund(e) sind ausgeblendet`
+                    "
                 >
-                    Bestätigt &amp; ausgeblendet: {{ acked_count }}
+                    <template v-if="reveal_acked">
+                        Bestätigte eingeblendet: {{ acked_count }}
+                    </template>
+                    <template v-else>Bestätigt &amp; ausgeblendet: {{ acked_count }}</template>
                 </v-chip>
+                <!-- Zum Gegenlesen: kurz alles sehen, ohne die Bestätigungen zu
+                 verlieren. Nach dem Neuladen der Seite ist der Modus wieder aus. -->
+                <v-btn
+                    v-if="acked_count"
+                    variant="text"
+                    size="small"
+                    :color="reveal_acked ? 'warning' : undefined"
+                    :prepend-icon="reveal_acked ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    :title="
+                        reveal_acked
+                            ? 'Bestätigte Befunde wieder ausblenden'
+                            : 'Bestätigte Befunde vorübergehend wieder als offene Befunde anzeigen (nichts wird zurückgesetzt)'
+                    "
+                    @click="reveal_acked = !reveal_acked"
+                >
+                    {{ reveal_acked ? 'Wieder ausblenden' : 'Bestätigte einblenden' }}
+                </v-btn>
                 <v-btn
                     v-if="acked_count"
                     variant="text"
@@ -402,6 +436,7 @@ function openSong(id) {
                         :checks="checks"
                         :page-sizes="extracted.pageSizes"
                         :page-count="extracted.pageCount"
+                        :reveal-acked="reveal_acked"
                         @open-song="openSong"
                     />
                 </div>
