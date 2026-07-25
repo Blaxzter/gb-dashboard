@@ -44,7 +44,7 @@
         "vue-cal": "^4.10.2",
         "vue-chartjs": "^5.3.4",
         "vue-pdf-embed": "^1.1.5",
-        "vue-router": "^4.3.0",
+        "vue-router": "^5.2.0",
         "vue3-pdf-app": "^1.0.3",
         "vuetify": "^4.1.5",
         "webfontloader": "^1.6.28"
