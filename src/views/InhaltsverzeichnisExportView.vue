@@ -99,6 +99,10 @@ const base_songs = computed(() => {
         // Melodie gegenüber dem Gesangbuch 2000 überarbeitet?
         textGeaendert: l.textGeaendert === true,
         melodieGeaendert: l.melodieGeaendert === true,
+        // „Neu 2026" (Issue #91): Lied war nicht im Gesangbuch 2000, hat also
+        // keine `liednummer2000`. Gleiche Definition wie „komplett neu" in der
+        // Neue-Lieder-Ansicht.
+        istNeu: l.liednummer2000 == null || l.liednummer2000 === '',
     }));
 });
 
@@ -163,18 +167,25 @@ const byNummer = (a, b) => {
 // 1. Nach Liednummer 2026 (= alphabetische Titel-Reihenfolge des Gesangbuchs).
 const alphabetical = computed(() => [...songs.value].sort(byNummer));
 
-// --- Alphabetisch mit Änderungsvermerk (Issue #74) ------------------------
+// --- Alphabetisch mit Änderungsvermerk (Issue #74, #91) -------------------
 // Verzeichnis für die Musiker: Liednummer 2026 aufsteigend (= alphabetische
-// Titel-Reihenfolge), Lied-Titel und ein Vermerk, ob Text und/oder Melodie
-// gegenüber dem Gesangbuch 2000 überarbeitet wurden. Hilft, vor dem
-// Gottesdienst darauf hinzuweisen, dass ein bekanntes Lied gesungen wird, sich
-// aber Text oder Melodie geändert haben. Die optionale Einschränkung „nur
-// geänderte Lieder" reduziert die Liste auf genau diese Fälle.
-const only_changed = ref(false);
+// Titel-Reihenfolge), Lied-Titel und ein Vermerk, ob das Lied neu ist bzw. ob
+// Text und/oder Melodie gegenüber dem Gesangbuch 2000 überarbeitet wurden.
+// Hilft, vor dem Gottesdienst darauf hinzuweisen, dass ein bekanntes Lied
+// gesungen wird, sich aber Text oder Melodie geändert haben – und welche Lieder
+// die Gemeinde noch gar nicht kennt. Die optionale Einschränkung „nur neue und
+// geänderte Lieder" reduziert die Liste auf genau diese Fälle (Issue #91: neu +
+// geändert ergeben zusammen die komplette Übersicht).
+const only_marked = ref(false);
+
+// Neu oder geändert – die für die Musiker relevanten Lieder.
+function istMarkiert(s) {
+    return s.istNeu || s.textGeaendert || s.melodieGeaendert;
+}
 
 const changeList = computed(() => {
     const list = [...songs.value].sort(byNummer);
-    return only_changed.value ? list.filter((s) => s.textGeaendert || s.melodieGeaendert) : list;
+    return only_marked.value ? list.filter(istMarkiert) : list;
 });
 
 // Anzahl der Lieder mit Text- oder Melodieänderung (im aktuellen Filter).
@@ -182,9 +193,15 @@ const changed_count = computed(
     () => songs.value.filter((s) => s.textGeaendert || s.melodieGeaendert).length,
 );
 
-// Menschlich lesbarer Änderungsvermerk (für Copy/CSV/InDesign-Spalte). Leer,
-// wenn weder Text noch Melodie geändert wurden.
+// Anzahl der neuen Lieder (ohne Liednummer 2000) im aktuellen Filter.
+const neu_count = computed(() => songs.value.filter((s) => s.istNeu).length);
+
+// Menschlich lesbarer Vermerk (für Copy/CSV/InDesign-Spalte). Leer, wenn das
+// Lied unverändert aus dem Gesangbuch 2000 übernommen wurde. Für neue Lieder
+// steht „Neu" – ein Text-/Melodie-Vergleich mit dem Gesangbuch 2000 ist dort
+// gegenstandslos.
 function changeNote(s) {
+    if (s.istNeu) return 'Neu';
     if (s.textGeaendert && s.melodieGeaendert) return 'Text & Melodie geändert';
     if (s.textGeaendert) return 'Text geändert';
     if (s.melodieGeaendert) return 'Melodie geändert';
@@ -505,17 +522,18 @@ function copyAlphabetical() {
     copyToClipboard(text);
 }
 
-// --- Alphabetisch mit Änderungsvermerk (Issue #74) ------------------------
+// --- Alphabetisch mit Änderungsvermerk (Issue #74, #91) -------------------
 function downloadChangeList() {
     const rows = changeList.value.map((s) => [
         s.nummer,
         s.titel,
+        s.istNeu ? 'ja' : 'nein',
         s.textGeaendert ? 'ja' : 'nein',
         s.melodieGeaendert ? 'ja' : 'nein',
     ]);
     download(
         'inhaltsverzeichnis_aenderungsvermerk.csv',
-        buildCsv(['nr_2026', 'titel', 'text_geaendert', 'melodie_geaendert'], rows),
+        buildCsv(['nr_2026', 'titel', 'neu_2026', 'text_geaendert', 'melodie_geaendert'], rows),
     );
 }
 function copyChangeList() {
@@ -641,13 +659,13 @@ function copyByTocCategory() {
     </div>
     <p class="text-body-2 text-medium-emphasis mb-4" style="max-width: 820px">
         Separater Export des Inhaltsverzeichnisses zum Importieren oder Kopieren – alphabetisch nach
-        Titel, nach den bestehenden Kategorien, alphabetisch mit Änderungsvermerk (für die Musiker),
-        nach Choralbuchnummer (Melodien) sowie nach den reduzierten Inhaltsverzeichnis-Kategorien
-        (Spalte E). Die CSV-Datei eignet sich zum Import, die Schaltfläche „In Zwischenablage
-        kopieren“ liefert eine direkt einfügbare (Tabulator-getrennte) Fassung. Für den
-        zweispaltigen Satz in InDesign gibt es zusätzlich je einen Copy-Button „Nummern“ und
-        „Titel“, der nur die jeweilige Spalte (ein Wert pro Zeile) kopiert – bei den
-        Kategorie-Ansichten pro Kategorie.
+        Titel, nach den bestehenden Kategorien, alphabetisch mit Neu- und Änderungsvermerk (für die
+        Musiker), nach Choralbuchnummer (Melodien) sowie nach den reduzierten
+        Inhaltsverzeichnis-Kategorien (Spalte E). Die CSV-Datei eignet sich zum Import, die
+        Schaltfläche „In Zwischenablage kopieren“ liefert eine direkt einfügbare
+        (Tabulator-getrennte) Fassung. Für den zweispaltigen Satz in InDesign gibt es zusätzlich je
+        einen Copy-Button „Nummern“ und „Titel“, der nur die jeweilige Spalte (ein Wert pro Zeile)
+        kopiert – bei den Kategorie-Ansichten pro Kategorie.
     </p>
 
     <v-card class="mb-4">
@@ -826,7 +844,7 @@ function copyByTocCategory() {
         </v-col>
     </v-row>
 
-    <!-- 3. Alphabetisch mit Änderungsvermerk (Musiker, Issue #74) -->
+    <!-- 3. Alphabetisch mit Änderungsvermerk (Musiker, Issue #74, #91) -->
     <v-row>
         <v-col cols="12">
             <v-card>
@@ -835,6 +853,9 @@ function copyByTocCategory() {
                     Alphabetisch mit Änderungsvermerk
                     <v-chip size="small" variant="tonal" class="ms-1">
                         {{ changeList.length }} Lieder
+                    </v-chip>
+                    <v-chip size="small" :color="neu_count ? 'success' : undefined" variant="tonal">
+                        {{ neu_count }} neu
                     </v-chip>
                     <v-chip
                         size="small"
@@ -865,8 +886,8 @@ function copyByTocCategory() {
                     </div>
                     <div class="d-flex flex-wrap align-center ga-4 mb-3">
                         <v-checkbox
-                            v-model="only_changed"
-                            label="Nur geänderte Lieder"
+                            v-model="only_marked"
+                            label="Nur neue und geänderte Lieder"
                             color="primary"
                             hide-details
                             density="comfortable"
@@ -908,7 +929,10 @@ function copyByTocCategory() {
                         Für die Musiker: Liednummer 2026 aufsteigend, mit Hinweis, ob Text
                         <v-icon icon="mdi-text-box-edit" color="primary" size="x-small" /> und/oder
                         Melodie <v-icon icon="mdi-music-box" color="primary" size="x-small" />
-                        gegenüber dem Gesangbuch 2000 überarbeitet wurden.
+                        gegenüber dem Gesangbuch 2000 überarbeitet wurden und ob das Lied neu
+                        <v-icon icon="mdi-new-box" color="success" size="x-small" /> ist (nicht im
+                        Gesangbuch 2000 enthalten). Neue und geänderte Lieder zusammen ergeben die
+                        komplette Übersicht.
                     </p>
                     <div class="toc-preview">
                         <v-table density="compact" hover>
@@ -916,6 +940,7 @@ function copyByTocCategory() {
                                 <tr>
                                     <th style="width: 90px">Nr. 2026</th>
                                     <th>Titel</th>
+                                    <th style="width: 80px" class="text-center">Neu 2026</th>
                                     <th style="width: 70px" class="text-center">Text</th>
                                     <th style="width: 80px" class="text-center">Melodie</th>
                                 </tr>
@@ -924,6 +949,23 @@ function copyByTocCategory() {
                                 <tr v-for="s in changeList" :key="s.id">
                                     <td class="text-medium-emphasis">{{ s.nummer || '–' }}</td>
                                     <td>{{ s.titel }}</td>
+                                    <td class="text-center">
+                                        <v-tooltip
+                                            v-if="s.istNeu"
+                                            text="Neu 2026 – war nicht im Gesangbuch 2000 enthalten"
+                                            location="bottom"
+                                        >
+                                            <template #activator="{ props }">
+                                                <v-icon
+                                                    v-bind="props"
+                                                    icon="mdi-new-box"
+                                                    color="success"
+                                                    size="small"
+                                                />
+                                            </template>
+                                        </v-tooltip>
+                                        <span v-else class="text-disabled">–</span>
+                                    </td>
                                     <td class="text-center">
                                         <v-tooltip
                                             v-if="s.textGeaendert"
@@ -960,10 +1002,10 @@ function copyByTocCategory() {
                                     </td>
                                 </tr>
                                 <tr v-if="changeList.length === 0">
-                                    <td colspan="4" class="text-center text-medium-emphasis py-4">
+                                    <td colspan="5" class="text-center text-medium-emphasis py-4">
                                         {{
-                                            only_changed
-                                                ? 'Keine geänderten Lieder im aktuellen Filter.'
+                                            only_marked
+                                                ? 'Keine neuen oder geänderten Lieder im aktuellen Filter.'
                                                 : 'Keine Lieder im aktuellen Filter.'
                                         }}
                                     </td>
