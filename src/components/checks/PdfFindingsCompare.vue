@@ -20,8 +20,11 @@ const props = defineProps({
     // Temporär bestätigte Befunde wieder als offene Befunde führen (inkl. Kästen
     // auf der Seite). Die Bestätigung selbst bleibt bestehen.
     revealAcked: { type: Boolean, default: false },
+    // Strophen-Abstands-Befunde am Stück ausblenden. Der Knopf dazu steht im Kopf
+    // der Ansicht (dort ist Platz), der Zustand wird von dort gesteuert.
+    hideSpacing: { type: Boolean, default: false },
 });
-const emit = defineEmits(['open-song']);
+const emit = defineEmits(['open-song', 'update:hideSpacing', 'spacing-count']);
 
 const SEV = {
     error: { color: '#e5393533', stroke: '#e53935', icon: 'mdi-alert-circle', rank: 0 },
@@ -38,7 +41,6 @@ const showAcked = ref(false);
 // Deshalb lassen sie sich am Stück ausblenden (Liste und Overlay), ohne dass man
 // sie einzeln bestätigen muss.
 const SPACING_CHECK_ID = 'verse-spacing';
-const hideSpacing = ref(false);
 
 // Vollbild: Der Abgleich lebt vom Platz (links die Befunde, rechts die Seite).
 // Escape schließt wieder – die Tastenbindung hängt nur im Vollbild am Fenster.
@@ -98,7 +100,7 @@ const findings = computed(() => {
     return out;
 });
 const shownBySeverity = (f) => showInfo.value || f.sev === 'error' || f.sev === 'warning';
-const shownByCheck = (f) => !hideSpacing.value || f.checkId !== SPACING_CHECK_ID;
+const shownByCheck = (f) => !props.hideSpacing || f.checkId !== SPACING_CHECK_ID;
 // Bestätigt UND ausgeblendet – im „einblenden"-Modus laufen bestätigte Befunde
 // ganz normal in der offenen Liste mit (samt Schweregrad und Kasten auf der Seite).
 const isHidden = (f) => !props.revealAcked && acks.isAcked(f.fp);
@@ -111,7 +113,8 @@ const ackedFindings = computed(() =>
         : findings.value.filter((f) => f.loc && shownByCheck(f) && acks.isAcked(f.fp)),
 );
 // Wie viele Befunde der Knopf betrifft – unabhängig davon, ob gerade ausgeblendet
-// ist (sonst stünde beim Ausblenden eine 0 daneben).
+// ist (sonst stünde beim Ausblenden eine 0 daneben). Die Zahl geht nach oben, weil
+// der Knopf im Kopf der Ansicht steht.
 const spacingCount = computed(
     () =>
         findings.value.filter(
@@ -475,15 +478,21 @@ function autoSelectFirst() {
     if (first) select(first);
 }
 function toggleSpacing() {
-    hideSpacing.value = !hideSpacing.value;
-    // War gerade ein Abstands-Befund ausgewählt, hängt die Verbindungslinie sonst
-    // an einer Zeile, die es nicht mehr gibt – Auswahl freigeben, der Watcher auf
-    // visibleFindings springt dann auf den nächsten offenen Befund.
-    if (hideSpacing.value && selectedFinding.value?.checkId === SPACING_CHECK_ID) {
-        selectedKey.value = null;
-    }
-    nextTick(scheduleConnector);
+    emit('update:hideSpacing', !props.hideSpacing);
 }
+watch(
+    () => props.hideSpacing,
+    (hidden) => {
+        // War gerade ein Abstands-Befund ausgewählt, hängt die Verbindungslinie sonst
+        // an einer Zeile, die es nicht mehr gibt – Auswahl freigeben, der Watcher auf
+        // visibleFindings springt dann auf den nächsten offenen Befund.
+        if (hidden && selectedFinding.value?.checkId === SPACING_CHECK_ID) {
+            selectedKey.value = null;
+        }
+        nextTick(scheduleConnector);
+    },
+);
+watch(spacingCount, (n) => emit('spacing-count', n), { immediate: true });
 
 watch(scale, () => {
     for (const p of [...rendered]) clearPage(p);
@@ -560,9 +569,11 @@ onBeforeUnmount(() => {
                 />
                 <v-spacer />
                 <!-- Strophen-Abstände am Stück ausblenden: ein Satz-Fehler erzeugt
-                     viele gleichartige Befunde, die den Rest zudecken. -->
+                     viele gleichartige Befunde, die den Rest zudecken. Der Knopf
+                     dafür steht im Kopf der Ansicht – nur im Vollbild dieses
+                     Abgleichs liegt der Kopf darunter, dann braucht es ihn hier. -->
                 <v-btn
-                    v-if="spacingCount"
+                    v-if="fullscreen && spacingCount"
                     class="spacing-btn"
                     size="small"
                     variant="text"

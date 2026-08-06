@@ -61,6 +61,9 @@ function resetResults() {
     extracted.value = null;
     pdf_doc.value = null;
     noten_progress.value = null;
+    // Sonst stünde der „Abstände"-Knopf mit der Zahl der alten PDF im Kopf.
+    hide_spacing.value = false;
+    spacing_count.value = 0;
     if (source.value) {
         URL.revokeObjectURL(source.value);
         source.value = null;
@@ -198,6 +201,13 @@ const acked_count = computed(() => {
     }
     return n;
 });
+// Strophen-Abstands-Befunde am Stück ausblenden: ein einziger falsch gesetzter
+// Absatzabstand erzeugt pro Lied gleich mehrere gleichartige Befunde. Der Knopf
+// steht hier im Kopf (in der schmalen Befund-Spalte drückte er den Schalter weg);
+// wie viele Befunde er betrifft, meldet der Abgleich.
+const hide_spacing = ref(false);
+const spacing_count = ref(0);
+
 const reset_dialog = ref(false);
 function resetAcks() {
     acks.clear();
@@ -234,6 +244,23 @@ function openSong(id) {
                 Lieder in DB: {{ alle_lieder.length }}
             </v-chip>
             <v-spacer />
+            <!-- Nur im PDF-Abgleich wirksam – in der Prüfliste wäre der Knopf
+                 wirkungslos und damit irreführend. -->
+            <v-btn
+                v-if="tab === 'compare' && spacing_count"
+                variant="text"
+                size="small"
+                :color="hide_spacing ? 'primary' : undefined"
+                :prepend-icon="hide_spacing ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                :title="
+                    hide_spacing
+                        ? `${spacing_count} Strophen-Abstand-Befunde sind ausgeblendet – wieder einblenden`
+                        : `Alle ${spacing_count} Strophen-Abstand-Befunde ausblenden`
+                "
+                @click="hide_spacing = !hide_spacing"
+            >
+                Abstände ({{ spacing_count }})
+            </v-btn>
             <v-btn
                 v-if="checks"
                 :prepend-icon="view_fullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
@@ -432,11 +459,13 @@ function openSong(id) {
                 <div v-if="tab === 'compare'">
                     <PdfFindingsCompare
                         v-if="pdf_doc && extracted"
+                        v-model:hide-spacing="hide_spacing"
                         :pdf-doc="pdf_doc"
                         :checks="checks"
                         :page-sizes="extracted.pageSizes"
                         :page-count="extracted.pageCount"
                         :reveal-acked="reveal_acked"
+                        @spacing-count="spacing_count = $event"
                         @open-song="openSong"
                     />
                 </div>
