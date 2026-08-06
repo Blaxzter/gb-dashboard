@@ -33,6 +33,12 @@ const SEV = {
 const acks = useDruckCheckAcks();
 const showInfo = ref(false);
 const showAcked = ref(false);
+// Ein einziger falsch eingestellter Absatzabstand erzeugt pro Lied gleich einen
+// Befund je Strophenübergang – die überdecken dann die inhaltlichen Befunde.
+// Deshalb lassen sie sich am Stück ausblenden (Liste und Overlay), ohne dass man
+// sie einzeln bestätigen muss.
+const SPACING_CHECK_ID = 'verse-spacing';
+const hideSpacing = ref(false);
 
 // Vollbild: Der Abgleich lebt vom Platz (links die Befunde, rechts die Seite).
 // Escape schließt wieder – die Tastenbindung hängt nur im Vollbild am Fenster.
@@ -92,14 +98,25 @@ const findings = computed(() => {
     return out;
 });
 const shownBySeverity = (f) => showInfo.value || f.sev === 'error' || f.sev === 'warning';
+const shownByCheck = (f) => !hideSpacing.value || f.checkId !== SPACING_CHECK_ID;
 // Bestätigt UND ausgeblendet – im „einblenden"-Modus laufen bestätigte Befunde
 // ganz normal in der offenen Liste mit (samt Schweregrad und Kasten auf der Seite).
 const isHidden = (f) => !props.revealAcked && acks.isAcked(f.fp);
 const visibleFindings = computed(() =>
-    findings.value.filter((f) => f.loc && shownBySeverity(f) && !isHidden(f)),
+    findings.value.filter((f) => f.loc && shownBySeverity(f) && shownByCheck(f) && !isHidden(f)),
 );
 const ackedFindings = computed(() =>
-    props.revealAcked ? [] : findings.value.filter((f) => f.loc && acks.isAcked(f.fp)),
+    props.revealAcked
+        ? []
+        : findings.value.filter((f) => f.loc && shownByCheck(f) && acks.isAcked(f.fp)),
+);
+// Wie viele Befunde der Knopf betrifft – unabhängig davon, ob gerade ausgeblendet
+// ist (sonst stünde beim Ausblenden eine 0 daneben).
+const spacingCount = computed(
+    () =>
+        findings.value.filter(
+            (f) => f.loc && f.checkId === SPACING_CHECK_ID && shownBySeverity(f) && !isHidden(f),
+        ).length,
 );
 // Findet-Kästen auf den Seiten: offene Befunde plus (falls eingeblendet) bestätigte.
 const displayedFindings = computed(() =>
@@ -457,6 +474,16 @@ function autoSelectFirst() {
     const first = visibleFindings.value[0];
     if (first) select(first);
 }
+function toggleSpacing() {
+    hideSpacing.value = !hideSpacing.value;
+    // War gerade ein Abstands-Befund ausgewählt, hängt die Verbindungslinie sonst
+    // an einer Zeile, die es nicht mehr gibt – Auswahl freigeben, der Watcher auf
+    // visibleFindings springt dann auf den nächsten offenen Befund.
+    if (hideSpacing.value && selectedFinding.value?.checkId === SPACING_CHECK_ID) {
+        selectedKey.value = null;
+    }
+    nextTick(scheduleConnector);
+}
 
 watch(scale, () => {
     for (const p of [...rendered]) clearPage(p);
@@ -532,6 +559,24 @@ onBeforeUnmount(() => {
                     density="compact"
                 />
                 <v-spacer />
+                <!-- Strophen-Abstände am Stück ausblenden: ein Satz-Fehler erzeugt
+                     viele gleichartige Befunde, die den Rest zudecken. -->
+                <v-btn
+                    v-if="spacingCount"
+                    class="spacing-btn"
+                    size="small"
+                    variant="text"
+                    :color="hideSpacing ? 'primary' : undefined"
+                    :prepend-icon="hideSpacing ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    :title="
+                        hideSpacing
+                            ? `${spacingCount} Strophen-Abstand-Befunde sind ausgeblendet – wieder einblenden`
+                            : `Alle ${spacingCount} Strophen-Abstand-Befunde ausblenden`
+                    "
+                    @click="toggleSpacing"
+                >
+                    Abstände ({{ spacingCount }})
+                </v-btn>
                 <v-btn
                     :icon="fullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
                     size="small"
@@ -912,10 +957,16 @@ onBeforeUnmount(() => {
     z-index: 1;
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 4px 12px;
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), 0.3);
+}
+/* Schmale Spalte: der Knopf darf den Schalter nicht wegdrücken. */
+.spacing-btn {
+    flex: 0 0 auto;
+    min-width: 0;
 }
 /* Ein Lied = ein Block: Kopfzeile mit Nummer/Titel, darunter seine Befunde. */
 .finding-group {
