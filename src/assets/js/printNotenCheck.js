@@ -195,11 +195,12 @@ export async function checkPrintNotensatz(
         onProgress?.(++done, needed.size);
     }
 
-    // Alle Platzierungen der ganzen Druck-PDF: Eine gedruckte zweite Notensatz-
-    // Seite beginnt in extractPdfSongs ein eigenes (nummernloses) PDF-Lied –
-    // ob eine Datei-Seite gedruckt ist, lässt sich also nur über das ganze
-    // Dokument prüfen, nicht innerhalb eines PDF-Liedes (Lied 265, Seiten
-    // 135/136 der Test-PDF 171–356).
+    // Alle Platzierungen der ganzen Druck-PDF: Geprüft wird je PDF-Lied nur die
+    // größte Platzierung (mainPlacement) – ob eine Datei-Seite überhaupt
+    // irgendwo gedruckt ist, muss deshalb über das ganze Dokument laufen. Die
+    // zweite Seite eines langen Notensatzes steht auf der Folgeseite (Lied 265,
+    // Seiten 378/379) und damit zwar im selben PDF-Lied, aber nicht in dessen
+    // geprüfter Platzierung.
     const allPlacements = pdfSongs.flatMap((s) => (s.placements || []).filter((p) => p.seq.length));
 
     const truncated = [];

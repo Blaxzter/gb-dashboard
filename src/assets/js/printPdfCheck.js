@@ -470,6 +470,8 @@ export async function extractPdfSongs(pdfDoc) {
     const clipped = []; // Text außerhalb der Seite – je Seite ein Eintrag.
     const pageSizes = {};
     let cur = null;
+    // Zuletzt gemessener Fließtext-Grad (siehe sizeHint weiter unten).
+    let bodyTextSize = 0;
 
     for (let p = 1; p <= pageCount; p++) {
         const page = await pdfDoc.getPage(p);
@@ -497,9 +499,20 @@ export async function extractPdfSongs(pdfDoc) {
             continue;
         }
 
-        const sizeHint =
-            median(items.filter((i) => /\p{L}/u.test(i.str)).map((i) => i.size)) ||
-            median(items.map((i) => i.size));
+        // Schriftgrad des Fließtextes – Referenz für „die Liednummer ist deutlich
+        // größer gesetzt" (detectNumbers). Auf ein paar Seiten besteht der
+        // Text-Layer NUR aus den beiden Nummern: Strophe 1 und Fußzeile stecken
+        // dort komplett im platzierten Notensatz, weitere Strophen gibt es nicht
+        // (Seite 378: „265" 20 pt, „161" 11 pt, sonst nichts). Seitenlokal
+        // gemessen wären die Nummern dann ihre eigene Referenz – der Median
+        // (15,5) mal 1,4 liegt über der Liednummer, sie fiele durch den eigenen
+        // Test und die Seite gälte als Lied ohne Nummer. Der Fließtext ist im
+        // ganzen Innenteil gleich groß (10,8 pt), also den zuletzt gemessenen
+        // Grad weiterverwenden; die Notlösung greift nur noch, solange auf
+        // keiner Seite Fließtext stand.
+        const pageTextSize = median(items.filter((i) => /\p{L}/u.test(i.str)).map((i) => i.size));
+        if (pageTextSize) bodyTextSize = pageTextSize;
+        const sizeHint = pageTextSize || bodyTextSize || median(items.map((i) => i.size));
 
         // Liednummer (groß) und Choralbuchnummer (kleiner, darunter).
         const { numberItem, choralItem } = detectNumbers(items, height, sizeHint);
@@ -519,7 +532,25 @@ export async function extractPdfSongs(pdfDoc) {
         // Druck. Hinge die Zerlegung allein an der Nummer, würde die ganze Seite
         // samt Fußzeile dem vorherigen Lied zugeschlagen (dessen Fußzeile dann
         // doppelt erscheint) – und der Satzfehler bliebe unbemerkt.
-        const startsSong = !!numberItem || musicCount > 0;
+        //
+        // Umgekehrt darf „hier steht Notensatz" auch nicht allein entscheiden:
+        // Ein Notensatz, der länger als eine Seite ist, wird auf der Folgeseite
+        // weitergesetzt (Lied 265, Seiten 378/379). Diese Fortsetzungsseite trägt
+        // keine Liednummer – sie sähe damit aus wie ein Lied, dessen Nummer im
+        // Druck fehlt, und bekäme obendrein die Strophen und die Fußzeile, die
+        // dem angefangenen Lied gehören. Das Ergebnis waren zwei Fehlalarme auf
+        // einmal: „Lied ohne Liednummer" auf der Fortsetzungsseite und ein Lied
+        // ohne Strophen/Fußzeile auf der Seite davor.
+        //
+        // Unterschieden wird über die Fußzeile: Sie steht unter dem letzten
+        // Strophenblock und schließt ein Lied ab. Hat das laufende Lied noch
+        // keine, ist es nicht fertig – eine nummernlose Seite setzt es dann fort.
+        // Hat es seine Fußzeile dagegen schon, ist es abgeschlossen, und eine
+        // nummernlose Notenseite ist ein neues Lied mit fehlender Nummer (Seite
+        // 144) – das bleibt ein Befund. Dieselbe Unterscheidung trifft die
+        // Übernahme des Strophenüberhangs weiter unten schon.
+        const continuesSong = !numberItem && !!cur && !cur.lines.some(isFooterLine);
+        const startsSong = !!numberItem || (musicCount > 0 && !continuesSong);
 
         if (startsSong) {
             // Läuft der Strophenblock des vorherigen Liedes über, stehen seine
@@ -552,7 +583,8 @@ export async function extractPdfSongs(pdfDoc) {
             };
             songs.push(cur);
         } else if (cur) {
-            // Fortsetzungsseite eines mehrseitigen Liedes (kein Notensatz).
+            // Fortsetzungsseite eines mehrseitigen Liedes – entweder reiner
+            // Strophentext oder die zweite Seite eines langen Notensatzes.
             cur.pages.push(p);
             cur.lines.push(...lines);
             cur.placements.push(...placements);
