@@ -57,8 +57,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       pako:
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^3.0.1
+        version: 3.0.1
       pdfjs-dist:
         specifier: 2.9.359
         version: 2.9.359(worker-loader@3.0.8(webpack@5.108.4(esbuild@0.27.7)(postcss@8.5.19)))
@@ -1758,6 +1758,9 @@ packages:
 
   pako@2.1.0:
     resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
+
+  pako@3.0.1:
+    resolution: {integrity: sha512-GupotUUI0mlhugKjUs4bjOwLt3nrehy9Ys2dxC0GtgVef5cnKggkDMmf2bq2poCCuVXopWPmqsc9VDT2iJUy+w==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -3857,6 +3860,8 @@ snapshots:
   pako@1.0.11: {}
 
   pako@2.1.0: {}
+
+  pako@3.0.1: {}
 
   parent-module@1.0.1:
     dependencies:
