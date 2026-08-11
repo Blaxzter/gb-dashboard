@@ -86,11 +86,7 @@ const useUserStore = defineStore('user', {
             // alias uses VITE_AUTH_TOKEN. 'static_token_kind' records which.
             const isDefaultAlias = authData.username === defaultUserAlias;
             const isSpecialAlias = authData.username === specialUserAlias;
-            const staticTokenKind = isSpecialAlias
-                ? 'special'
-                : isDefaultAlias
-                  ? 'default'
-                  : null;
+            const staticTokenKind = isSpecialAlias ? 'special' : isDefaultAlias ? 'default' : null;
 
             if (isDefaultAlias) {
                 username = defaultUserName;
@@ -126,7 +122,11 @@ const useUserStore = defineStore('user', {
                 .then(() => {
                     // fetchMe has resolved the role, so is_kleiner_kreis is final.
                     this.syncKleinerKreisAnsicht();
-                    appstore.loadData();
+                    // Bewusst nicht abgewartet – der Login soll nicht am
+                    // Datenbestand hängen. Ein Fehler muss trotzdem aufgefangen
+                    // werden, sonst steht er als „Uncaught (in promise)" in der
+                    // Konsole; die Ansichten melden ihn ohnehin selbst.
+                    appstore.loadData().catch((e) => console.error('loadData', e));
                 })
                 .catch((error) => {
                     throw error;
@@ -206,7 +206,8 @@ const useUserStore = defineStore('user', {
             this.syncKleinerKreisAnsicht();
 
             console.log('Auto login successful');
-            appstore.loadData();
+            // Siehe login(): nicht abgewartet, aber aufgefangen.
+            appstore.loadData().catch((e) => console.error('loadData', e));
         },
         set_user_data(authData, response_data, remember_me, staticTokenKind) {
             this.user = {

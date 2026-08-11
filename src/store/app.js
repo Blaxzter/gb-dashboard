@@ -20,6 +20,10 @@ function isTimestampNewer(remote, local) {
     return r > l;
 }
 
+// Der gerade laufende Ladevorgang – siehe loadData(). Bewusst außerhalb des
+// Stores: Ein Promise gehört nicht in den reaktiven Zustand.
+let load_promise = null;
+
 export const useAppStore = defineStore('app', {
     state: () => ({
         data_loaded: false,
@@ -398,9 +402,7 @@ export const useAppStore = defineStore('app', {
                 notentext_seite2_file: obj.notentext_seite2
                     ? file_grouped[obj.notentext_seite2]
                     : null,
-                notentext_mxml_file: obj.notentext_mxml
-                    ? file_grouped[obj.notentext_mxml]
-                    : null,
+                notentext_mxml_file: obj.notentext_mxml ? file_grouped[obj.notentext_mxml] : null,
                 // SVG-Notentext (Issue #19): die gebackene SVG liegt jetzt in einem
                 // eigenen Feld, das PDF-Notenbild in notentext/notentext_seite2.
                 notentext_svg_file: obj.notentext_svg ? file_grouped[obj.notentext_svg] : null,
@@ -481,9 +483,25 @@ export const useAppStore = defineStore('app', {
             this.gesangbuchlied_kategorie = gesangbuchlied_kategorie;
         },
 
+        // Mehrere Aufrufer, ein Ladevorgang.
+        //
+        // Beim Neuladen der Seite ruft der Auto-Login loadData() auf (ohne zu
+        // warten), und die geöffnete Ansicht tut dasselbe. `data_loaded` steht
+        // erst am ENDE auf true, beide Aufrufe liefen also los – und der zweite
+        // brach über fetchData() -> cancelRequests() die Anfragen des ersten ab.
+        // Der erste endete dann in einem „CanceledError: canceled", den niemand
+        // auffing, und je nachdem, wer zuerst kam, wurde doppelt geladen.
+        // Hier hängen sich weitere Aufrufer an den laufenden Vorgang.
         async loadData() {
             if (this.data_loaded) return;
+            if (load_promise) return load_promise;
+            load_promise = this.doLoadData().finally(() => {
+                load_promise = null;
+            });
+            return load_promise;
+        },
 
+        async doLoadData() {
             const dont_cache = import.meta.env.VITE_CACHE_BACKEND;
 
             let data = {};
@@ -580,9 +598,7 @@ export const useAppStore = defineStore('app', {
         // fehlt die Collection (404/403), bleiben die Settings leer statt zu crashen.
         async loadSettings() {
             try {
-                const resp = await axios.get(
-                    `${import.meta.env.VITE_BACKEND_URL}/items/settings`,
-                );
+                const resp = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/items/settings`);
                 // Singleton -> data ist ein Objekt (kein Array).
                 this.settings = resp.data.data || {};
             } catch (error) {
@@ -834,9 +850,7 @@ export const useAppStore = defineStore('app', {
                 ];
 
                 // Abgeleitete kategories-Liste am Lied neu aufbauen.
-                const songIndex = this.gesangbuchlied.findIndex(
-                    (g) => g.id === gesangbuchliedId,
-                );
+                const songIndex = this.gesangbuchlied.findIndex((g) => g.id === gesangbuchliedId);
                 if (songIndex !== -1) {
                     this.gesangbuchlied[songIndex].kategories = _.filter(
                         this.gesangbuchlied_kategorie,
