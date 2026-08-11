@@ -1,0 +1,17 @@
+/* Die Schrift des Notensatzes (Optima) für Datenbank-Texte, die neben einem
+   Notenbild stehen – siehe Strophe1Compare.vue. Wortbilder lassen sich so direkt
+   vergleichen, statt sich hinter zwei verschiedenen Schriften zu verstecken.
+
+   Eigener Familienname: svgCompare.js registriert zur Laufzeit weitere Faces
+   unter „Optima LT Std"; die beiden sollen sich nicht in die Quere kommen.
+
+   Eigene Datei, weil mehrere Komponenten die Schrift benutzen und ein @font-face
+   im scoped-Block einer einzelnen Komponente nur so lange gilt, wie genau diese
+   Komponente geladen ist. */
+@font-face {
+    font-family: 'GbOptima';
+    src: url('../assets/font/OptimaLTStd.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

@@ -131,6 +131,11 @@ export default {
                         icon: 'mdi-account-search',
                     },
                     {
+                        name: 'Strophe-1-Abgleich',
+                        route: '/strophe1-abgleich',
+                        icon: 'mdi-compare-horizontal',
+                    },
+                    {
                         name: 'Autoren-Ranking',
                         route: '/autoren-ranking',
                         icon: 'mdi-chart-donut',
