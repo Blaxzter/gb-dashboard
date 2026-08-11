@@ -97,6 +97,14 @@ const routes = [
                     import(/* webpackChunkName: "home" */ '@/views/CorrectionView.vue'),
             },
             {
+                path: 'strophe1-abgleich/:id?',
+                name: 'Strophe1Abgleich',
+                component: () =>
+                    import(
+                        /* webpackChunkName: "strophe1-abgleich" */ '@/views/Strophe1AbgleichView.vue'
+                    ),
+            },
+            {
                 path: 'autoren-datencheck/:id?',
                 name: 'AutorenDatencheck',
                 component: () =>
@@ -176,6 +184,17 @@ const routes = [
         path: '/druckansicht',
         name: 'PrintView',
         component: () => import(/* webpackChunkName: "home" */ '@/views/PrintView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        // Korrekturbögen des Strophe-1-Abgleichs (Issue #99). Eigene Route außerhalb
+        // des Layouts, damit auf dem Ausdruck nur die Blätter landen.
+        path: '/strophe1-abgleich-druck',
+        name: 'Strophe1AbgleichDruck',
+        component: () =>
+            import(
+                /* webpackChunkName: "strophe1-abgleich" */ '@/views/Strophe1AbgleichDruckView.vue'
+            ),
         meta: { requiresAuth: true },
     },
     {
