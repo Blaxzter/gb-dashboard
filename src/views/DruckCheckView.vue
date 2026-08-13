@@ -13,6 +13,11 @@ import {
     assignItemFingerprints,
 } from '@/assets/js/printPdfCheck.js';
 import { checkPrintNotensatz, notensatzChecks } from '@/assets/js/printNotenCheck.js';
+import {
+    compareIvzPdf,
+    detectPdfKind,
+    extractIvzEntries,
+} from '@/assets/js/inhaltsverzeichnisPdfCheck.js';
 import { createFingerprintLoader } from '@/assets/js/notenFingerprintLoader.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
 
@@ -41,6 +46,20 @@ const expandSignal = ref(0);
 const collapseSignal = ref(0);
 const tab = ref('compare');
 
+// In den Druck gehen zwei verschiedene PDFs: der Liederteil (Noten, Strophen,
+// Fußzeilen) und das alphabetische Inhaltsverzeichnis (nur Nummer + Titel).
+// Beide werden hier geprüft, jede mit ihrer eigenen Prüfung. Die Sorte wird beim
+// Laden am Satz erkannt (detectPdfKind) und lässt sich umstellen, falls eine
+// künftige PDF anders gebaut ist. `analysed_kind` hält fest, womit das
+// angezeigte Ergebnis berechnet wurde – nur bei einer echten Änderung wird neu
+// geprüft.
+const pdf_kind = ref('lieder');
+const analysed_kind = ref(null);
+const KIND_LABEL = {
+    lieder: 'Liederteil',
+    inhaltsverzeichnis: 'Inhaltsverzeichnis',
+};
+
 function pickFile() {
     file_input.value?.click();
 }
@@ -60,6 +79,7 @@ function resetResults() {
     checks.value = null;
     extracted.value = null;
     pdf_doc.value = null;
+    analysed_kind.value = null;
     noten_progress.value = null;
     // Sonst stünde der „Abstände"-Knopf mit der Zahl der alten PDF im Kopf.
     hide_spacing.value = false;
@@ -86,14 +106,44 @@ async function onLoaded(pdf) {
     try {
         if (!store.data_loaded) await store.loadData();
         pdf_doc.value = pdf; // für die Anzeige wiederverwenden (kein Neu-Laden)
-        const result = await extractPdfSongs(pdf);
-        extracted.value = result;
-        checks.value = comparePrintPdf(result, alle_lieder.value);
-        // Textprüfung steht – erst jetzt der Notensatz-Abgleich. Er ist der
-        // langsamere Teil (ggf. Noten-PDFs nachladen), das Ergebnis der
-        // Textprüfung soll darauf nicht warten.
+        pdf_kind.value = await detectPdfKind(pdf);
+        await analyse();
+    } catch (e) {
+        console.error('Druck-Check fehlgeschlagen', e);
+        error.value = 'Fehler beim Auslesen der PDF: ' + (e?.message || e);
         processing.value = false;
-        await runNotensatzCheck(result);
+        noten_progress.value = null;
+    }
+}
+
+// Die geladene PDF nach der gewählten Sorte prüfen.
+async function analyse() {
+    const pdf = pdf_doc.value;
+    if (!pdf) return;
+    processing.value = true;
+    error.value = '';
+    checks.value = null;
+    extracted.value = null;
+    // Sonst stünde der „Abstände"-Knopf mit der Zahl des vorherigen Laufs im Kopf.
+    hide_spacing.value = false;
+    spacing_count.value = 0;
+    analysed_kind.value = pdf_kind.value;
+    try {
+        if (pdf_kind.value === 'inhaltsverzeichnis') {
+            const result = await extractIvzEntries(pdf);
+            extracted.value = result;
+            checks.value = compareIvzPdf(result, alle_lieder.value);
+            processing.value = false;
+        } else {
+            const result = await extractPdfSongs(pdf);
+            extracted.value = result;
+            checks.value = comparePrintPdf(result, alle_lieder.value);
+            // Textprüfung steht – erst jetzt der Notensatz-Abgleich. Er ist der
+            // langsamere Teil (ggf. Noten-PDFs nachladen), das Ergebnis der
+            // Textprüfung soll darauf nicht warten.
+            processing.value = false;
+            await runNotensatzCheck(result);
+        }
         // Bei Problemen den PDF-Abgleich zeigen, sonst die Prüfliste (mit „alles OK").
         const hasProblems = checks.value.some(
             (c) => c.status === 'error' || c.status === 'warning',
@@ -106,6 +156,13 @@ async function onLoaded(pdf) {
         processing.value = false;
         noten_progress.value = null;
     }
+}
+
+// Sorte von Hand umgestellt: neu prüfen, aber nur bei echter Änderung (das
+// Umschalten setzt den v-btn-toggle auch beim Erkennen der Sorte).
+function onKindChange() {
+    if (!pdf_doc.value || pdf_kind.value === analysed_kind.value) return;
+    analyse();
 }
 
 // Notensatz gegen die Datenbank prüfen. Fehlschläge hier dürfen die Textprüfung
@@ -279,16 +336,30 @@ function openSong(id) {
             <v-card-text>
                 <div class="text-medium-emphasis mb-3">
                     Sicherheitsnetz vor dem Druck: Die fertige Druck-PDF wird gegen die aktuellen
-                    „Bewertet und genommen“-Lieder geprüft – Liednummern, Reihenfolge, fehlende/
-                    zusätzliche Lieder, Strophentexte (2..n) und Fußzeilen. Zusätzlich wird der
-                    <strong>Notensatz</strong>
-                    mit der Notensatz-Datei aus der Datenbank abgeglichen: ob die richtige Fassung
-                    platziert wurde (deutsch statt fremdsprachig) und ob sie vollständig gedruckt
-                    ist. Der
-                    <strong>Text der 1. Strophe</strong>
-                    steht als Bild unter den Noten und lässt sich nicht Wort für Wort prüfen.
-                    Zusätzliche Vorspann-/Leerseiten werden automatisch übersprungen.
+                    „Bewertet und genommen“-Lieder geprüft. Beide Sorten Druck-PDF werden erkannt
+                    und mit ihrer eigenen Prüfung gehalten:
                 </div>
+                <ul class="text-medium-emphasis mb-3 ps-6">
+                    <li>
+                        <strong>Liederteil</strong>
+                        – Liednummern, Reihenfolge, fehlende/zusätzliche Lieder, Strophentexte
+                        (2..n) und Fußzeilen. Zusätzlich wird der
+                        <strong>Notensatz</strong>
+                        mit der Notensatz-Datei aus der Datenbank abgeglichen: ob die richtige
+                        Fassung platziert wurde (deutsch statt fremdsprachig) und ob sie vollständig
+                        gedruckt ist. Der
+                        <strong>Text der 1. Strophe</strong>
+                        steht als Bild unter den Noten und lässt sich nicht Wort für Wort prüfen.
+                        Zusätzliche Vorspann-/Leerseiten werden automatisch übersprungen.
+                    </li>
+                    <li>
+                        <strong>Inhaltsverzeichnis</strong>
+                        (ABC) – Schreibweise jedes Titels gegen die Datenbank sowie Reihenfolge und
+                        Vollständigkeit: jedes genommene Lied genau einmal, Liednummern aufsteigend.
+                        Umbrochene Titel werden zusammengefügt, fremdsprachige Fassungen mit ihrem
+                        eigenen Titel geprüft.
+                    </li>
+                </ul>
 
                 <div
                     class="drop-zone"
@@ -327,7 +398,10 @@ function openSong(id) {
             style="display: none"
             @change="onPick"
         />
-        <div v-if="source" :class="extracted || checks ? 'doc-holder' : 'pdf-preview mb-4'">
+        <!-- Sobald die Prüfung läuft (analysed_kind steht), wandert die Lade-Instanz
+             offscreen – auch während einer erneuten Prüfung nach dem Umstellen der
+             Sorte, sonst blitzte die Vorschau dazwischen auf. -->
+        <div v-if="source" :class="analysed_kind ? 'doc-holder' : 'pdf-preview mb-4'">
             <VuePdfEmbed
                 :source="source"
                 :page="1"
@@ -350,6 +424,28 @@ function openSong(id) {
                 >
                     Andere PDF
                 </v-btn>
+                <!-- Die Sorte wird am Satz erkannt; falsch erkannt lässt sie sich
+                     hier umstellen (die PDF wird dann neu geprüft). -->
+                <v-btn-toggle
+                    v-model="pdf_kind"
+                    density="compact"
+                    variant="outlined"
+                    divided
+                    mandatory
+                    :title="`Als ${KIND_LABEL[pdf_kind]} geprüft`"
+                    @update:model-value="onKindChange"
+                >
+                    <v-btn value="lieder" size="small" prepend-icon="mdi-music-clef-treble">
+                        Liederteil
+                    </v-btn>
+                    <v-btn
+                        value="inhaltsverzeichnis"
+                        size="small"
+                        prepend-icon="mdi-format-list-numbered"
+                    >
+                        Inhaltsverzeichnis
+                    </v-btn>
+                </v-btn-toggle>
                 <v-divider vertical class="mx-1" />
                 <v-chip color="success" variant="tonal" prepend-icon="mdi-check-circle">
                     OK: {{ summary.ok }}

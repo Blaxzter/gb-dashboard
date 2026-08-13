@@ -66,14 +66,14 @@ function median(nums) {
 }
 
 // Führende Ganzzahl (für Reihenfolge-Vergleich). "12a" -> 12, "" -> null.
-function numInt(v) {
+export function numInt(v) {
     const m = String(v ?? '').match(/\d+/);
     return m ? parseInt(m[0], 10) : null;
 }
 
 // Vergleichsschlüssel einer Liednummer (führende Nullen weg, Suffix klein).
 // "001" -> "1", "12a" -> "12a".
-function numKey(v) {
+export function numKey(v) {
     const m = String(v ?? '').match(/^\s*0*(\d+)\s*([a-zA-Z]?)/);
     if (!m)
         return String(v ?? '')
@@ -426,7 +426,7 @@ function splitVerses(bodyLines) {
 
 // Bounding-Box (in PDF-Punkten, Ursprung oben-links) einer Item-Liste. Die
 // Glyphen reichen von der Grundlinie um ~0.8·Größe nach oben und ~0.25 nach unten.
-function bboxOfItems(items) {
+export function bboxOfItems(items) {
     let x0 = Infinity,
         y0 = Infinity,
         x1 = -Infinity,
