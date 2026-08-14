@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     formatYearRange,
+    formatAuthorYears,
     appendSuffix,
     formatAuthorEntry,
     buildFooter,
@@ -18,6 +19,48 @@ describe('formatYearRange (Issue #18)', () => {
     });
     it('keine Jahre -> leer', () => {
         expect(formatYearRange(null, null)).toBe('');
+    });
+});
+
+describe('formatYearRange mit Jahres-Präfixen (Issue #101)', () => {
+    it('beide Präfixe (Lied 39, Nikolaus Decius)', () => {
+        expect(formatYearRange(1485, 1546, 'um', 'nach')).toBe('(um 1485–nach 1546)');
+    });
+    it('nur Geburtsjahr-Präfix', () => {
+        expect(formatYearRange(1500, 1561, 'um', null)).toBe('(um 1500–1561)');
+    });
+    it('nur Sterbejahr-Präfix', () => {
+        expect(formatYearRange(1485, 1546, null, 'nach')).toBe('(1485–nach 1546)');
+    });
+    it('Präfix bei nur einem Jahr', () => {
+        expect(formatYearRange(1500, null, 'um', null)).toBe('(um 1500)');
+        expect(formatYearRange(null, 1546, null, 'nach')).toBe('(–nach 1546)');
+    });
+    it('Präfix ohne zugehörige Jahreszahl wird ignoriert', () => {
+        expect(formatYearRange(null, 1874, 'um', null)).toBe('(–1874)');
+        expect(formatYearRange(null, null, 'um', 'nach')).toBe('');
+    });
+    it('leere/whitespace-Präfixe erzeugen kein zusätzliches Leerzeichen', () => {
+        expect(formatYearRange(1798, 1874, '', '  ')).toBe('(1798–1874)');
+    });
+});
+
+describe('formatAuthorYears (Issue #101)', () => {
+    it('liest geburtsjahrePrefix/sterbejahrPrefix vom Autor', () => {
+        expect(
+            formatAuthorYears({
+                geburtsjahr: 1485,
+                sterbejahr: 1546,
+                geburtsjahrePrefix: 'um',
+                sterbejahrPrefix: 'nach',
+            }),
+        ).toBe('(um 1485–nach 1546)');
+    });
+    it('ohne Präfixe wie bisher', () => {
+        expect(formatAuthorYears({ geburtsjahr: 1798, sterbejahr: 1874 })).toBe('(1798–1874)');
+    });
+    it('kein Autor -> leer', () => {
+        expect(formatAuthorYears(null)).toBe('');
     });
 });
 
@@ -142,6 +185,38 @@ describe('buildFooter', () => {
             'Text: unbekannt; aus dem Liederschatz von Albert Knapp (1798–1864)\n' +
                 'Melodie: Jens Lehmann (1966)',
         );
+    });
+
+    it('Lied 39: Jahres-Präfixe im Footer (Issue #101)', () => {
+        const lied = {
+            melodie: {
+                authors: [
+                    {
+                        vorname: 'Nikolaus',
+                        nachname: 'Decius',
+                        geburtsjahr: 1485,
+                        sterbejahr: 1546,
+                        geburtsjahrePrefix: 'um',
+                        sterbejahrPrefix: 'nach',
+                    },
+                ],
+            },
+        };
+        expect(buildFooter(lied)).toBe('Melodie: Nikolaus Decius (um 1485–nach 1546)');
+    });
+
+    it('Jahres-Präfix auch am Ursprungsautor (Issue #101)', () => {
+        expect(
+            formatAuthorEntry({
+                nachname: 'Mustermann',
+                ursprungsAutorObj: {
+                    nachname: 'Herman',
+                    geburtsjahr: 1500,
+                    sterbejahr: 1561,
+                    geburtsjahrePrefix: 'um',
+                },
+            }),
+        ).toBe('Mustermann Herman (um 1500–1561)');
     });
 
     it('gleicher Text- und Melodie-Autor -> "Text und Melodie:"', () => {

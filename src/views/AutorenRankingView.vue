@@ -153,7 +153,7 @@ import { storeToRefs } from 'pinia';
 
 import { useAppStore } from '@/store/app.js';
 import { resolveLiednummer2026 } from '@/assets/js/utils';
-import { formatYearRange } from '@/assets/js/authorFormat';
+import { formatAuthorYears } from '@/assets/js/authorFormat';
 import AutorRankingPanel from '@/components/autor/AutorRankingPanel.vue';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 
@@ -212,7 +212,7 @@ const songs2026 = computed(() =>
 // Jahres-Formatierung wie der Rest der App (Issue #18).
 const authorDisplayName = (author) => {
     const fullName = [author.vorname, author.nachname].filter(Boolean).join(' ').trim();
-    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
+    const years = formatAuthorYears(author);
     return [fullName || 'Unbekannt', years].filter(Boolean).join(' ');
 };
 

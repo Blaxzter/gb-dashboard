@@ -2,6 +2,8 @@
 import _ from 'lodash';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAppStore } from '@/store/app.js';
+// Jahresangabe einheitlich wie im Rest der App, inkl. Präfixen (Issue #101).
+import { formatAuthorYears } from '@/assets/js/authorFormat';
 
 const store = useAppStore();
 
@@ -421,11 +423,10 @@ const copyLinkAll = (group) => {
                                 {{ group.author.vorname }} {{ group.author.nachname }}
                             </span>
                             <span
-v-if="group.author.geburtsjahr || group.author.sterbejahr"
-                                class="text-caption text-medium-emphasis">
-                                ({{ group.author.geburtsjahr ? '*' + group.author.geburtsjahr : '' }}{{
-                                    group.author.sterbejahr ? ' – ' + group.author.sterbejahr : ''
-                                }})
+                                v-if="formatAuthorYears(group.author)"
+                                class="text-caption text-medium-emphasis"
+                            >
+                                {{ formatAuthorYears(group.author) }}
                             </span>
                             <v-chip
                                 v-if="group.verstorben"

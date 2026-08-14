@@ -559,17 +559,20 @@ export default {
                     key: 'text.strophen_connected_short',
                 });
 
+            // Lied-spezifische Keys statt text.author_name / melodie.author_name: sie
+            // enthalten zusätzlich die nur für dieses Lied geltenden Extra-Suffixe
+            // (Issue #77/#100).
             if (this.selected_columns.includes('Text Autor'))
                 headers.push({
                     title: 'Text Autor',
                     align: 'start',
-                    key: 'text.author_name',
+                    key: 'text_author_name',
                 });
             if (this.selected_columns.includes('Musik Autor'))
                 headers.push({
                     title: 'Musik Autor',
                     align: 'start',
-                    key: 'melodie.author_name',
+                    key: 'melodie_author_name',
                 });
 
             if (this.admin && this.admin_ansicht && this.selected_columns.includes('Bewertung')) {

@@ -4,7 +4,7 @@ import axios from '@/assets/js/axiossConfig';
 
 import _ from 'lodash';
 import { status_mapping } from '@/assets/js/utils';
-import { formatAuthors } from '@/assets/js/authorFormat';
+import { appendSuffix, formatAuthorYears, formatAuthors } from '@/assets/js/authorFormat';
 import router from '@/router';
 import { useUserStore } from '@/store/user';
 
@@ -211,31 +211,15 @@ export const useAppStore = defineStore('app', {
                 null: { bezeichner: '', rangfolge: -1 },
             };
 
-            // Helper function to format individual author's years
-            const formatYears = (author) => {
-                const { geburtsjahr, sterbejahr } = author;
-                if (!geburtsjahr && !sterbejahr) return '';
-
-                const birthYear = geburtsjahr ? `*${geburtsjahr}` : '';
-                const deathYear = sterbejahr ? ` - ${sterbejahr}` : '';
-                return ` (${birthYear}${deathYear})`;
-            };
-
-            // Helper function to format author's full name and years
+            // Anzeigename eines Autors: „Vorname Nachname (Jahre)". Die Jahresangabe
+            // kommt aus formatAuthorYears – damit gilt hier dieselbe Formatierung wie
+            // in Übersicht, Detailansicht und Footer (Issue #18/#43) und die Jahres-
+            // Präfixe („um", „nach") sind überall enthalten (Issue #101).
             const formatAuthor = (author) => {
                 const fullName = `${author.vorname} ${author.nachname}`;
-                const years = formatYears(author);
-                return {
-                    ...author,
-                    name: `${fullName}${years}`,
-                    author_str:
-                        `${author.vorname} ${author.nachname}` +
-                        (author.geburtsjahr || author.sterbejahr
-                            ? ` (${author.geburtsjahr ? '*' + author.geburtsjahr : ''} ${
-                                  author.sterbejahr ? ' - ' + author.sterbejahr : ''
-                              })`
-                            : ''),
-                };
+                const years = formatAuthorYears(author);
+                const display = [fullName, years].filter(Boolean).join(' ');
+                return { ...author, name: display, author_str: display };
             };
             const format_author = _.map(author, formatAuthor);
 
@@ -436,13 +420,32 @@ export const useAppStore = defineStore('app', {
                     ...(textById[obj.textId]?.authors || []),
                     ...(melodieById[obj.melodieId]?.authors || []),
                 ],
+                // Autorenangabe im Kontext dieses Liedes: text.author_name /
+                // melodie.author_name werden von allen Liedern desselben Textes bzw.
+                // derselben Melodie geteilt, die Extra-Suffixe hängen dagegen am
+                // Gesangbuchlied (Issue #77). Sie werden deshalb erst hier ergänzt –
+                // nach denselben Interpunktions-Regeln wie im Footer (Issue #100).
+                text_author_name: appendSuffix(
+                    textById[obj.textId]?.author_name,
+                    obj.textAutorExtraSuffix,
+                ),
+                melodie_author_name: appendSuffix(
+                    melodieById[obj.melodieId]?.author_name,
+                    obj.melodieAutorExtraSuffix,
+                ),
                 author_name:
                     (textById[obj.textId]?.author_name
-                        ? `Text: ${textById[obj.textId]?.author_name}`
+                        ? `Text: ${appendSuffix(
+                              textById[obj.textId]?.author_name,
+                              obj.textAutorExtraSuffix,
+                          )}`
                         : '') +
                     ' ' +
                     (melodieById[obj.melodieId]?.author_name
-                        ? `Melodie: ${melodieById[obj.melodieId]?.author_name}`
+                        ? `Melodie: ${appendSuffix(
+                              melodieById[obj.melodieId]?.author_name,
+                              obj.melodieAutorExtraSuffix,
+                          )}`
                         : ''),
                 // if equal to title replace with ...
                 gesangbuch_titel: `${obj?.titel}${
@@ -1049,14 +1052,11 @@ export const useAppStore = defineStore('app', {
                     const a = this.author[index];
                     a.geburtsjahr = geburtsjahr;
                     a.sterbejahr = sterbejahr;
-                    const years =
-                        geburtsjahr || sterbejahr
-                            ? ` (${geburtsjahr ? '*' + geburtsjahr : ''}${
-                                  sterbejahr ? ' - ' + sterbejahr : ''
-                              })`
-                            : '';
-                    a.name = `${a.vorname} ${a.nachname}${years}`;
-                    a.author_str = `${a.vorname} ${a.nachname}${years}`;
+                    // Präfixe bleiben unangetastet – sie werden hier nicht gepatcht,
+                    // gehören aber zur Anzeige dazu (Issue #101).
+                    const years = formatAuthorYears(a);
+                    a.name = [`${a.vorname} ${a.nachname}`, years].filter(Boolean).join(' ');
+                    a.author_str = a.name;
                 }
 
                 this.currentRequests = this.currentRequests.filter((c) => c !== controller);

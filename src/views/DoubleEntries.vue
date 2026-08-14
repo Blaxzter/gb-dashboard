@@ -225,10 +225,12 @@
                                 @click="copy_to_clipboard(obj.id)"
                             >
                                 {{
-                                    `${idx + 1}. ${obj.vorname} ${obj.nachname}` +
-                                    (obj.geburtsjahr || obj.sterbejahr
-                                        ? ` (${obj.geburtsjahr ? '*' + obj.geburtsjahr : ''} ${obj.sterbejahr ? ' - ' + obj.sterbejahr : ''})`
-                                        : '')
+                                    [
+                                        `${idx + 1}. ${obj.vorname} ${obj.nachname}`,
+                                        formatAuthorYears(obj),
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' ')
                                 }}
                                 -
                                 {{ count_text_and_melodie_entries_per_author(obj) }}
@@ -272,6 +274,7 @@ import _ from 'lodash';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 import MelodieDialog from '@/components/SongRelated/MelodieDialog.vue';
 import TextDialog from '@/components/SongRelated/TextDialog.vue';
+import { formatAuthorYears } from '@/assets/js/authorFormat';
 
 export default defineComponent({
     name: 'DoubleEntries',
@@ -523,6 +526,8 @@ export default defineComponent({
         }
     },
     methods: {
+        // Jahresangabe einheitlich wie im Rest der App, inkl. Präfixen (Issue #101).
+        formatAuthorYears,
         copy_to_clipboard(text) {
             navigator.clipboard.writeText(text);
         },

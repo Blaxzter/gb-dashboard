@@ -57,8 +57,16 @@
                 <div class="authors-section">
                     <div
                         v-for="(author_source, index_1) in [
-                            { name: 'Text', src: selectedSong?.text?.authors },
-                            { name: 'Melodie', src: selectedSong?.melodie?.authors },
+                            {
+                                name: 'Text',
+                                src: selectedSong?.text?.authors,
+                                extraSuffix: selectedSong?.textAutorExtraSuffix,
+                            },
+                            {
+                                name: 'Melodie',
+                                src: selectedSong?.melodie?.authors,
+                                extraSuffix: selectedSong?.melodieAutorExtraSuffix,
+                            },
                         ]"
                         :key="index_1"
                     >
@@ -72,8 +80,12 @@
                                 <span class="author-number">{{ index + 1 }}.</span>
                                 <span class="author-name">
                                     {{ author.vorname }} {{ author.nachname }}
-                                    {{ formatYearRange(author.geburtsjahr, author.sterbejahr) }}
+                                    {{ formatAuthorYears(author) }}
                                 </span>
+                            </div>
+                            <!-- Lied-spezifischer Zusatz (Issue #77/#100). -->
+                            <div v-if="author_source.extraSuffix" class="author-extra-suffix">
+                                {{ author_source.extraSuffix }}
                             </div>
                         </div>
                     </div>
@@ -202,8 +214,16 @@
             <div class="authors-section">
                 <div
                     v-for="(author_source, index_1) in [
-                        { name: 'Text', src: selectedSong?.text?.authors },
-                        { name: 'Melodie', src: selectedSong?.melodie?.authors },
+                        {
+                            name: 'Text',
+                            src: selectedSong?.text?.authors,
+                            extraSuffix: selectedSong?.textAutorExtraSuffix,
+                        },
+                        {
+                            name: 'Melodie',
+                            src: selectedSong?.melodie?.authors,
+                            extraSuffix: selectedSong?.melodieAutorExtraSuffix,
+                        },
                     ]"
                     :key="index_1"
                 >
@@ -216,6 +236,10 @@
                         >
                             <span class="author-number">{{ index + 1 }}.</span>
                             <span class="author-name">{{ formatAuthorEntry(author) }}</span>
+                        </div>
+                        <!-- Lied-spezifischer Zusatz hinter dem Autorenblock (Issue #77/#100). -->
+                        <div v-if="author_source.extraSuffix" class="author-extra-suffix">
+                            {{ author_source.extraSuffix }}
                         </div>
                     </div>
                 </div>
@@ -283,7 +307,7 @@
 // import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import MediaComponent from '@/components/SongRelated/MediaComponent.vue';
 import { gesangbuch_kategorie_name_to_icon, chart_colors } from '@/assets/js/utils';
-import { formatAuthorEntry, formatYearRange } from '@/assets/js/authorFormat';
+import { formatAuthorEntry, formatAuthorYears } from '@/assets/js/authorFormat';
 import _ from 'lodash';
 
 export default {
@@ -339,8 +363,8 @@ export default {
         // Volle Autoren-Formatierung inkl. Präfix/Suffix und Ursprungsautor (Issue #24).
         formatAuthorEntry,
         // Jahresangabe einheitlich wie in der Übersicht/Detailansicht (Issue #43):
-        // (1932–2025) statt (*1932 - 2025).
-        formatYearRange,
+        // (1932–2025) statt (*1932 - 2025), inkl. Jahres-Präfixen (Issue #101).
+        formatAuthorYears,
         get_color(category) {
             return chart_colors[category.id % chart_colors.length];
         },
@@ -581,6 +605,15 @@ export default {
 
 .author-number {
     font-weight: 500;
+}
+
+/* Lied-spezifischer Zusatz hinter dem Autorenblock (Issue #100) */
+.author-extra-suffix {
+    margin-bottom: 3px;
+    font-size: 10pt;
+    font-style: italic;
+    opacity: 0.8;
+    white-space: pre-wrap;
 }
 
 /* Submitter Section */

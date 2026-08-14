@@ -8,12 +8,39 @@
 //   Geburts- und Sterbejahr: (1798–1874)
 //   nur Geburtsjahr:         (1989)
 //   nur Sterbejahr:          (–1874)
+//
+// Unsichere Jahreszahlen bekommen ein Präfix (Issue #101). Da geburtsjahr und
+// sterbejahr im Datenmodell Integer sind, liegen die Präfixe in zwei eigenen
+// Textfeldern am Autor:  geburtsjahrePrefix (mit „e"!) und sterbejahrPrefix.
+//   (um 1485–nach 1546)   (um 1500)   (–nach 1546)
+
+// Eine einzelne Jahreszahl mit optionalem Präfix: "um 1485" bzw. "1485".
+function yearWithPrefix(prefix, year) {
+    const p = prefix == null ? '' : String(prefix).trim();
+    return p ? `${p} ${year}` : String(year);
+}
 
 // Jahresangabe eines Autors. Leerer String, wenn weder Geburts- noch Sterbejahr
-// vorhanden sind.
-export function formatYearRange(geburtsjahr, sterbejahr) {
+// vorhanden sind. Ein Präfix ohne zugehörige Jahreszahl wird ignoriert – es gibt
+// dann nichts zu qualifizieren.
+export function formatYearRange(geburtsjahr, sterbejahr, geburtsjahrePrefix, sterbejahrPrefix) {
     if (!geburtsjahr && !sterbejahr) return '';
-    return `(${geburtsjahr || ''}${sterbejahr ? `–${sterbejahr}` : ''})`;
+    const birth = geburtsjahr ? yearWithPrefix(geburtsjahrePrefix, geburtsjahr) : '';
+    const death = sterbejahr ? `–${yearWithPrefix(sterbejahrPrefix, sterbejahr)}` : '';
+    return `(${birth}${death})`;
+}
+
+// Bequemer Aufruf mit dem Autoren-Objekt – nimmt Jahre und Präfixe direkt vom
+// Autor. Wird von den Vue-Templates und den Formatierern unten genutzt, damit
+// die Feldnamen nur an dieser einen Stelle stehen.
+export function formatAuthorYears(author) {
+    if (!author) return '';
+    return formatYearRange(
+        author.geburtsjahr,
+        author.sterbejahr,
+        author.geburtsjahrePrefix,
+        author.sterbejahrPrefix,
+    );
 }
 
 // Hängt einen Suffix an einen bereits formatierten String an. Beginnt der Suffix
@@ -43,7 +70,7 @@ export function formatAuthorEntry(author) {
     if (author.autorPrefix) parts.push(author.autorPrefix);
     const name = [author.vorname, author.nachname].filter(Boolean).join(' ');
     if (name) parts.push(name);
-    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
+    const years = formatAuthorYears(author);
     if (years) parts.push(years);
 
     // Suffix nach denselben Interpunktions-Regeln wie im Footer (Issue #76).
@@ -52,7 +79,7 @@ export function formatAuthorEntry(author) {
     const u = author.ursprungsAutorObj;
     if (u && typeof u === 'object') {
         const uName = [u.vorname, u.nachname].filter(Boolean).join(' ');
-        const uYears = formatYearRange(u.geburtsjahr, u.sterbejahr);
+        const uYears = formatAuthorYears(u);
         const uStr = [uName, uYears].filter(Boolean).join(' ');
         if (uStr) s = s ? `${s} ${uStr}` : uStr;
     }
@@ -83,7 +110,7 @@ function formatFooterUrsprungsAutor(u) {
     if (u.vorname) s += `${u.vorname} `;
     if (u.nachname) s += u.nachname;
     s = s.trimEnd();
-    const years = formatYearRange(u.geburtsjahr, u.sterbejahr);
+    const years = formatAuthorYears(u);
     if (years) s = s ? `${s} ${years}` : years;
     return s.trim();
 }
@@ -98,7 +125,7 @@ function formatFooterAuthorEntry(author) {
     if (author.nachname) s += author.nachname;
     s = s.trimEnd();
 
-    const years = formatYearRange(author.geburtsjahr, author.sterbejahr);
+    const years = formatAuthorYears(author);
     if (years) s = s ? `${s} ${years}` : years;
     s = appendSuffix(s, author.autorSuffix);
 

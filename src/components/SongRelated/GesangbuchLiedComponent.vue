@@ -258,17 +258,23 @@
                         name: 'Text',
                         src: selectedSong?.text?.authors,
                         copyright: selectedSong?.text?.copyright,
+                        extraSuffix: selectedSong?.textAutorExtraSuffix,
                     },
                     {
                         name: 'Melodie',
                         src: selectedSong?.melodie?.authors,
                         copyright: selectedSong?.melodie?.copyright,
+                        extraSuffix: selectedSong?.melodieAutorExtraSuffix,
                     },
                 ]"
                 :key="index_1"
             >
                 <v-sheet
-                    v-if="author_source?.src?.length || author_source.copyright"
+                    v-if="
+                        author_source?.src?.length ||
+                        author_source.copyright ||
+                        author_source.extraSuffix
+                    "
                     color="surface-light"
                     rounded="lg"
                     class="mb-3 pa-3"
@@ -286,13 +292,34 @@
                             <div class="text-medium-emphasis">{{ author.autorPrefix || '' }}</div>
                             <div>
                                 {{ author.vorname }} {{ author.nachname }}
-                                {{ formatYearRange(author.geburtsjahr, author.sterbejahr) }}
+                                {{ formatAuthorYears(author) }}
                             </div>
                             <div class="text-medium-emphasis">
                                 {{ author.autorSuffix || '' }}
                                 {{ ursprungLabel(author?.ursprungsAutorObj) }}
                             </div>
                         </div>
+                    </div>
+                    <!-- Lied-spezifischer Zusatz hinter dem Autorenblock (Issue #77/#100).
+                         Steht am Gesangbuchlied, nicht am Autor – er erscheint deshalb
+                         nur hier und nicht beim Original-Lied desselben Autors. -->
+                    <div v-if="author_source.extraSuffix" class="d-flex align-center mb-1">
+                        <v-tooltip
+                            text="Gilt nur für dieses Lied – steht im Footer hinter den Autoren."
+                            location="bottom"
+                        >
+                            <template #activator="{ props }">
+                                <v-icon
+                                    v-bind="props"
+                                    icon="mdi-tag-text-outline"
+                                    size="x-small"
+                                    class="me-2 text-medium-emphasis"
+                                />
+                            </template>
+                        </v-tooltip>
+                        <span class="text-medium-emphasis white-space-pre">
+                            {{ author_source.extraSuffix }}
+                        </span>
                     </div>
                     <div
                         v-if="author_source.copyright"
@@ -544,7 +571,7 @@ import {
     rang_to_color,
     writeToClipboard,
 } from '@/assets/js/utils';
-import { formatYearRange, buildFooter } from '@/assets/js/authorFormat';
+import { formatAuthorYears, buildFooter } from '@/assets/js/authorFormat';
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import { useUserStore } from '@/store/user';
@@ -645,13 +672,13 @@ export default {
     methods: {
         gesangbuch_kategorie_name_to_icon,
         // Jahresangabe einheitlich wie in der Gesangbuchlieder-Übersicht (Issue #43):
-        // (1932–2025) statt (*1932 - 2025).
-        formatYearRange,
+        // (1932–2025) statt (*1932 - 2025), inkl. Jahres-Präfixen (Issue #101).
+        formatAuthorYears,
         // Ursprungsautor als „Vorname Nachname (Jahre)“ in derselben Formatierung.
         ursprungLabel(u) {
             if (!u || typeof u !== 'object') return '';
             const name = [u.vorname, u.nachname].filter(Boolean).join(' ');
-            const years = formatYearRange(u.geburtsjahr, u.sterbejahr);
+            const years = formatAuthorYears(u);
             return [name, years].filter(Boolean).join(' ');
         },
         get_color(category) {

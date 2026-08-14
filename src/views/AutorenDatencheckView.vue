@@ -298,7 +298,7 @@
                                         {{ rec.vorname }} {{ rec.nachname }}
                                     </v-list-item-title>
                                     <v-list-item-subtitle class="text-caption">
-                                        {{ lifespan(rec.liveBirth, rec.liveDeath) }}
+                                        {{ liveLifespan(rec) }}
                                     </v-list-item-subtitle>
                                     <template #append>
                                         <div class="d-flex flex-column align-end ga-1">
@@ -568,12 +568,7 @@
                                         <!-- Anzeige -->
                                         <div v-else class="text-subtitle-1 font-weight-bold">
                                             <template v-if="selectedRecord.liveFound">
-                                                {{
-                                                    lifespan(
-                                                        selectedRecord.liveBirth,
-                                                        selectedRecord.liveDeath,
-                                                    )
-                                                }}
+                                                {{ liveLifespan(selectedRecord) }}
                                             </template>
                                             <span v-else-if="!authorsLoaded" class="text-disabled"
                                                 >lädt …</span
@@ -973,12 +968,24 @@ const pct = (n, total) => (total > 0 ? Math.round((n / total) * 100) : 0);
 //   nur geboren:  geb. 1798
 //   nur gestorben: gest. 1874
 //   keine:        ohne Jahresangabe
-const lifespan = (b, d) => {
-    if (b != null && d != null) return `${b}–${d}`;
-    if (b != null) return `geb. ${b}`;
-    if (d != null) return `gest. ${d}`;
+// Jahres-Präfixe („um", „nach") gibt es nur am Live-Datensatz (Issue #101);
+// Snapshot- und Vorschlagswerte sind reine Zahlen und rufen ohne Präfixe auf.
+const lifespan = (b, d, bPrefix, dPrefix) => {
+    const bs = b != null ? [bPrefix?.trim(), b].filter(Boolean).join(' ') : null;
+    const ds = d != null ? [dPrefix?.trim(), d].filter(Boolean).join(' ') : null;
+    if (bs != null && ds != null) return `${bs}–${ds}`;
+    if (bs != null) return `geb. ${bs}`;
+    if (ds != null) return `gest. ${ds}`;
     return 'ohne Jahresangabe';
 };
+// Lebensdaten des Live-Datensatzes inkl. Präfixe.
+const liveLifespan = (rec) =>
+    lifespan(
+        rec?.liveBirth,
+        rec?.liveDeath,
+        rec?.live?.geburtsjahrePrefix,
+        rec?.live?.sterbejahrPrefix,
+    );
 // Parst eine Jahreszahl. Leeres Feld -> null (= bewusst leeren im Manuell-Pfad).
 // Nicht-ganzzahlige oder unplausible Eingaben (z. B. exponentiell "1e3",
 // Kommazahlen, Negativwerte) werden zu null verworfen, statt falsche Jahre wie
@@ -1453,7 +1460,12 @@ async function applyYears(targetKey, b, d, { clearNulls = false } = {}) {
         snackbar.value = {
             show: true,
             color: 'success',
-            text: `Lebensdaten gespeichert: ${r.nachname} (${lifespan(geburtsjahr, sterbejahr)})`,
+            text: `Lebensdaten gespeichert: ${r.nachname} (${lifespan(
+                geburtsjahr,
+                sterbejahr,
+                r.live?.geburtsjahrePrefix,
+                r.live?.sterbejahrPrefix,
+            )})`,
         };
         return true;
     } catch (e) {

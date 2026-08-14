@@ -1174,10 +1174,16 @@ export const CHECKS = [
                 if (betroffeneStrophen) {
                     stellen.push(`${betroffeneStrophen} Strophe(n)`);
                 }
-                // Autoren-Präfixe und -Suffixe von Text und Melodie (Issue #25).
+                // Autoren-Präfixe und -Suffixe von Text und Melodie (Issue #25),
+                // inkl. der Jahres-Präfixe (Issue #101).
                 let betroffeneAutoren = 0;
                 [...(l.text?.authors || []), ...(l.melodie?.authors || [])].forEach((a) => {
-                    const treffer = [...enthaltene(a?.autorPrefix), ...enthaltene(a?.autorSuffix)];
+                    const treffer = [
+                        ...enthaltene(a?.autorPrefix),
+                        ...enthaltene(a?.autorSuffix),
+                        ...enthaltene(a?.geburtsjahrePrefix),
+                        ...enthaltene(a?.sterbejahrPrefix),
+                    ];
                     if (treffer.length) {
                         betroffeneAutoren++;
                         treffer.forEach((ch) => gefunden.add(ch));
@@ -1185,6 +1191,16 @@ export const CHECKS = [
                 });
                 if (betroffeneAutoren) {
                     stellen.push(`${betroffeneAutoren} Autor-Präfix/-Suffix`);
+                }
+                // Lied-spezifische Autoren-Zusätze (Issue #77) – enthalten oft
+                // Zitate wie „Bitte Gott allezeit“ und damit Anführungszeichen.
+                const extraTreffer = [
+                    ...enthaltene(l.textAutorExtraSuffix),
+                    ...enthaltene(l.melodieAutorExtraSuffix),
+                ];
+                if (extraTreffer.length) {
+                    stellen.push('Autor-Extra-Suffix');
+                    extraTreffer.forEach((ch) => gefunden.add(ch));
                 }
                 if (gefunden.size) {
                     const zeichen = [...gefunden].map((ch) => VERBOTENE_APOSTROPHE[ch]).join(', ');
