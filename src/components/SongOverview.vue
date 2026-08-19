@@ -198,7 +198,7 @@
                                 chips
                                 closable-chips
                             >
-                                <template #chip="{ props, item }">
+                                <template #chip="{ props, internalItem: item }">
                                     <v-chip
                                         v-bind="props"
                                         :prepend-icon="get_icon(item)"
@@ -206,7 +206,7 @@
                                     ></v-chip>
                                 </template>
 
-                                <template #item="{ props, item }">
+                                <template #item="{ props, internalItem: item }">
                                     <v-list-item
                                         v-bind="props"
                                         :prepend-icon="get_icon(item)"
@@ -973,7 +973,7 @@ export default {
             document.title = 'Gesangbuch 2026';
         },
         get_icon(item) {
-            return gesangbuch_kategorie_name_to_icon(item.titel);
+            return gesangbuch_kategorie_name_to_icon(item.title);
         },
     },
 };

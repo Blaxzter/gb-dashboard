@@ -30,7 +30,7 @@
                     clearable
                     @update:model-value="onLinkedSongSelected"
                 >
-                    <template #item="{ props, item }">
+                    <template #item="{ props, internalItem: item }">
                         <v-list-item
                             v-bind="props"
                             :title="
@@ -148,7 +148,7 @@
                                     clearable
                                     @update:model-value="onTextSelected"
                                 >
-                                    <template #item="{ props, item }">
+                                    <template #item="{ props, internalItem: item }">
                                         <v-list-item
                                             v-bind="props"
                                             :title="item?.raw?.titel"
@@ -235,7 +235,7 @@
                                     clearable
                                     @update:model-value="onMelodieSelected"
                                 >
-                                    <template #item="{ props, item }">
+                                    <template #item="{ props, internalItem: item }">
                                         <v-list-item
                                             v-bind="props"
                                             :title="item?.raw?.titel"

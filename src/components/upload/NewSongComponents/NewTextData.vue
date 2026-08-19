@@ -33,7 +33,7 @@
                         class="py-0"
                         return-object
                     >
-                        <template #item="{ props, item }">
+                        <template #item="{ props, internalItem: item }">
                             <v-list-item
                                 v-bind="props"
                                 :title="

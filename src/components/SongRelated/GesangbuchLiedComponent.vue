@@ -182,14 +182,14 @@
                     closable-chips
                     :disabled="categorySaving"
                 >
-                    <template #chip="{ props: chipProps, item }">
+                    <template #chip="{ props: chipProps, internalItem: item }">
                         <v-chip
                             v-bind="chipProps"
                             :prepend-icon="gesangbuch_kategorie_name_to_icon(item.raw.name)"
                             :text="item.raw.name"
                         />
                     </template>
-                    <template #item="{ props: itemProps, item }">
+                    <template #item="{ props: itemProps, internalItem: item }">
                         <v-list-item
                             v-bind="itemProps"
                             :prepend-icon="gesangbuch_kategorie_name_to_icon(item.raw.name)"
