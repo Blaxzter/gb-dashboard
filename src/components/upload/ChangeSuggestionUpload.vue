@@ -22,7 +22,7 @@
                     return-object
                     @change="song_selected"
                 >
-                    <template #item="{ props, item }">
+                    <template #item="{ props, internalItem: item }">
                         <v-list-item
                             v-bind="props"
                             :title="
