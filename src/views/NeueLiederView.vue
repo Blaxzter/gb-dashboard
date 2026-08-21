@@ -4,9 +4,11 @@
         <p class="text-body-2 text-medium-emphasis mb-6" style="max-width: 820px">
             Diese Übersicht zeigt, wie viel im Gesangbuch 2026 wirklich neu ist – und wie viele
             „neue“ Lieder auf bereits bekannten Melodien aufbauen und damit leicht zu erlernen sind.
-            Als <strong>alt</strong> gilt ein Lied / Text / eine Melodie, wenn es bereits im
-            Gesangbuch 2000 enthalten war (Liednummer 2000 vorhanden) und seither nicht verändert
-            wurde.
+            Als <strong>bekannt</strong> gilt eine <strong>Melodie</strong>, sobald sie im
+            Gesangbuch 2000 vorkam – auch wenn sie seither überarbeitet wurde (etwa in der Taktung)
+            und auch dann, wenn das Lied, das sie trug, für 2026 aussortiert wurde. Ein
+            <strong>Text</strong> gilt als bekannt, wenn er im Gesangbuch 2000 stand und seither
+            nicht überarbeitet wurde.
         </p>
 
         <!-- 1. Statistik-Übersicht -->
@@ -31,7 +33,10 @@
                             </div>
                             <div class="text-h4 font-weight-bold">{{ card.stat.neu }}</div>
                             <div class="text-caption text-medium-emphasis">
-                                von {{ card.stat.total }} insgesamt
+                                von {{ card.stat.total }} {{ card.einheit }}
+                            </div>
+                            <div v-if="card.hinweis" class="text-caption text-medium-emphasis">
+                                {{ card.hinweis }}
                             </div>
                         </div>
                     </v-card-text>
@@ -322,6 +327,13 @@ import { storeToRefs } from 'pinia';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'vue-chartjs';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
+import {
+    anteil,
+    berechneStatistik,
+    istAngenommen,
+    melodienAus2000,
+    texteAus2000,
+} from '@/assets/js/neueLiederStatistik';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -332,71 +344,24 @@ const router = useRouter();
 
 const tab = ref('texte');
 
-// Nur angenommene Lieder betrachten (Bewertung "Rein"). Nicht angenommene Lieder
-// werden verworfen und sollen die Neu-/Alt-Statistik nicht verfälschen – konsistent
-// zur Text-Melodie-Verteilung.
-const reineLieder = computed(() =>
-    gesangbuchlieder.value.filter((lied) => lied.bewertung_kleiner_kreis?.bezeichner === 'Rein'),
-);
+// Gezählt und aufgelistet werden nur angenommene Lieder (Bewertung "Rein") –
+// konsistent zur Text-Melodie-Verteilung.
+const reineLieder = computed(() => gesangbuchlieder.value.filter(istAngenommen));
 
-// "bekannt/alt" = im Gesangbuch 2000 enthalten (liednummer2000 vorhanden) und nicht
-// verändert. Da textGeaendert/melodieGeaendert pro Gesangbuchlied gesetzt sind, wird
-// der bekannte Bestand auf Entitätsebene (Text-/Melodie-Id) ermittelt: Eine Melodie /
-// ein Text gilt als bekannt, sobald sie in mindestens einem alten, unveränderten Lied
-// vorkommt. Dadurch zählen auch neue Lieder, die eine alte Melodie wiederverwenden,
-// korrekt als „neuer Text auf bekannter Melodie“.
-const melodieBekanntIds = computed(() => {
-    const ids = new Set();
-    for (const lied of reineLieder.value) {
-        if (lied.melodie?.id != null && lied.liednummer2000 != null && !lied.melodieGeaendert) {
-            ids.add(lied.melodie.id);
-        }
-    }
-    return ids;
-});
+// Der GB2000-Bestand wird dagegen über *alle* Lieder gebildet, auch die nicht
+// angenommenen: Eine Melodie, die im Gesangbuch 2000 stand, ist alt – auch wenn
+// das Lied, das sie trug, für 2026 aussortiert wurde. Warum das Melodie-Häkchen
+// dabei außen vor bleibt, das Text-Häkchen aber nicht, steht in
+// assets/js/neueLiederStatistik.js.
+const melodieBekanntIds = computed(() => melodienAus2000(gesangbuchlieder.value));
+const textBekanntIds = computed(() => texteAus2000(gesangbuchlieder.value));
 
-const textBekanntIds = computed(() => {
-    const ids = new Set();
-    for (const lied of reineLieder.value) {
-        if (lied.text?.id != null && lied.liednummer2000 != null && !lied.textGeaendert) {
-            ids.add(lied.text.id);
-        }
-    }
-    return ids;
-});
-
-const liedIstNeu = (lied) =>
-    lied.liednummer2000 == null || lied.textGeaendert === true || lied.melodieGeaendert === true;
 const textIstNeu = (lied) => lied.text?.id != null && !textBekanntIds.value.has(lied.text.id);
 const melodieIstBekannt = (lied) =>
     lied.melodie?.id != null && melodieBekanntIds.value.has(lied.melodie.id);
 
-// 1. Statistik: Anzahl neuer Lieder sowie eindeutiger neuer Texte / Melodien.
-const stats = computed(() => {
-    const melodieIds = new Set();
-    const neueMelodieIds = new Set();
-    const textIds = new Set();
-    const neueTextIds = new Set();
-    let neueLieder = 0;
-
-    for (const lied of reineLieder.value) {
-        if (liedIstNeu(lied)) neueLieder += 1;
-        if (lied.melodie?.id != null) {
-            melodieIds.add(lied.melodie.id);
-            if (!melodieBekanntIds.value.has(lied.melodie.id)) neueMelodieIds.add(lied.melodie.id);
-        }
-        if (lied.text?.id != null) {
-            textIds.add(lied.text.id);
-            if (!textBekanntIds.value.has(lied.text.id)) neueTextIds.add(lied.text.id);
-        }
-    }
-
-    return {
-        lieder: { neu: neueLieder, total: reineLieder.value.length },
-        texte: { neu: neueTextIds.size, total: textIds.size },
-        melodien: { neu: neueMelodieIds.size, total: melodieIds.size },
-    };
-});
+// 1. Statistik: neue Lieder, neue Texte und Lieder auf neuer Melodie.
+const stats = computed(() => berechneStatistik(gesangbuchlieder.value));
 
 // Differenzierung der angenommenen Lieder (Issue #46): Die „Neue Lieder"-Kennzahl
 // fasst komplett neue und überarbeitete Lieder zusammen. Hier wird beides – plus
@@ -404,17 +369,7 @@ const stats = computed(() => {
 //   - komplett neu:   war nicht im Gesangbuch 2000 (keine liednummer2000)
 //   - überarbeitet:   war im GB 2000, Text und/oder Melodie wurde überarbeitet
 //   - übernommen:     war im GB 2000 und blieb unverändert
-const composition = computed(() => {
-    let komplettNeu = 0;
-    let ueberarbeitet = 0;
-    let uebernommen = 0;
-    for (const lied of reineLieder.value) {
-        if (lied.liednummer2000 == null) komplettNeu += 1;
-        else if (lied.textGeaendert || lied.melodieGeaendert) ueberarbeitet += 1;
-        else uebernommen += 1;
-    }
-    return { komplettNeu, ueberarbeitet, uebernommen, total: reineLieder.value.length };
-});
+const composition = computed(() => stats.value.komposition);
 
 const COMPOSITION_META = [
     { key: 'komplettNeu', label: 'Komplett neu', color: '#3949AB', hint: 'nicht im GB 2000' },
@@ -459,6 +414,7 @@ const statCards = computed(() => [
         icon: 'mdi-music-note',
         color: 'indigo',
         stat: stats.value.lieder,
+        einheit: 'Liedern',
     },
     {
         key: 'texte',
@@ -466,17 +422,26 @@ const statCards = computed(() => [
         icon: 'mdi-text-box-outline',
         color: 'teal',
         stat: stats.value.texte,
+        einheit: 'Texten',
     },
     {
+        // Pro Lied statt pro Melodie-Datensatz: neue Melodien tragen fast immer
+        // genau ein Lied, bekannte bis zu neun. Über Datensätze gezählt wöge
+        // jede neue Einzelmelodie deshalb so schwer wie „Valet will ich dir
+        // geben" mit ihren neun Liedern.
         key: 'melodien',
-        title: 'Neue Melodien',
+        title: 'Lieder auf neuer Melodie',
         icon: 'mdi-music-box',
         color: 'deep-purple',
         stat: stats.value.melodien,
+        einheit: 'Liedern',
+        hinweis:
+            `${stats.value.melodienDatensaetze.neu} von ` +
+            `${stats.value.melodienDatensaetze.total} Melodien`,
     },
 ]);
 
-const percent = (stat) => (stat.total > 0 ? Math.round((stat.neu / stat.total) * 100) : 0);
+const percent = anteil;
 
 // 2. Neue Texte mit bekannter (alter) Melodie.
 const neueTexteMitBekannterMelodie = computed(() =>
