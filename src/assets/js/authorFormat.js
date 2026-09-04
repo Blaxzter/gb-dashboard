@@ -43,6 +43,21 @@ export function formatAuthorYears(author) {
     );
 }
 
+// Setzt mehrere Autoren-Strings zu einer Aufzählung zusammen. Normalerweise
+// mit ", " getrennt – beginnt der nächste Eintrag aber selbst mit einem
+// Interpunktionszeichen (","/";"), bringt er seinen Trenner schon mit und der
+// Standard-Trenner entfällt (Issue #110):
+//   joinAuthorEntries(['J. S. Bach (1685–1750)', '; Nürnberg 1676'])
+//     -> 'J. S. Bach (1685–1750); Nürnberg 1676'
+// Dieselbe Regel wie in appendSuffix (Issue #76), nur für die Aufzählung
+// mehrerer Autoren statt für einen angehängten Suffix.
+export function joinAuthorEntries(entries, separator = ', ') {
+    return (entries || []).filter(Boolean).reduce((acc, cur) => {
+        if (!acc) return cur;
+        return /^[,;]/.test(cur) ? acc + cur : acc + separator + cur;
+    }, '');
+}
+
 // Hängt einen Suffix an einen bereits formatierten String an. Beginnt der Suffix
 // (nach evtl. führenden Leerzeichen) mit einem Interpunktionszeichen (","/";"),
 // wird KEIN trennendes Leerzeichen davorgesetzt (Issue #76):
@@ -89,11 +104,11 @@ export function formatAuthorEntry(author) {
 // Liste von Autoren als ", "-getrennter String, optional gefolgt von
 // Copyright-Zeilen (jeweils mit "© " und durch Zeilenumbruch getrennt).
 export function formatAuthors(authors, ...copyrights) {
-    const authorStrings = (authors || []).map(formatAuthorEntry).filter(Boolean);
+    const authorStrings = joinAuthorEntries((authors || []).map(formatAuthorEntry));
     const copyrightStrings = copyrights
         .filter((c) => c && String(c).trim())
         .map((c) => `© ${String(c).trim()}`);
-    return [authorStrings.join(', '), ...copyrightStrings].filter(Boolean).join('\n');
+    return [authorStrings, ...copyrightStrings].filter(Boolean).join('\n');
 }
 
 // --- Footer nach Janoschs Grammatik ----------------------------------------
@@ -135,7 +150,7 @@ function formatFooterAuthorEntry(author) {
 }
 
 function formatFooterAuthors(authors) {
-    return (authors || []).map(formatFooterAuthorEntry).filter(Boolean).join(', ');
+    return joinAuthorEntries((authors || []).map(formatFooterAuthorEntry));
 }
 
 function footerCopyright(copyright) {

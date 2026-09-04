@@ -3,6 +3,7 @@ import {
     formatYearRange,
     formatAuthorYears,
     appendSuffix,
+    joinAuthorEntries,
     formatAuthorEntry,
     buildFooter,
 } from '@/assets/js/authorFormat';
@@ -87,6 +88,29 @@ describe('appendSuffix (Issue #76)', () => {
     });
     it('leere base -> nur Suffix (ohne führende Leerzeichen)', () => {
         expect(appendSuffix('', '; nur Suffix')).toBe('; nur Suffix');
+    });
+});
+
+describe('joinAuthorEntries (Issue #110)', () => {
+    it('normale Autoren werden mit ", " getrennt', () => {
+        expect(joinAuthorEntries(['Erster Autor', 'Zweiter Autor'])).toBe(
+            'Erster Autor, Zweiter Autor',
+        );
+    });
+    it('Eintrag mit ";" bringt seinen Trenner selbst mit', () => {
+        expect(joinAuthorEntries(['J. S. Bach (1685–1750)', '; Nürnberg 1676'])).toBe(
+            'J. S. Bach (1685–1750); Nürnberg 1676',
+        );
+    });
+    it('Eintrag mit "," bekommt kein zweites Komma', () => {
+        expect(joinAuthorEntries(['Erster', ', Zweiter'])).toBe('Erster, Zweiter');
+    });
+    it('leere Einträge fallen raus', () => {
+        expect(joinAuthorEntries(['Erster', '', null, 'Dritter'])).toBe('Erster, Dritter');
+    });
+    it('leere Liste -> leerer String', () => {
+        expect(joinAuthorEntries([])).toBe('');
+        expect(joinAuthorEntries(null)).toBe('');
     });
 });
 
@@ -217,6 +241,31 @@ describe('buildFooter', () => {
                 },
             }),
         ).toBe('Mustermann Herman (um 1500–1561)');
+    });
+
+    it('Alles ist an Gottes Segen: Autor-Präfix mit ";" statt Komma (Issue #110)', () => {
+        const lied = {
+            melodie: {
+                authors: [
+                    {
+                        vorname: 'Johann',
+                        nachname: 'Löhner',
+                        geburtsjahr: 1645,
+                        sterbejahr: 1705,
+                    },
+                    {
+                        autorPrefix: '; bei',
+                        vorname: 'Johann Adam',
+                        nachname: 'Hiller',
+                        geburtsjahr: 1728,
+                        sterbejahr: 1804,
+                    },
+                ],
+            },
+        };
+        expect(buildFooter(lied)).toBe(
+            'Melodie: Johann Löhner (1645–1705); bei Johann Adam Hiller (1728–1804)',
+        );
     });
 
     it('gleicher Text- und Melodie-Autor -> "Text und Melodie:"', () => {
