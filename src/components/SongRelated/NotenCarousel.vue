@@ -8,10 +8,7 @@
         :hide-delimiters="carousel_files?.length <= 1"
         :height="height"
     >
-        <v-carousel-item
-            v-for="(file, i) in carousel_files"
-            :key="i"
-        >
+        <v-carousel-item v-for="(file, i) in carousel_files" :key="i">
             <div v-if="file.type.includes('image')" class="zoom-outer">
                 <div
                     class="zoom-scroll"
@@ -70,6 +67,16 @@
         <div>
             {{ carousel_files[pdf_carousel_model]?.filename_download }}
         </div>
+        <v-chip
+            v-if="carousel_files[pdf_carousel_model]?.from_choralbuch"
+            class="ms-2"
+            size="x-small"
+            color="pink"
+            variant="tonal"
+            prepend-icon="mdi-music-clef-treble"
+        >
+            Choralbuchsatz
+        </v-chip>
 
         <div class="flex-grow-1" />
 
@@ -198,19 +205,34 @@ export default {
                 ...obj,
                 from_melodie: false,
                 from_notentext: true,
+                from_choralbuch: false,
+            }));
+            // Choralbuchsatz der Melodie (Issue #109): der vierstimmige Satz, den
+            // die Musiker spielen, während die Gemeinde singt. Er steht direkt
+            // hinter dem Notentext, weil er dieselbe Frage beantwortet („was wird
+            // hier gespielt?"), und bekommt eine eigene Punktfarbe – er gehört
+            // der Melodie, nicht dem Lied, und ist bei allen Liedern auf dieser
+            // Melodie derselbe.
+            const choralbuch = _.map(_.compact([this.melodie?.choralbuch_noten_file]), (obj) => ({
+                ...obj,
+                from_melodie: false,
+                from_notentext: false,
+                from_choralbuch: true,
             }));
             const satz = _.map(this.gesangbuchliedSatzMitMelodieUndText, (obj) => ({
                 ...obj,
                 from_melodie: false,
                 from_notentext: false,
+                from_choralbuch: false,
             }));
             const melodieFiles = _.map(this.melodie?.files, (obj) => ({
                 ...obj,
                 from_melodie: true,
                 from_notentext: false,
+                from_choralbuch: false,
             }));
-            // notentext first, then satz, then melodie files
-            return _.uniqBy(_.concat(notentext, satz, melodieFiles), 'id');
+            // notentext first, then choralbuch, then satz, then melodie files
+            return _.uniqBy(_.concat(notentext, choralbuch, satz, melodieFiles), 'id');
         },
         is_image_selected() {
             return !!this.selected_file?.type?.includes('image');
@@ -376,6 +398,14 @@ export default {
                 })
                 .catch((err) => console.error(err));
         },
+        // Art der Datei im Karussell, für Tooltip und Beschriftung.
+        file_kind_label(file) {
+            if (!file) return '';
+            if (file.from_notentext) return 'Gesetzter Notentext';
+            if (file.from_choralbuch) return 'Choralbuchsatz (vierstimmig)';
+            if (file.from_melodie) return 'Datei an der Melodie';
+            return 'Satz mit Melodie und Text';
+        },
         colorDelimiters() {
             // Wait for the next tick to ensure the DOM has been updated
             this.$nextTick(() => {
@@ -391,6 +421,9 @@ export default {
                     if (file.from_notentext) {
                         delimiter.style.color = '#ff9800';
                         icon.classList.add('notentext-delimiter-color');
+                    } else if (file.from_choralbuch) {
+                        delimiter.style.color = '#e91e63';
+                        icon.classList.add('choralbuch-delimiter-color');
                     } else if (file.from_melodie) {
                         delimiter.style.color = '#4CAF50';
                         icon.classList.add('melodie-delimiter-color');
@@ -398,6 +431,9 @@ export default {
                         delimiter.style.color = '#9595ff';
                         icon.classList.add('song-delimiter-color');
                     }
+                    // Die Farbe allein sagt niemandem, was er vor sich hat –
+                    // deshalb steht die Art zusätzlich im Tooltip des Punktes.
+                    delimiter.setAttribute('title', this.file_kind_label(file));
                 });
             });
         },
@@ -414,6 +450,9 @@ export default {
 }
 .notentext-delimiter-color::before {
     color: #ff9800 !important;
+}
+.choralbuch-delimiter-color::before {
+    color: #e91e63 !important;
 }
 .zoom-outer {
     position: relative;

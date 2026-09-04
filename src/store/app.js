@@ -318,6 +318,12 @@ export const useAppStore = defineStore('app', {
                 ...obj,
                 author_name: formatAuthors(obj.authors),
                 files: _.map(obj.files_urls, (elem) => file_grouped[elem]),
+                // Vierstimmiger Choralbuchsatz der Melodie (Issue #109). Hängt –
+                // anders als der Notentext – an der Melodie, gilt also für alle
+                // Lieder, die auf ihr gesungen werden.
+                choralbuch_noten_file: obj.choralbuchNoten
+                    ? file_grouped[obj.choralbuchNoten]
+                    : null,
             }));
             melodie = _.map(melodie, (obj) => ({
                 ...obj,
