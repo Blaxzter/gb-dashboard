@@ -53,6 +53,15 @@ export function isExactRein(lied) {
     return !!bezeichner && bezeichner.trim().toLowerCase() === 'rein';
 }
 
+// Die Bewertung „Rein, wenn“ – also ein noch an eine Bedingung geknüpftes
+// „Rein“. Sie steht nicht nur am Lied, sondern auch an Text und Melodie; dort
+// markiert sie eine offene Rückfrage (Issue #103). Geprüft wird auf dem
+// Bezeichner-Präfix, damit auch Schreibvarianten wie „Rein wenn“ greifen.
+export function isReinWenn(entity) {
+    const bezeichner = entity?.bewertung_kleiner_kreis?.bezeichner;
+    return !!bezeichner && /^rein[,\s]+wenn/i.test(bezeichner.trim());
+}
+
 function hasNummer(value) {
     return value !== null && value !== undefined && String(value).trim() !== '';
 }
@@ -676,6 +685,33 @@ export const CHECKS = [
                         l,
                         `Bewertung: ${l.bewertung_kleiner_kreis?.bezeichner || 'Unbewertet'}`,
                     ),
+                ),
+            );
+        },
+    },
+    {
+        id: 'genommen-rein-wenn-text-melodie',
+        category: 'Bewertung',
+        title: 'Kein „Rein, wenn“ bei Text oder Melodie',
+        description:
+            'Die Bewertung „Rein, wenn“ ist ein an eine Bedingung geknüpftes „Rein“ – also eine offene Rückfrage. Bei genommenen Liedern sollte sie weder am Text noch an der Melodie stehen bleiben (Issue #103).',
+        run({ genommen }) {
+            const offen = genommen
+                .map((l) => {
+                    const wo = [];
+                    if (isReinWenn(l.text)) wo.push('Text');
+                    if (isReinWenn(l.melodie)) wo.push('Melodie');
+                    return wo.length ? { lied: l, wo } : null;
+                })
+                .filter(Boolean);
+            return result(
+                offen.length === 0,
+                'warning',
+                offen.length === 0
+                    ? 'Kein genommenes Lied hat noch „Rein, wenn“ bei Text oder Melodie.'
+                    : `${offen.length} genommene(s) Lied(er) mit „Rein, wenn“ bei Text oder Melodie.`,
+                offen.map(({ lied, wo }) =>
+                    songItem(lied, `„Rein, wenn“ bei: ${wo.join(' und ')}`),
                 ),
             );
         },
@@ -1320,7 +1356,10 @@ export const CHECKS = [
                 if (anzahl) {
                     const label = betroffeneStrophen.length === 1 ? 'Strophe' : 'Strophen';
                     items.push(
-                        songItem(l, `${anzahl}× „ - “ in ${label} ${betroffeneStrophen.join(', ')}`),
+                        songItem(
+                            l,
+                            `${anzahl}× „ - “ in ${label} ${betroffeneStrophen.join(', ')}`,
+                        ),
                     );
                 }
             });
