@@ -69,37 +69,16 @@ export function texteAus2000(gesangbuchlieder) {
  * Änderungsvermerk (Issue #106) brauchen wir dagegen den reinen Bestand, um
  * „neu“ von „geht auf einen bekannten, aber geänderten Text/Melodie zurück“ zu
  * unterscheiden.
- *
- * `melodieNummern2000` hält zusätzlich fest, *unter welcher* Liednummer eine
- * Melodie im Gesangbuch 2000 stand. „Melodie schon bekannt“ nützt dem Musiker
- * wenig, solange er nicht nachschlagen kann, woher – erst recht bei einem neuen
- * Lied, das ihm sonst keinen Anhaltspunkt gibt (Issue #106).
  */
 export function bestandAus2000(gesangbuchlieder) {
     const melodien = new Set();
     const texte = new Set();
-    const melodieNummern2000 = new Map();
     for (const lied of gesangbuchlieder ?? []) {
         if (!istAus2000(lied)) continue;
+        if (lied.melodie?.id != null) melodien.add(lied.melodie.id);
         if (lied.text?.id != null) texte.add(lied.text.id);
-        const melodieId = lied.melodie?.id;
-        if (melodieId == null) continue;
-        melodien.add(melodieId);
-        const nummer = String(lied.liednummer2000);
-        const bisher = melodieNummern2000.get(melodieId);
-        if (bisher) {
-            if (!bisher.includes(nummer)) bisher.push(nummer);
-        } else {
-            melodieNummern2000.set(melodieId, [nummer]);
-        }
     }
-    // Aufsteigend, damit die Referenz stabil und nachschlagbar bleibt.
-    for (const nummern of melodieNummern2000.values()) {
-        nummern.sort(
-            (a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0) || a.localeCompare(b),
-        );
-    }
-    return { melodien, texte, melodieNummern2000 };
+    return { melodien, texte };
 }
 
 /**

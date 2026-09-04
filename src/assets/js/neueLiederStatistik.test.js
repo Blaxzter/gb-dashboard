@@ -159,27 +159,6 @@ describe('bestandAus2000', () => {
     });
 });
 
-describe('bestandAus2000: Herkunft der Melodie (Issue #106)', () => {
-    it('merkt sich die Liednummer 2000, unter der die Melodie stand', () => {
-        const bestand = bestandAus2000([lied({ id: 1, nr2000: 314, melodie: 100 })]);
-        expect(bestand.melodieNummern2000.get(100)).toEqual(['314']);
-    });
-
-    it('sammelt mehrere Liednummern derselben Melodie aufsteigend', () => {
-        const bestand = bestandAus2000([
-            lied({ id: 1, nr2000: 330, melodie: 100 }),
-            lied({ id: 2, nr2000: 44, melodie: 100 }),
-            lied({ id: 3, nr2000: 330, melodie: 100 }),
-        ]);
-        expect(bestand.melodieNummern2000.get(100)).toEqual(['44', '330']);
-    });
-
-    it('kennt neue Melodien nicht', () => {
-        const bestand = bestandAus2000([lied({ id: 1, melodie: 101 })]);
-        expect(bestand.melodieNummern2000.has(101)).toBe(false);
-    });
-});
-
 describe('textVermerk / melodieVermerk (Issue #106)', () => {
     // Ein 2000er-Lied bildet den Altbestand, ein neues Lied greift darauf zu.
     const altesLied = lied({ id: 1, nr2000: 20, text: 200, melodie: 100 });

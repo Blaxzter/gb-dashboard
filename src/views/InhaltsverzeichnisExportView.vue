@@ -107,12 +107,11 @@ const base_songs = computed(() => {
         melodieId: l.melodie?.id ?? null,
         // Welche Melodie singt das Lied? Ohne diese Angabe steht beim neuen Lied
         // auf bekannter Melodie nur „Melodie nicht neu" – und der Musiker weiß
-        // trotzdem nicht, welche er spielt (Issue #106). Deshalb Titel,
-        // Choralbuchnummer (dort steht der Satz) und die Liednummer(n), unter
-        // denen die Melodie 2000 im Buch stand.
+        // trotzdem nicht, welche er spielt (Issue #106). Titel und
+        // Choralbuchnummer reichen dafür; unter welchen Liednummern die Melodie
+        // 2000 stand, wird ausdrücklich nicht gebraucht.
         melodieTitel: (l.melodie?.titel || '').trim(),
         choralbuchNummer: l.melodie?.choralbuchNummer ?? '',
-        melodie2000: (l.melodie?.id != null && bestand.melodieNummern2000.get(l.melodie.id)) || [],
         genommen: isGenommen(l),
         kategorien: kategorienOf(l),
         kategorie_ids: kategorieIdsOf(l),
@@ -254,42 +253,24 @@ function changeNote(s) {
             .join(', ');
     }
     // Beim neuen Lied ist ein neuer Text die Regel und keine eigene Meldung wert
-    // – interessant ist, was daran *nicht* neu, also aus 2000 bekannt ist. Dann
-    // gehört auch dazu, WELCHE Melodie das ist (Issue #106).
+    // – interessant ist, was daran *nicht* neu, also aus 2000 bekannt ist.
+    // Welche Melodie das ist, steht in der eigenen Spalte (Issue #106).
     const zusatz = [
         s.textVermerk === 'neu' ? '' : teilVermerk('Text', s.textVermerk) || 'Text aus 2000',
         s.melodieVermerk === 'neu'
             ? ''
-            : `${teilVermerk('Melodie', s.melodieVermerk) || 'Melodie aus 2000'}${herkunftSuffix(s)}`,
+            : teilVermerk('Melodie', s.melodieVermerk) || 'Melodie aus 2000',
     ].filter(Boolean);
     return ['Neu', ...zusatz].join(', ');
 }
 
-// Eine oft gesungene Melodie trug 2000 bis zu zwölf Lieder – als Referenz zum
-// Nachschlagen reichen die ersten paar Nummern, der Rest macht die Spalte nur
-// unlesbar. Die vollständige Liste steht im Tooltip und in der CSV.
-const HERKUNFT_MAX = 3;
-function herkunftKurz(nummern) {
-    if (!nummern?.length) return '';
-    return nummern.length > HERKUNFT_MAX
-        ? `${nummern.slice(0, HERKUNFT_MAX).join(', ')} …`
-        : nummern.join(', ');
-}
-
-// „ (2000: 314)" bzw. „ (2000: 314, 330)" – die Liednummer(n), unter denen die
-// Melodie im Gesangbuch 2000 stand. Leer, wenn die Melodie dort nicht vorkam.
-function herkunftSuffix(s) {
-    return s.melodie2000?.length ? ` (2000: ${herkunftKurz(s.melodie2000)})` : '';
-}
-
-// Melodie-Angabe für Copy/CSV: Titel, dahinter die Choralbuchnummer und die
-// Herkunft aus dem Gesangbuch 2000, soweit vorhanden.
+// Melodie-Angabe für Copy/CSV: Titel und Choralbuchnummer – mehr braucht es
+// nicht, um die Melodie zu identifizieren.
 function melodieInfo(s) {
     const teile = [s.melodieTitel || '–'];
     if (s.choralbuchNummer !== '' && s.choralbuchNummer != null) {
         teile.push(`Choralbuch ${s.choralbuchNummer}`);
     }
-    if (s.melodie2000?.length) teile.push(`2000: ${herkunftKurz(s.melodie2000)}`);
     return teile.join(' · ');
 }
 
@@ -673,7 +654,6 @@ function downloadChangeList() {
         s.melodieVermerk,
         s.melodieTitel,
         s.choralbuchNummer,
-        s.melodie2000.join(' '),
     ]);
     download(
         'inhaltsverzeichnis_aenderungsvermerk.csv',
@@ -687,7 +667,6 @@ function downloadChangeList() {
                 'melodie',
                 'melodie_titel',
                 'choralbuch_nr',
-                'melodie_2000',
             ],
             rows,
         ),
@@ -1141,9 +1120,9 @@ function copyByTocCategory() {
                         ist beim neuen Lied
                         <v-icon icon="mdi-new-box" color="success" size="x-small" /> zu sehen, ob
                         auch die Melodie neu gelernt werden muss oder ob sie aus dem 2000er bekannt
-                        ist – die Melodie-Spalte nennt sie beim Namen, mit Choralbuchnummer und der
-                        Liednummer, unter der sie 2000 im Buch stand. Neue und geänderte Lieder
-                        zusammen ergeben die komplette Übersicht.
+                        ist – die Melodie-Spalte nennt sie beim Namen, mit der Choralbuchnummer,
+                        unter der ihr Satz zu finden ist. Neue und geänderte Lieder zusammen ergeben
+                        die komplette Übersicht.
                     </p>
                     <div class="toc-preview">
                         <v-table density="compact" hover>
@@ -1193,36 +1172,14 @@ function copyByTocCategory() {
                                     </td>
                                     <td>
                                         <div>{{ s.melodieTitel || '–' }}</div>
-                                        <div class="text-caption text-medium-emphasis">
-                                            <span
-                                                v-if="
-                                                    s.choralbuchNummer !== '' &&
-                                                    s.choralbuchNummer != null
-                                                "
-                                            >
-                                                Choralbuch {{ s.choralbuchNummer }}
-                                            </span>
-                                            <span v-if="s.melodie2000.length">
-                                                <template
-                                                    v-if="
-                                                        s.choralbuchNummer !== '' &&
-                                                        s.choralbuchNummer != null
-                                                    "
-                                                >
-                                                    ·
-                                                </template>
-                                                <v-tooltip
-                                                    :text="`Melodie stand 2000 bei Lied ${s.melodie2000.join(', ')}`"
-                                                    location="bottom"
-                                                >
-                                                    <template #activator="{ props }">
-                                                        <span v-bind="props">
-                                                            2000:
-                                                            {{ herkunftKurz(s.melodie2000) }}
-                                                        </span>
-                                                    </template>
-                                                </v-tooltip>
-                                            </span>
+                                        <div
+                                            v-if="
+                                                s.choralbuchNummer !== '' &&
+                                                s.choralbuchNummer != null
+                                            "
+                                            class="text-caption text-medium-emphasis"
+                                        >
+                                            Choralbuch {{ s.choralbuchNummer }}
                                         </div>
                                     </td>
                                 </tr>
