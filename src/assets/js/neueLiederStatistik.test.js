@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { anteil, berechneStatistik, melodienAus2000, texteAus2000 } from './neueLiederStatistik.js';
+import {
+    anteil,
+    berechneStatistik,
+    bestandAus2000,
+    melodieVermerk,
+    melodienAus2000,
+    textVermerk,
+    texteAus2000,
+} from './neueLiederStatistik.js';
 
 // Kurzschreibweise für ein Gesangbuchlied, wie es der Store liefert.
 function lied({
@@ -127,5 +135,93 @@ describe('berechneStatistik', () => {
         expect(stat.lieder).toEqual({ neu: 0, total: 0 });
         expect(anteil(stat.lieder)).toBe(0);
         expect(anteil(stat.melodienDatensaetze)).toBe(0);
+    });
+});
+
+describe('bestandAus2000', () => {
+    it('nimmt Melodie und Text jedes 2000er-Lieds auf – auch überarbeitete', () => {
+        const bestand = bestandAus2000([
+            lied({ id: 1, nr2000: 20, text: 200, melodie: 100, textGeaendert: true }),
+        ]);
+        expect(bestand.melodien.has(100)).toBe(true);
+        // Anders als texteAus2000: für den Änderungsvermerk zählt der reine
+        // Bestand, damit „geändert" von „neu" unterschieden werden kann.
+        expect(bestand.texte.has(200)).toBe(true);
+        expect(
+            texteAus2000([lied({ id: 1, nr2000: 20, text: 200, textGeaendert: true })]).has(200),
+        ).toBe(false);
+    });
+
+    it('nimmt Lieder ohne Liednummer 2000 nicht auf', () => {
+        const bestand = bestandAus2000([lied({ id: 1, text: 200, melodie: 100 })]);
+        expect(bestand.melodien.size).toBe(0);
+        expect(bestand.texte.size).toBe(0);
+    });
+});
+
+describe('bestandAus2000: Herkunft der Melodie (Issue #106)', () => {
+    it('merkt sich die Liednummer 2000, unter der die Melodie stand', () => {
+        const bestand = bestandAus2000([lied({ id: 1, nr2000: 314, melodie: 100 })]);
+        expect(bestand.melodieNummern2000.get(100)).toEqual(['314']);
+    });
+
+    it('sammelt mehrere Liednummern derselben Melodie aufsteigend', () => {
+        const bestand = bestandAus2000([
+            lied({ id: 1, nr2000: 330, melodie: 100 }),
+            lied({ id: 2, nr2000: 44, melodie: 100 }),
+            lied({ id: 3, nr2000: 330, melodie: 100 }),
+        ]);
+        expect(bestand.melodieNummern2000.get(100)).toEqual(['44', '330']);
+    });
+
+    it('kennt neue Melodien nicht', () => {
+        const bestand = bestandAus2000([lied({ id: 1, melodie: 101 })]);
+        expect(bestand.melodieNummern2000.has(101)).toBe(false);
+    });
+});
+
+describe('textVermerk / melodieVermerk (Issue #106)', () => {
+    // Ein 2000er-Lied bildet den Altbestand, ein neues Lied greift darauf zu.
+    const altesLied = lied({ id: 1, nr2000: 20, text: 200, melodie: 100 });
+
+    it('neues Lied auf bekannter Melodie: Melodie ist nicht neu', () => {
+        const neuesLied = lied({ id: 2, text: 201, melodie: 100 });
+        const bestand = bestandAus2000([altesLied, neuesLied]);
+        expect(textVermerk(neuesLied, bestand)).toBe('neu');
+        expect(melodieVermerk(neuesLied, bestand)).toBe('');
+    });
+
+    it('komplett neues Lied: Text und Melodie neu', () => {
+        const neuesLied = lied({ id: 2, text: 201, melodie: 101 });
+        const bestand = bestandAus2000([altesLied, neuesLied]);
+        expect(textVermerk(neuesLied, bestand)).toBe('neu');
+        expect(melodieVermerk(neuesLied, bestand)).toBe('neu');
+    });
+
+    it('2000er-Lied mit Häkchen: geaendert statt neu', () => {
+        const geaendert = lied({
+            id: 1,
+            nr2000: 20,
+            text: 200,
+            melodie: 100,
+            textGeaendert: true,
+            melodieGeaendert: true,
+        });
+        const bestand = bestandAus2000([geaendert]);
+        expect(textVermerk(geaendert, bestand)).toBe('geaendert');
+        expect(melodieVermerk(geaendert, bestand)).toBe('geaendert');
+    });
+
+    it('unverändert übernommenes 2000er-Lied: kein Vermerk', () => {
+        const bestand = bestandAus2000([altesLied]);
+        expect(textVermerk(altesLied, bestand)).toBe('');
+        expect(melodieVermerk(altesLied, bestand)).toBe('');
+    });
+
+    it('ohne Text-/Melodie-Verknüpfung greift nur das Häkchen', () => {
+        const ohne = lied({ id: 3, nr2000: 30, textGeaendert: true });
+        const bestand = bestandAus2000([ohne]);
+        expect(textVermerk(ohne, bestand)).toBe('geaendert');
+        expect(melodieVermerk(ohne, bestand)).toBe('');
     });
 });

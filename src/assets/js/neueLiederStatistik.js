@@ -61,6 +61,77 @@ export function texteAus2000(gesangbuchlieder) {
 }
 
 /**
+ * Melodien und Texte, die im Gesangbuch 2000 standen – unabhängig davon, ob sie
+ * seither überarbeitet wurden.
+ *
+ * Unterschied zu {@link texteAus2000}: dort fällt ein überarbeiteter Text aus dem
+ * Altbestand, weil die Statistik ihn als neuen Text zählt. Für den
+ * Änderungsvermerk (Issue #106) brauchen wir dagegen den reinen Bestand, um
+ * „neu“ von „geht auf einen bekannten, aber geänderten Text/Melodie zurück“ zu
+ * unterscheiden.
+ *
+ * `melodieNummern2000` hält zusätzlich fest, *unter welcher* Liednummer eine
+ * Melodie im Gesangbuch 2000 stand. „Melodie schon bekannt“ nützt dem Musiker
+ * wenig, solange er nicht nachschlagen kann, woher – erst recht bei einem neuen
+ * Lied, das ihm sonst keinen Anhaltspunkt gibt (Issue #106).
+ */
+export function bestandAus2000(gesangbuchlieder) {
+    const melodien = new Set();
+    const texte = new Set();
+    const melodieNummern2000 = new Map();
+    for (const lied of gesangbuchlieder ?? []) {
+        if (!istAus2000(lied)) continue;
+        if (lied.text?.id != null) texte.add(lied.text.id);
+        const melodieId = lied.melodie?.id;
+        if (melodieId == null) continue;
+        melodien.add(melodieId);
+        const nummer = String(lied.liednummer2000);
+        const bisher = melodieNummern2000.get(melodieId);
+        if (bisher) {
+            if (!bisher.includes(nummer)) bisher.push(nummer);
+        } else {
+            melodieNummern2000.set(melodieId, [nummer]);
+        }
+    }
+    // Aufsteigend, damit die Referenz stabil und nachschlagbar bleibt.
+    for (const nummern of melodieNummern2000.values()) {
+        nummern.sort(
+            (a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0) || a.localeCompare(b),
+        );
+    }
+    return { melodien, texte, melodieNummern2000 };
+}
+
+/**
+ * Änderungsvermerk für Text bzw. Melodie eines Liedes (Issue #106).
+ *
+ *   'neu'       – stand so im Gesangbuch 2000 noch nicht
+ *   'geaendert' – stand 2000 schon im Buch, wurde aber überarbeitet
+ *   ''          – unverändert aus dem Gesangbuch 2000 übernommen
+ *
+ * Damit sieht der Musiker beim neuen Lied, ob auch die Melodie neu ist oder ob
+ * sie aus dem 2000er bekannt ist – bisher blieben beide Spalten bei neuen
+ * Liedern immer leer.
+ *
+ * Grenze der Bestimmung: Bekam ein 2000er-Lied für 2026 eine *andere* Melodie,
+ * landet diese neue Melodie über das Lied trotzdem im Altbestand. Das Lied
+ * selbst trägt dann aber `melodieGeaendert` und wird korrekt als „geaendert“
+ * gemeldet; sauber trennen ließe sich das erst mit dem GB2000-Referenz-
+ * datensatz (siehe docs/gb2000-referenz.md).
+ */
+export function textVermerk(lied, bestand) {
+    const id = lied?.text?.id;
+    if (id != null && !bestand?.texte?.has(id)) return 'neu';
+    return lied?.textGeaendert ? 'geaendert' : '';
+}
+
+export function melodieVermerk(lied, bestand) {
+    const id = lied?.melodie?.id;
+    if (id != null && !bestand?.melodien?.has(id)) return 'neu';
+    return lied?.melodieGeaendert ? 'geaendert' : '';
+}
+
+/**
  * Kennzahlen der Übersicht.
  *
  * Melodien werden **pro Lied** ausgewiesen, nicht pro Melodie-Datensatz. Eine

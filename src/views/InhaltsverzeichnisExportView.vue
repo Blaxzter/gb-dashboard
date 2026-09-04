@@ -4,6 +4,8 @@ import { useAppStore } from '@/store/app.js';
 import { storeToRefs } from 'pinia';
 import { resolveLiednummer2026 } from '@/assets/js/utils';
 import { isGenommen } from '@/assets/js/gesangbuchChecks';
+import VermerkIcon from '@/components/util/VermerkIcon.vue';
+import { bestandAus2000, textVermerk, melodieVermerk } from '@/assets/js/neueLiederStatistik.js';
 
 // Separater Export des Inhaltsverzeichnisses (Issue #45), das Janosch importieren
 // oder einfach kopieren kann. Zwei Varianten:
@@ -80,6 +82,12 @@ function kategoriePairsOf(lied) {
     return pairs;
 }
 
+// GB2000-Bestand (Melodien/Texte) für die Änderungsvermerke (Issue #106).
+// Bewusst über *alle* Lieder gebildet, nicht über die gefilterte Menge: eine
+// Melodie, die 2000 im Buch stand, bleibt bekannt, auch wenn ihr damaliges Lied
+// für 2026 aussortiert wurde.
+const bestand2000 = computed(() => bestandAus2000(gesangbuchlieder.value));
+
 // Grundmenge: nach dem Status-Filter, mit aufgelöster Nummer angereichert.
 // Bewusst OHNE den „nur mit Liednummer"-Filter, damit die Kennzahlen (u. a.
 // „ohne Liednummer") aussagekräftig bleiben.
@@ -88,10 +96,24 @@ const base_songs = computed(() => {
     if (only_accepted.value) {
         list = list.filter((l) => isGenommen(l));
     }
+    const bestand = bestand2000.value;
     return list.map((l) => ({
         id: l.id,
         titel: (l.titel || '').trim(),
         nummer: nummerOf(l),
+        // Rückverweis ins Liedgut von 2000 (Issue #104), damit die Musiker das
+        // Lied im alten Gesangbuch schnell wiederfinden.
+        nummer2000: l.liednummer2000 ?? '',
+        melodieId: l.melodie?.id ?? null,
+        // Welche Melodie singt das Lied? Ohne diese Angabe steht beim neuen Lied
+        // auf bekannter Melodie nur „Melodie nicht neu" – und der Musiker weiß
+        // trotzdem nicht, welche er spielt (Issue #106). Deshalb Titel,
+        // Choralbuchnummer (dort steht der Satz) und die Liednummer(n), unter
+        // denen die Melodie 2000 im Buch stand.
+        melodieTitel: (l.melodie?.titel || '').trim(),
+        choralbuchNummer: l.melodie?.choralbuchNummer ?? '',
+        melodie2000: (l.melodie?.id != null && bestand.melodieNummern2000.get(l.melodie.id)) || [],
+        genommen: isGenommen(l),
         kategorien: kategorienOf(l),
         kategorie_ids: kategorieIdsOf(l),
         kategorie_pairs: kategoriePairsOf(l),
@@ -99,12 +121,25 @@ const base_songs = computed(() => {
         // Melodie gegenüber dem Gesangbuch 2000 überarbeitet?
         textGeaendert: l.textGeaendert === true,
         melodieGeaendert: l.melodieGeaendert === true,
+        // Feiner als das bloße Häkchen (Issue #106): '' | 'neu' | 'geaendert'.
+        // Bei einem neuen Lied blieben die Spalten Text/Melodie bisher immer
+        // leer – jetzt steht dort, ob Text bzw. Melodie wirklich neu sind oder
+        // schon aus dem Gesangbuch 2000 bekannt (und dort nur überarbeitet).
+        textVermerk: textVermerk(l, bestand),
+        melodieVermerk: melodieVermerk(l, bestand),
         // „Neu 2026" (Issue #91): Lied war nicht im Gesangbuch 2000, hat also
         // keine `liednummer2000`. Gleiche Definition wie „komplett neu" in der
         // Neue-Lieder-Ansicht.
         istNeu: l.liednummer2000 == null || l.liednummer2000 === '',
     }));
 });
+
+// Genommene Lieder – unabhängig vom Status-Filter der Ansicht. Die
+// Choralbuch-Liste (Issue #73/#105) hängt bewusst nicht an den Lied-Filtern
+// oben, braucht aber dieselben angereicherten Felder wie `base_songs`.
+const base_songs_accepted = computed(() =>
+    only_accepted.value ? base_songs.value : base_songs.value.filter((s) => s.genommen),
+);
 
 // Anzeige-/Exportmenge: zusätzlich optional auf Lieder mit Nummer eingeschränkt.
 const songs = computed(() => {
@@ -197,15 +232,65 @@ const changed_count = computed(
 const neu_count = computed(() => songs.value.filter((s) => s.istNeu).length);
 
 // Menschlich lesbarer Vermerk (für Copy/CSV/InDesign-Spalte). Leer, wenn das
-// Lied unverändert aus dem Gesangbuch 2000 übernommen wurde. Für neue Lieder
-// steht „Neu" – ein Text-/Melodie-Vergleich mit dem Gesangbuch 2000 ist dort
-// gegenstandslos.
-function changeNote(s) {
-    if (s.istNeu) return 'Neu';
-    if (s.textGeaendert && s.melodieGeaendert) return 'Text & Melodie geändert';
-    if (s.textGeaendert) return 'Text geändert';
-    if (s.melodieGeaendert) return 'Melodie geändert';
+// Lied unverändert aus dem Gesangbuch 2000 übernommen wurde.
+//
+// Bei einem neuen Lied (Issue #106) reicht "Neu" allein nicht: der Musiker will
+// wissen, ob er auch die Melodie neu lernen muss oder ob sie aus dem 2000er
+// bekannt ist. Deshalb tragen Text und Melodie den Vermerk mit:
+//   Neu                            – Lied, Text und Melodie komplett neu
+//   Neu, Melodie aus 2000          – neues Lied auf bekannter Melodie
+//   Neu, Melodie geändert          – neues Lied, Melodie aus 2000 überarbeitet
+//   Text geändert, Melodie neu     – 2000er-Lied mit Überarbeitungen
+function teilVermerk(label, vermerk) {
+    if (vermerk === 'neu') return `${label} neu`;
+    if (vermerk === 'geaendert') return `${label} geändert`;
     return '';
+}
+
+function changeNote(s) {
+    if (!s.istNeu) {
+        return [teilVermerk('Text', s.textVermerk), teilVermerk('Melodie', s.melodieVermerk)]
+            .filter(Boolean)
+            .join(', ');
+    }
+    // Beim neuen Lied ist ein neuer Text die Regel und keine eigene Meldung wert
+    // – interessant ist, was daran *nicht* neu, also aus 2000 bekannt ist. Dann
+    // gehört auch dazu, WELCHE Melodie das ist (Issue #106).
+    const zusatz = [
+        s.textVermerk === 'neu' ? '' : teilVermerk('Text', s.textVermerk) || 'Text aus 2000',
+        s.melodieVermerk === 'neu'
+            ? ''
+            : `${teilVermerk('Melodie', s.melodieVermerk) || 'Melodie aus 2000'}${herkunftSuffix(s)}`,
+    ].filter(Boolean);
+    return ['Neu', ...zusatz].join(', ');
+}
+
+// Eine oft gesungene Melodie trug 2000 bis zu zwölf Lieder – als Referenz zum
+// Nachschlagen reichen die ersten paar Nummern, der Rest macht die Spalte nur
+// unlesbar. Die vollständige Liste steht im Tooltip und in der CSV.
+const HERKUNFT_MAX = 3;
+function herkunftKurz(nummern) {
+    if (!nummern?.length) return '';
+    return nummern.length > HERKUNFT_MAX
+        ? `${nummern.slice(0, HERKUNFT_MAX).join(', ')} …`
+        : nummern.join(', ');
+}
+
+// „ (2000: 314)" bzw. „ (2000: 314, 330)" – die Liednummer(n), unter denen die
+// Melodie im Gesangbuch 2000 stand. Leer, wenn die Melodie dort nicht vorkam.
+function herkunftSuffix(s) {
+    return s.melodie2000?.length ? ` (2000: ${herkunftKurz(s.melodie2000)})` : '';
+}
+
+// Melodie-Angabe für Copy/CSV: Titel, dahinter die Choralbuchnummer und die
+// Herkunft aus dem Gesangbuch 2000, soweit vorhanden.
+function melodieInfo(s) {
+    const teile = [s.melodieTitel || '–'];
+    if (s.choralbuchNummer !== '' && s.choralbuchNummer != null) {
+        teile.push(`Choralbuch ${s.choralbuchNummer}`);
+    }
+    if (s.melodie2000?.length) teile.push(`2000: ${herkunftKurz(s.melodie2000)}`);
+    return teile.join(' · ');
 }
 
 // --- Nach Choralbuchnummer (Issue #73) ------------------------------------
@@ -224,12 +309,54 @@ function choralbuchNummerOf(mel) {
     return Number.isNaN(n) ? null : n;
 }
 
-const choralbuch = computed(() =>
-    melodies.value
-        .map((m) => ({ id: m.id, nummer: choralbuchNummerOf(m), titel: (m.titel || '').trim() }))
+// Genommene Lieder je Melodie – Grundlage der Änderungsvermerke in der
+// Choralbuch-Liste (Issue #105). Bewusst nur die genommenen Lieder: nur für die
+// werden überhaupt Choralbuchnummern vergeben.
+const lieder_je_melodie = computed(() => {
+    const map = new Map();
+    for (const s of base_songs_accepted.value) {
+        if (s.melodieId == null) continue;
+        const list = map.get(s.melodieId);
+        if (list) list.push(s);
+        else map.set(s.melodieId, [s]);
+    }
+    return map;
+});
+
+const choralbuch = computed(() => {
+    const bestand = bestand2000.value;
+    const je = lieder_je_melodie.value;
+    return melodies.value
+        .map((m) => {
+            const lieder = je.get(m.id) || [];
+            // Melodie-Vermerk auf Melodie-Ebene: stand die Melodie 2000 schon im
+            // Buch? Wenn ja, gilt sie als überarbeitet, sobald eines ihrer Lieder
+            // das Häkchen `melodieGeaendert` trägt.
+            const melodieVermerk = !bestand.melodien.has(m.id)
+                ? 'neu'
+                : lieder.some((l) => l.melodieGeaendert)
+                  ? 'geaendert'
+                  : '';
+            return {
+                id: m.id,
+                nummer: choralbuchNummerOf(m),
+                titel: (m.titel || '').trim(),
+                melodieVermerk,
+                // Eine Melodie trägt bis zu neun Lieder, die nicht alle denselben
+                // Vermerk haben müssen. Deshalb werden Lied- und Textvermerk als
+                // Anzahl geführt („2 von 3 Liedern“) statt als ja/nein.
+                lieder: lieder.length,
+                lieder_neu: lieder.filter((l) => l.istNeu).length,
+                lieder_text_geaendert: lieder.filter((l) => l.textVermerk === 'geaendert').length,
+                lieder_nummern: lieder
+                    .map((l) => l.nummer)
+                    .filter((n) => n !== '' && n != null)
+                    .join(', '),
+            };
+        })
         .filter((m) => m.nummer != null)
-        .sort((a, b) => a.nummer - b.nummer || byTitelCompare(a, b)),
-);
+        .sort((a, b) => a.nummer - b.nummer || byTitelCompare(a, b));
+});
 
 // 2. Nach Kategorien, darin nach Liednummer 2026 (Titel-Reihenfolge). Ein Lied
 // erscheint unter jeder seiner Kategorien; Lieder ohne Kategorie unter
@@ -327,9 +454,11 @@ const byTocCategory = computed(() => {
             ensure(OHNE_IV_KATEGORIE, OHNE_IV_KATEGORIE, null).songs.push(s);
         } else {
             for (const toc of tocs.values()) {
-                ensure(`toc-${toc.id}`, toc.name || `#${toc.id}`, toc.sortierung ?? null).songs.push(
-                    s,
-                );
+                ensure(
+                    `toc-${toc.id}`,
+                    toc.name || `#${toc.id}`,
+                    toc.sortierung ?? null,
+                ).songs.push(s);
             }
         }
     }
@@ -510,6 +639,15 @@ function copyNummernSpalte(list) {
 function copyTitelSpalte(list) {
     copyToClipboard(list.map((s) => s.titel).join('\n'));
 }
+// Liednummer 2000 als eigene Spalte (Issue #104) – leer, wenn das Lied neu ist.
+function copyNummer2000Spalte(list) {
+    copyToClipboard(list.map((s) => s.nummer2000 ?? '').join('\n'));
+}
+// Melodie-Angabe als eigene Spalte (Issue #106): Titel, Choralbuchnummer und
+// Herkunft aus dem Gesangbuch 2000.
+function copyMelodieSpalte(list) {
+    copyToClipboard(list.map((s) => melodieInfo(s)).join('\n'));
+}
 
 // --- Alphabetisch ---------------------------------------------------------
 function downloadAlphabetical() {
@@ -524,22 +662,41 @@ function copyAlphabetical() {
 
 // --- Alphabetisch mit Änderungsvermerk (Issue #74, #91) -------------------
 function downloadChangeList() {
+    // `text` / `melodie` tragen jetzt 'neu' bzw. 'geaendert' statt nur ja/nein
+    // (Issue #106); `nr_2000` kam für den Rückverweis dazu (Issue #104).
     const rows = changeList.value.map((s) => [
         s.nummer,
+        s.nummer2000,
         s.titel,
         s.istNeu ? 'ja' : 'nein',
-        s.textGeaendert ? 'ja' : 'nein',
-        s.melodieGeaendert ? 'ja' : 'nein',
+        s.textVermerk,
+        s.melodieVermerk,
+        s.melodieTitel,
+        s.choralbuchNummer,
+        s.melodie2000.join(' '),
     ]);
     download(
         'inhaltsverzeichnis_aenderungsvermerk.csv',
-        buildCsv(['nr_2026', 'titel', 'neu_2026', 'text_geaendert', 'melodie_geaendert'], rows),
+        buildCsv(
+            [
+                'nr_2026',
+                'nr_2000',
+                'titel',
+                'neu_2026',
+                'text',
+                'melodie',
+                'melodie_titel',
+                'choralbuch_nr',
+                'melodie_2000',
+            ],
+            rows,
+        ),
     );
 }
 function copyChangeList() {
-    // Tab-getrennt: Nummer, Titel, Vermerk (leer, wenn unverändert).
+    // Tab-getrennt: Nummer 2026, Nummer 2000, Titel, Vermerk (leer, wenn unverändert).
     const text = changeList.value
-        .map((s) => `${s.nummer}\t${s.titel}\t${changeNote(s)}`)
+        .map((s) => `${s.nummer}\t${s.nummer2000}\t${s.titel}\t${changeNote(s)}`)
         .join('\n');
     copyToClipboard(text);
 }
@@ -550,15 +707,53 @@ function copyVermerkSpalte(list) {
 
 // --- Nach Choralbuchnummer (Issue #73) ------------------------------------
 function downloadChoralbuch() {
-    const rows = choralbuch.value.map((m) => [m.nummer, m.titel]);
+    // Änderungsvermerke analog zur alphabetischen Liste (Issue #105). Lied- und
+    // Textvermerk als Anzahl, weil eine Melodie mehrere Lieder tragen kann.
+    const rows = choralbuch.value.map((m) => [
+        m.nummer,
+        m.titel,
+        m.melodieVermerk,
+        m.lieder,
+        m.lieder_neu,
+        m.lieder_text_geaendert,
+        m.lieder_nummern,
+    ]);
     download(
         'inhaltsverzeichnis_choralbuchnummern.csv',
-        buildCsv(['choralbuch_nr', 'melodie_titel'], rows),
+        buildCsv(
+            [
+                'choralbuch_nr',
+                'melodie_titel',
+                'melodie',
+                'lieder',
+                'lieder_neu',
+                'lieder_text_geaendert',
+                'liednummern_2026',
+            ],
+            rows,
+        ),
     );
 }
 function copyChoralbuch() {
-    const text = choralbuch.value.map((m) => `${m.nummer}\t${m.titel}`).join('\n');
+    const text = choralbuch.value
+        .map((m) => `${m.nummer}\t${m.titel}\t${choralbuchNote(m)}`)
+        .join('\n');
     copyToClipboard(text);
+}
+// Menschlich lesbarer Vermerk einer Choralbuch-Zeile (Issue #105): der
+// Melodie-Vermerk und – falls zutreffend – wie viele der Lieder auf dieser
+// Melodie neu sind bzw. einen überarbeiteten Text haben.
+function choralbuchNote(m) {
+    const teile = [teilVermerk('Melodie', m.melodieVermerk)];
+    if (m.lieder_neu) teile.push(`${m.lieder_neu} von ${m.lieder} Liedern neu`);
+    if (m.lieder_text_geaendert) {
+        teile.push(`${m.lieder_text_geaendert} von ${m.lieder} Texten geändert`);
+    }
+    return teile.filter(Boolean).join(', ');
+}
+// Nur die Vermerk-Spalte der Choralbuch-Liste für den InDesign-Satz.
+function copyChoralbuchVermerkSpalte() {
+    copyToClipboard(choralbuch.value.map((m) => choralbuchNote(m)).join('\n'));
 }
 
 // --- Nach Kategorien ------------------------------------------------------
@@ -567,7 +762,10 @@ function downloadByCategory() {
     byCategory.value.forEach((g) =>
         g.songs.forEach((s) => rows.push([g.kategorie, s.nummer, s.titel])),
     );
-    download('inhaltsverzeichnis_kategorien.csv', buildCsv(['kategorie', 'nr_2026', 'titel'], rows));
+    download(
+        'inhaltsverzeichnis_kategorien.csv',
+        buildCsv(['kategorie', 'nr_2026', 'titel'], rows),
+    );
 }
 function copyByCategory() {
     // Gut lesbar: Kategorie als Überschrift, darunter die Lieder.
@@ -607,12 +805,7 @@ function copyByTocCategory() {
         <h1 class="me-4">Inhaltsverzeichnis-Export</h1>
         <v-tooltip text="Lieder insgesamt (Bewertet und genommen)" location="bottom">
             <template #activator="{ props }">
-                <v-chip
-                    v-bind="props"
-                    color="primary"
-                    variant="tonal"
-                    prepend-icon="mdi-music"
-                >
+                <v-chip v-bind="props" color="primary" variant="tonal" prepend-icon="mdi-music">
                     {{ stats.total }} Lieder
                 </v-chip>
             </template>
@@ -634,12 +827,7 @@ function copyByTocCategory() {
         </v-tooltip>
         <v-tooltip text="Höchste vergebene Liednummer 2026" location="bottom">
             <template #activator="{ props }">
-                <v-chip
-                    v-bind="props"
-                    color="primary"
-                    variant="tonal"
-                    prepend-icon="mdi-pound"
-                >
+                <v-chip v-bind="props" color="primary" variant="tonal" prepend-icon="mdi-pound">
                     Höchste Nr.: {{ stats.maxNummer ?? '–' }}
                 </v-chip>
             </template>
@@ -910,9 +1098,27 @@ function copyByTocCategory() {
                                 variant="tonal"
                                 prepend-icon="mdi-content-copy"
                                 :disabled="changeList.length === 0"
+                                @click="copyNummer2000Spalte(changeList)"
+                            >
+                                Nr. 2000
+                            </v-btn>
+                            <v-btn
+                                size="small"
+                                variant="tonal"
+                                prepend-icon="mdi-content-copy"
+                                :disabled="changeList.length === 0"
                                 @click="copyTitelSpalte(changeList)"
                             >
                                 Titel
+                            </v-btn>
+                            <v-btn
+                                size="small"
+                                variant="tonal"
+                                prepend-icon="mdi-content-copy"
+                                :disabled="changeList.length === 0"
+                                @click="copyMelodieSpalte(changeList)"
+                            >
+                                Melodie
                             </v-btn>
                             <v-btn
                                 size="small"
@@ -926,28 +1132,38 @@ function copyByTocCategory() {
                         </div>
                     </div>
                     <p class="text-caption text-medium-emphasis mb-2">
-                        Für die Musiker: Liednummer 2026 aufsteigend, mit Hinweis, ob Text
-                        <v-icon icon="mdi-text-box-edit" color="primary" size="x-small" /> und/oder
-                        Melodie <v-icon icon="mdi-music-box" color="primary" size="x-small" />
-                        gegenüber dem Gesangbuch 2000 überarbeitet wurden und ob das Lied neu
-                        <v-icon icon="mdi-new-box" color="success" size="x-small" /> ist (nicht im
-                        Gesangbuch 2000 enthalten). Neue und geänderte Lieder zusammen ergeben die
-                        komplette Übersicht.
+                        Für die Musiker: Liednummer 2026 aufsteigend, dazu die Liednummer 2000 als
+                        Rückverweis ins alte Liedgut. Die Spalten Text und Melodie sagen, ob der
+                        Bestandteil neu
+                        <v-icon icon="mdi-plus-box" color="success" size="x-small" /> ist (stand
+                        nicht im Gesangbuch 2000) oder gegenüber dem Gesangbuch 2000 überarbeitet
+                        <v-icon icon="mdi-pencil-box" color="primary" size="x-small" /> wurde – so
+                        ist beim neuen Lied
+                        <v-icon icon="mdi-new-box" color="success" size="x-small" /> zu sehen, ob
+                        auch die Melodie neu gelernt werden muss oder ob sie aus dem 2000er bekannt
+                        ist – die Melodie-Spalte nennt sie beim Namen, mit Choralbuchnummer und der
+                        Liednummer, unter der sie 2000 im Buch stand. Neue und geänderte Lieder
+                        zusammen ergeben die komplette Übersicht.
                     </p>
                     <div class="toc-preview">
                         <v-table density="compact" hover>
                             <thead>
                                 <tr>
                                     <th style="width: 90px">Nr. 2026</th>
+                                    <th style="width: 90px">Nr. 2000</th>
                                     <th>Titel</th>
                                     <th style="width: 80px" class="text-center">Neu 2026</th>
                                     <th style="width: 70px" class="text-center">Text</th>
                                     <th style="width: 80px" class="text-center">Melodie</th>
+                                    <th style="width: 260px">Welche Melodie</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="s in changeList" :key="s.id">
                                     <td class="text-medium-emphasis">{{ s.nummer || '–' }}</td>
+                                    <td class="text-medium-emphasis">
+                                        {{ s.nummer2000 || '–' }}
+                                    </td>
                                     <td>{{ s.titel }}</td>
                                     <td class="text-center">
                                         <v-tooltip
@@ -967,42 +1183,51 @@ function copyByTocCategory() {
                                         <span v-else class="text-disabled">–</span>
                                     </td>
                                     <td class="text-center">
-                                        <v-tooltip
-                                            v-if="s.textGeaendert"
-                                            text="Text wurde gegenüber Gesangbuch 2000 geändert"
-                                            location="bottom"
-                                        >
-                                            <template #activator="{ props }">
-                                                <v-icon
-                                                    v-bind="props"
-                                                    icon="mdi-text-box-edit"
-                                                    color="primary"
-                                                    size="small"
-                                                />
-                                            </template>
-                                        </v-tooltip>
-                                        <span v-else class="text-disabled">–</span>
+                                        <VermerkIcon :vermerk="s.textVermerk" bereich="Text" />
                                     </td>
                                     <td class="text-center">
-                                        <v-tooltip
-                                            v-if="s.melodieGeaendert"
-                                            text="Melodie wurde gegenüber Gesangbuch 2000 geändert"
-                                            location="bottom"
-                                        >
-                                            <template #activator="{ props }">
-                                                <v-icon
-                                                    v-bind="props"
-                                                    icon="mdi-music-box"
-                                                    color="primary"
-                                                    size="small"
-                                                />
-                                            </template>
-                                        </v-tooltip>
-                                        <span v-else class="text-disabled">–</span>
+                                        <VermerkIcon
+                                            :vermerk="s.melodieVermerk"
+                                            bereich="Melodie"
+                                        />
+                                    </td>
+                                    <td>
+                                        <div>{{ s.melodieTitel || '–' }}</div>
+                                        <div class="text-caption text-medium-emphasis">
+                                            <span
+                                                v-if="
+                                                    s.choralbuchNummer !== '' &&
+                                                    s.choralbuchNummer != null
+                                                "
+                                            >
+                                                Choralbuch {{ s.choralbuchNummer }}
+                                            </span>
+                                            <span v-if="s.melodie2000.length">
+                                                <template
+                                                    v-if="
+                                                        s.choralbuchNummer !== '' &&
+                                                        s.choralbuchNummer != null
+                                                    "
+                                                >
+                                                    ·
+                                                </template>
+                                                <v-tooltip
+                                                    :text="`Melodie stand 2000 bei Lied ${s.melodie2000.join(', ')}`"
+                                                    location="bottom"
+                                                >
+                                                    <template #activator="{ props }">
+                                                        <span v-bind="props">
+                                                            2000:
+                                                            {{ herkunftKurz(s.melodie2000) }}
+                                                        </span>
+                                                    </template>
+                                                </v-tooltip>
+                                            </span>
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr v-if="changeList.length === 0">
-                                    <td colspan="5" class="text-center text-medium-emphasis py-4">
+                                    <td colspan="7" class="text-center text-medium-emphasis py-4">
                                         {{
                                             only_marked
                                                 ? 'Keine neuen oder geänderten Lieder im aktuellen Filter.'
@@ -1068,12 +1293,26 @@ function copyByTocCategory() {
                         >
                             Titel
                         </v-btn>
+                        <v-btn
+                            size="small"
+                            variant="tonal"
+                            prepend-icon="mdi-content-copy"
+                            :disabled="choralbuch.length === 0"
+                            @click="copyChoralbuchVermerkSpalte"
+                        >
+                            Vermerk
+                        </v-btn>
                     </div>
                     <p class="text-caption text-medium-emphasis mb-2">
                         Alle Melodien mit einer Choralbuchnummer, aufsteigend nach Nummer sortiert.
                         Die Choralbuchnummer wird an Melodien vergeben, die von mindestens einem
                         „Bewertet und genommen“-Lied verwendet werden – die Lied-Filter oben wirken
-                        sich hier nicht aus.
+                        sich hier nicht aus. Der Melodie-Vermerk sagt, ob die Melodie neu
+                        <v-icon icon="mdi-plus-box" color="success" size="x-small" /> ist oder
+                        gegenüber dem Gesangbuch 2000 überarbeitet
+                        <v-icon icon="mdi-pencil-box" color="primary" size="x-small" /> wurde. Weil
+                        eine Melodie mehrere Lieder tragen kann, stehen der Neu- und der
+                        Text-Vermerk als Anzahl daneben.
                     </p>
                     <div class="toc-preview">
                         <v-table density="compact" hover>
@@ -1081,15 +1320,44 @@ function copyByTocCategory() {
                                 <tr>
                                     <th style="width: 120px">Choralbuch-Nr.</th>
                                     <th>Melodie-Titel</th>
+                                    <th style="width: 90px" class="text-center">Melodie</th>
+                                    <th style="width: 90px" class="text-center">Lieder neu</th>
+                                    <th style="width: 110px" class="text-center">Text geändert</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="m in choralbuch" :key="m.id">
                                     <td class="text-medium-emphasis">{{ m.nummer }}</td>
-                                    <td>{{ m.titel || '–' }}</td>
+                                    <td>
+                                        {{ m.titel || '–' }}
+                                        <span
+                                            v-if="m.lieder_nummern"
+                                            class="text-caption text-medium-emphasis ms-1"
+                                        >
+                                            (Lied {{ m.lieder_nummern }})
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <VermerkIcon
+                                            :vermerk="m.melodieVermerk"
+                                            bereich="Melodie"
+                                        />
+                                    </td>
+                                    <td class="text-center">
+                                        <span v-if="m.lieder_neu" class="text-success">
+                                            {{ m.lieder_neu }} von {{ m.lieder }}
+                                        </span>
+                                        <span v-else class="text-disabled">–</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span v-if="m.lieder_text_geaendert" class="text-primary">
+                                            {{ m.lieder_text_geaendert }} von {{ m.lieder }}
+                                        </span>
+                                        <span v-else class="text-disabled">–</span>
+                                    </td>
                                 </tr>
                                 <tr v-if="choralbuch.length === 0">
-                                    <td colspan="2" class="text-center text-medium-emphasis py-4">
+                                    <td colspan="5" class="text-center text-medium-emphasis py-4">
                                         Keine Melodien mit Choralbuchnummer.
                                     </td>
                                 </tr>
