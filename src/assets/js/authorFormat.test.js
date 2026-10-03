@@ -5,6 +5,7 @@ import {
     appendSuffix,
     joinAuthorEntries,
     formatAuthorEntry,
+    formatAuthors,
     buildFooter,
 } from '@/assets/js/authorFormat';
 
@@ -266,6 +267,51 @@ describe('buildFooter', () => {
         expect(buildFooter(lied)).toBe(
             'Melodie: Johann Löhner (1645–1705); bei Johann Adam Hiller (1728–1804)',
         );
+    });
+
+    it('Lied 346: "©"/"(c)" setzt das Copyright vor den Autor (Issue #114)', () => {
+        const lied = {
+            text: {
+                authors: [
+                    { vorname: 'Rolf', nachname: 'Krenzer', geburtsjahr: 1936, sterbejahr: 2007 },
+                ],
+                copyright: 'Rechtsnachfolge Rolf Krenzer',
+            },
+            melodie: {
+                authors: [{ vorname: 'Martin', nachname: 'Göth', geburtsjahr: 1957 }],
+                copyright: ' (C) ',
+            },
+        };
+        expect(buildFooter(lied)).toBe(
+            'Text: Rolf Krenzer (1936–2007) © Rechtsnachfolge Rolf Krenzer\n' +
+                'Melodie: © Martin Göth (1957)',
+        );
+        lied.melodie.copyright = '©';
+        expect(buildFooter(lied)).toBe(
+            'Text: Rolf Krenzer (1936–2007) © Rechtsnachfolge Rolf Krenzer\n' +
+                'Melodie: © Martin Göth (1957)',
+        );
+    });
+
+    it('"©" am Lied gilt für Text- und Melodie-Autor (Issue #114)', () => {
+        const author = { vorname: 'Paul', nachname: 'Gerhardt' };
+        expect(
+            buildFooter({
+                copyright: '©',
+                text: { authors: [author] },
+                melodie: { authors: [author] },
+            }),
+        ).toBe('Text und Melodie: © Paul Gerhardt');
+    });
+
+    it('formatAuthors: Marker statt eigener Copyright-Zeile (Issue #114)', () => {
+        expect(
+            formatAuthors(
+                [{ vorname: 'Martin', nachname: 'Göth', geburtsjahr: 1957 }],
+                '(c)',
+                'Verlag X',
+            ),
+        ).toBe('© Martin Göth (1957)\n© Verlag X');
     });
 
     it('gleicher Text- und Melodie-Autor -> "Text und Melodie:"', () => {

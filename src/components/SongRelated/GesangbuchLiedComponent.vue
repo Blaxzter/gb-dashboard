@@ -325,7 +325,7 @@
                         v-if="author_source.copyright"
                         class="text-medium-emphasis text-body-2 white-space-pre"
                     >
-                        © {{ author_source.copyright }}
+                        {{ copyrightLabel(author_source.copyright) }}
                     </div>
                 </v-sheet>
             </div>
@@ -342,7 +342,7 @@
             >
                 <div v-if="selectedSong?.copyright">
                     <div class="text-subtitle-1 font-weight-medium">Copyright:</div>
-                    <div class="white-space-pre">© {{ selectedSong?.copyright }}</div>
+                    <div class="white-space-pre">{{ copyrightLabel(selectedSong?.copyright) }}</div>
                 </div>
                 <div
                     v-if="selectedSong?.einreicherName"
@@ -571,7 +571,7 @@ import {
     rang_to_color,
     writeToClipboard,
 } from '@/assets/js/utils';
-import { formatAuthorYears, buildFooter } from '@/assets/js/authorFormat';
+import { formatAuthorYears, buildFooter, isCopyrightMarker } from '@/assets/js/authorFormat';
 import StrophenList from '@/components/SongRelated/StrophenList.vue';
 import NotenCarousel from '@/components/SongRelated/NotenCarousel.vue';
 import { useUserStore } from '@/store/user';
@@ -674,6 +674,13 @@ export default {
         // Jahresangabe einheitlich wie in der Gesangbuchlieder-Übersicht (Issue #43):
         // (1932–2025) statt (*1932 - 2025), inkl. Jahres-Präfixen (Issue #101).
         formatAuthorYears,
+        // „(c)"/„©" heißt: Rechte beim Autor, im Footer steht das „©" vor dem
+        // Namen (Issue #114). Hier deshalb kein „© ©" anzeigen.
+        copyrightLabel(copyright) {
+            return isCopyrightMarker(copyright)
+                ? '© beim Autor (steht im Footer vor dem Namen)'
+                : `© ${copyright}`;
+        },
         // Ursprungsautor als „Vorname Nachname (Jahre)“ in derselben Formatierung.
         ursprungLabel(u) {
             if (!u || typeof u !== 'object') return '';

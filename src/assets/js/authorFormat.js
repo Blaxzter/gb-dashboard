@@ -101,12 +101,31 @@ export function formatAuthorEntry(author) {
     return s;
 }
 
+// Copyright-Marker (Issue #114): Steht im Copyright-Feld nur „(c)" oder „©",
+// liegen die Rechte beim Autor selbst. Statt „… © beim Urheber" wird das „©"
+// dann leerzeichengetrennt VOR den Autorennamen gesetzt:
+//   Melodie: © Martin Göth (1957)
+export function isCopyrightMarker(copyright) {
+    if (copyright == null) return false;
+    const v = String(copyright).trim().toLowerCase();
+    return v === '(c)' || v === '©';
+}
+
+// Setzt das „©" vor einen Autorenblock (Issue #114). Leerer Block bleibt leer.
+function prefixCopyright(authors) {
+    return authors ? `© ${authors}` : authors;
+}
+
 // Liste von Autoren als ", "-getrennter String, optional gefolgt von
 // Copyright-Zeilen (jeweils mit "© " und durch Zeilenumbruch getrennt).
+//
+// Ein Copyright-Marker (Issue #114) erzeugt keine eigene Zeile, sondern setzt
+// das „©" vor die Autoren.
 export function formatAuthors(authors, ...copyrights) {
-    const authorStrings = joinAuthorEntries((authors || []).map(formatAuthorEntry));
+    let authorStrings = joinAuthorEntries((authors || []).map(formatAuthorEntry));
+    if (copyrights.some(isCopyrightMarker)) authorStrings = prefixCopyright(authorStrings);
     const copyrightStrings = copyrights
-        .filter((c) => c && String(c).trim())
+        .filter((c) => c && String(c).trim() && !isCopyrightMarker(c))
         .map((c) => `© ${String(c).trim()}`);
     return [authorStrings, ...copyrightStrings].filter(Boolean).join('\n');
 }
@@ -154,6 +173,7 @@ function formatFooterAuthors(authors) {
 }
 
 function footerCopyright(copyright) {
+    if (isCopyrightMarker(copyright)) return '';
     const v = copyright && String(copyright).trim();
     return v ? `© ${v}` : '';
 }
@@ -171,15 +191,28 @@ function footerCopyright(copyright) {
 // normaler Suffix (Issue #76) – an den jeweiligen Autorenblock angehängt. So
 // kann z. B. die Originalmelodie nur bei diesem Lied ergänzt werden, ohne beim
 // Original-Lied desselben Melodie-Autors zu erscheinen.
+//
+// Copyright-Marker (Issue #114): Ist ein Copyright-Feld nur „(c)"/„©", wird das
+// „©" vor den zugehörigen Autorenblock gesetzt statt dahinter. Ein Marker am
+// Lied selbst gilt für Text- und Melodie-Autoren.
+//   Text: Rolf Krenzer (1936–2007) © Rechtsnachfolge Rolf Krenzer
+//   Melodie: © Martin Göth (1957)
 export function buildFooter(lied) {
-    const textAuthors = appendSuffix(
+    const liedMarker = isCopyrightMarker(lied?.copyright);
+    let textAuthors = appendSuffix(
         formatFooterAuthors(lied?.text?.authors),
         lied?.textAutorExtraSuffix,
     );
-    const melodyAuthors = appendSuffix(
+    if (liedMarker || isCopyrightMarker(lied?.text?.copyright)) {
+        textAuthors = prefixCopyright(textAuthors);
+    }
+    let melodyAuthors = appendSuffix(
         formatFooterAuthors(lied?.melodie?.authors),
         lied?.melodieAutorExtraSuffix,
     );
+    if (liedMarker || isCopyrightMarker(lied?.melodie?.copyright)) {
+        melodyAuthors = prefixCopyright(melodyAuthors);
+    }
     const textCr = footerCopyright(lied?.text?.copyright);
     const melodyCr = footerCopyright(lied?.melodie?.copyright);
     const liedCr = footerCopyright(lied?.copyright);
