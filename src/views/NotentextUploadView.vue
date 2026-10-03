@@ -6,8 +6,15 @@ import { bakeSvgString, ensureAllFonts } from '@/assets/js/svgBaker.js';
 import { scanSvgBake, computeSvgEquality } from '@/assets/js/svgCompare.js';
 import { analyzePdfAlignment } from '@/assets/js/pdfAlign.js';
 import { applyCorrections } from '@/assets/js/lyricsAlign.js';
-import { fingerprintFromFile } from '@/assets/js/notenFingerprintLoader.js';
+import { fingerprintFromFile, inspectNotenPdfFile } from '@/assets/js/notenFingerprintLoader.js';
 import { isRein, isGenommen } from '@/assets/js/gesangbuchChecks.js';
+import { normalize, hybridScore, matchChoralbuchMelodie } from '@/assets/js/titleMatch.js';
+import {
+    classifyNotenPdf,
+    pdfKindLabel,
+    PDF_KIND_CHORALBUCH,
+    PDF_KIND_GESANGBUCH,
+} from '@/assets/js/notenPdfKind.js';
 import SvgBakeCompareDialog from '@/components/upload/SvgBakeCompareDialog.vue';
 import PdfCompareDialog from '@/components/upload/PdfCompareDialog.vue';
 import LyricsAlignDialog from '@/components/upload/LyricsAlignDialog.vue';
@@ -39,7 +46,7 @@ const preview_url = ref(null);
 const preview_title = ref('');
 
 function openPreviewDialog(item) {
-    if (item.kind !== 'svg' || !item.previewUrl) return;
+    if (!item.previewUrl) return;
     preview_url.value = item.previewUrl;
     preview_title.value = item.name;
     preview_dialog.value = true;
@@ -82,6 +89,19 @@ function assetUrlForFile(file) {
 // die ein neu hochgeladenes PDF verglichen werden kann. Leeres Array, wenn das
 // Lied noch keinen Notentext hat oder das Item kein PDF ist.
 function existingPdfTargetsFor(item) {
+    if (item?.kind === 'choralbuch') {
+        const file = lookupMelodie(item.melodieId)?.choralbuch_noten_file;
+        if (!file) return [];
+        return [
+            {
+                key: 'choralbuch',
+                label: 'Choralbuchsatz',
+                url: assetUrlForFile(file),
+                isPdf: file.type === 'application/pdf',
+                name: file.filename_download || file.title || '',
+            },
+        ];
+    }
     if (!item || item.kind !== 'pdf' || !item.liedId) return [];
     const lied = lookupLied(item.liedId);
     if (!lied) return [];
@@ -315,75 +335,6 @@ const matching_progress_percent = computed(() => {
 let uidCounter = 0;
 const nextUid = () => ++uidCounter;
 
-function normalize(s) {
-    return (s || '')
-        .toLowerCase()
-        .replace(/ä/g, 'ae')
-        .replace(/ö/g, 'oe')
-        .replace(/ü/g, 'ue')
-        .replace(/ß/g, 'ss')
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim();
-}
-
-function levenshtein(a, b) {
-    if (!a.length) return b.length;
-    if (!b.length) return a.length;
-    const dp = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-        let prev = dp[0];
-        dp[0] = i;
-        for (let j = 1; j <= b.length; j++) {
-            const tmp = dp[j];
-            dp[j] = a[i - 1] === b[j - 1]
-                ? prev
-                : Math.min(prev, dp[j], dp[j - 1]) + 1;
-            prev = tmp;
-        }
-    }
-    return dp[b.length];
-}
-
-function similarity(a, b) {
-    if (!a && !b) return 1;
-    if (!a || !b) return 0;
-    const d = levenshtein(a, b);
-    return 1 - d / Math.max(a.length, b.length);
-}
-
-// Slides the shorter string over the longer and returns the best window similarity.
-// Handles "filename is a prefix/substring of song title" (and vice versa) cleanly.
-function partialRatio(a, b) {
-    if (!a || !b) return 0;
-    if (a === b) return 1;
-    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
-    if (longer.includes(shorter)) return 1;
-    const len = shorter.length;
-    let best = 0;
-    for (let i = 0; i <= longer.length - len; i++) {
-        const sim = 1 - levenshtein(shorter, longer.slice(i, i + len)) / len;
-        if (sim > best) best = sim;
-        if (best === 1) break;
-    }
-    return best;
-}
-
-// Asymmetric token overlap: how much of the smaller token set is covered.
-// Handles word reordering and extra trailing words ("Befiehl du deine Wege und was...").
-function tokenSetRatio(a, b) {
-    const ta = new Set(a.split(' ').filter(Boolean));
-    const tb = new Set(b.split(' ').filter(Boolean));
-    if (!ta.size || !tb.size) return 0;
-    let intersect = 0;
-    for (const t of ta) if (tb.has(t)) intersect++;
-    return intersect / Math.min(ta.size, tb.size);
-}
-
-function hybridScore(candidate, query) {
-    if (!candidate || !query) return 0;
-    return Math.max(partialRatio(candidate, query), tokenSetRatio(candidate, query));
-}
-
 const FIRST_VERSE_FALLBACK_THRESHOLD = 0.6;
 const FIRST_VERSE_PENALTY = 0.9;
 
@@ -520,6 +471,102 @@ async function rankLiederAsync(parsed, onProgress) {
     return scored.slice(0, 5);
 }
 
+// --- Choralbuchsätze (Issue #108) --------------------------------------------
+// Ein Choralbuchsatz gehört nicht an ein Lied, sondern an die Melodie
+// (melodie.choralbuchNoten) und gilt damit für alle Lieder auf ihr. Ob ein PDF
+// Gesangbuch- oder Choralbuchsatz ist, entscheidet das Seitenformat
+// (notenPdfKind.js); in der Queue ist das kind 'pdf' bzw. 'choralbuch'.
+
+// Melodie über „<Choralbuchnummer> <Titel>.pdf" bestimmen (titleMatch.js):
+// Die Nummer entscheidet, der Titel wird nur gegengeprüft.
+function matchMelodie(parsed) {
+    return matchChoralbuchMelodie(parsed, store.melodies, store.gesangbuchlieder);
+}
+
+// Alle Hinweise eines Items: zum PDF selbst und – beim Choralbuchsatz – zur
+// Melodie-Zuordnung.
+function itemWarnings(item) {
+    if (!item.pdfInfo) return [];
+    return item.kind === 'choralbuch'
+        ? [...item.pdfInfo.warnings, ...item.melodieWarnings]
+        : item.pdfInfo.warnings;
+}
+
+async function inspectPdf(file) {
+    try {
+        const info = await inspectNotenPdfFile(file);
+        return { ...classifyNotenPdf(info), previewUrl: info.previewUrl };
+    } catch (e) {
+        console.warn('PDF konnte nicht analysiert werden', file.name, e);
+        return {
+            kind: PDF_KIND_GESANGBUCH,
+            confidence: 'vermutet',
+            format: 'unbekannt',
+            reasons: ['PDF konnte nicht gelesen werden – als Gesangbuchsatz angenommen'],
+            warnings: [e?.message || String(e)],
+            previewUrl: null,
+        };
+    }
+}
+
+// Gesangbuch- ↔ Choralbuchsatz per Hand umschalten, falls die Erkennung
+// danebenliegt. Beide Zuordnungen (Lied und Melodie) wurden beim Hinzufügen
+// schon berechnet, der Wechsel ist also sofort da.
+function setPdfKind(item, pdfKind) {
+    if (!item.pdfInfo || ['uploading', 'done'].includes(item.status)) return;
+    const kind = pdfKind === PDF_KIND_CHORALBUCH ? 'choralbuch' : 'pdf';
+    if (item.kind === kind) return;
+    item.kind = kind;
+    item.page = kind === 'pdf' ? item.parsed.page : null;
+    item.kindManual = pdfKind !== item.pdfInfo.kind;
+    item.conflictChoice = null;
+    item.status = 'unmatched';
+    refreshItemStatus(item);
+    sortQueue();
+}
+
+function pdfKindOf(item) {
+    return item.kind === 'choralbuch' ? PDF_KIND_CHORALBUCH : PDF_KIND_GESANGBUCH;
+}
+
+function lookupMelodie(id) {
+    if (!id) return null;
+    return store.melodies.find((m) => m.id === id) || null;
+}
+
+function setMelodie(item, melodie) {
+    item.melodieId = melodie?.id || null;
+    item.conflictChoice = null;
+    refreshItemStatus(item);
+    sortQueue();
+}
+
+const melodieAutocompleteItems = computed(() =>
+    store.melodies.map((m) => ({
+        id: m.id,
+        title: `${m.choralbuchNummer ? `${m.choralbuchNummer} · ` : ''}${m.titel || ''}`,
+        subtitle: m.choralbuchNummer
+            ? `Choralbuch-Nr. ${m.choralbuchNummer}`
+            : 'ohne Choralbuchnummer',
+    })),
+);
+
+// Lieder, die auf einer Melodie gesungen werden – zur Kontrolle im Gruppenkopf,
+// weil der Choralbuchsatz oft einen Liedtitel statt des Melodietitels trägt.
+function liederAufMelodie(melodieId) {
+    if (!melodieId) return [];
+    return store.gesangbuchlieder.filter((l) => l.melodieId === melodieId);
+}
+
+function melodieAdminUrl(melodieId) {
+    return `${import.meta.env.VITE_BACKEND_URL}/admin/content/melodie/${melodieId}`;
+}
+
+// Die Queue-Id, an die ein Item hochgeladen wird: Lied oder (Choralbuch) Melodie.
+function targetId(item) {
+    return item.kind === 'choralbuch' ? item.melodieId : item.liedId;
+}
+
 function pdfPoolKey(parsed) {
     return `${parsed.normalizedBase}|${parsed.page}`;
 }
@@ -572,13 +619,22 @@ async function addFiles(files) {
     };
     try {
         for (let i = 0; i < arr.length; i++) {
-            const { file, kind } = arr[i];
+            const { file } = arr[i];
+            let { kind } = arr[i];
             matching_progress.value.fileIndex = i + 1;
             matching_progress.value.currentFile = file.name;
             matching_progress.value.candidateIndex = 0;
             matching_progress.value.bestLabel = '';
             matching_progress.value.bestScore = 0;
             const parsed = parseFilename(file.name);
+            // PDF: erst am Format erkennen, ob Gesangbuch- oder Choralbuchsatz.
+            let pdfInfo = null;
+            let melodieMatch = null;
+            if (kind === 'pdf') {
+                pdfInfo = await inspectPdf(file);
+                if (pdfInfo.kind === PDF_KIND_CHORALBUCH) kind = 'choralbuch';
+                melodieMatch = matchMelodie(parsed);
+            }
             console.log('[matching] START', {
                 fileIndex: matching_progress.value.fileIndex,
                 fileTotal: matching_progress.value.fileTotal,
@@ -606,7 +662,9 @@ async function addFiles(files) {
             });
             const top = suggestions[0];
             const autoMatch = top && top.score >= AUTO_MATCH_THRESHOLD ? top.lied : null;
-            const previewUrl = kind === 'svg' ? URL.createObjectURL(file) : null;
+            // SVG: Object-URL der Datei; PDF: gerenderte erste Seite (Data-URL).
+            const previewUrl =
+                kind === 'svg' ? URL.createObjectURL(file) : pdfInfo?.previewUrl || null;
             const item = {
                 uid: nextUid(),
                 kind,
@@ -614,12 +672,26 @@ async function addFiles(files) {
                 name: file.name,
                 previewUrl,
                 parsed,
-                // Seite betrifft nur das PDF-Notenbild; SVG/MXL/Finale/MIDI haben eigene Felder.
-                page: kind === 'mxl' || kind === 'finale' || kind === 'midi' ? null : parsed.page,
+                // Seite betrifft nur das PDF-Notenbild; SVG/MXL/Finale/MIDI und der
+                // Choralbuchsatz haben eigene Felder.
+                page: ['mxl', 'finale', 'midi', 'choralbuch'].includes(kind) ? null : parsed.page,
                 // MIDI-Trio-Slot (Vorspiel/Strophe/Ausleitung); ohne Suffix -> Strophe.
                 midiVariant: kind === 'midi' ? parsed.midiVariant || 'main' : null,
+                // Erkennung Gesangbuch-/Choralbuchsatz (nur PDFs) und ob per Hand
+                // davon abgewichen wurde.
+                pdfInfo: pdfInfo && {
+                    kind: pdfInfo.kind,
+                    confidence: pdfInfo.confidence,
+                    format: pdfInfo.format,
+                    reasons: pdfInfo.reasons,
+                    warnings: pdfInfo.warnings,
+                },
+                kindManual: false,
                 liedId: autoMatch?.id || null,
                 suggestions,
+                melodieId: melodieMatch?.melodie?.id || null,
+                melodieSuggestions: melodieMatch?.suggestions || [],
+                melodieWarnings: melodieMatch?.warnings || [],
                 status: 'unmatched',
                 conflictChoice: null,
                 errorMessage: '',
@@ -627,7 +699,7 @@ async function addFiles(files) {
                 scan: kind === 'svg' ? { status: 'pending' } : null,
             };
             queue.value.push(item);
-            if (autoMatch) refreshItemStatus(item);
+            if (targetId(item)) refreshItemStatus(item);
         }
     } finally {
         matching_progress.value.active = false;
@@ -641,13 +713,12 @@ async function addFiles(files) {
 
 function refreshItemStatus(item) {
     if (['uploading', 'done', 'skipped', 'error'].includes(item.status)) return;
-    if (!item.liedId) {
+    if (!targetId(item)) {
         item.status = 'unmatched';
         return;
     }
-    const lied = lookupLied(item.liedId);
     const wasConflict = item.status === 'conflict';
-    if (lied && liedHasField(lied, item) && !item.conflictChoice) {
+    if (targetHasFile(item) && !item.conflictChoice) {
         item.status = 'conflict';
         if (!wasConflict || !item.uploadedEquality) queueEqualityCheck(item);
     } else {
@@ -744,6 +815,12 @@ function lookupLied(id) {
     return store.gesangbuchlieder.find((l) => l.id === id);
 }
 
+// Liegt im Zielfeld (Lied bzw. Melodie) schon eine Datei? -> Konflikt.
+function targetHasFile(item) {
+    if (item.kind === 'choralbuch') return !!lookupMelodie(item.melodieId)?.choralbuchNoten;
+    return liedHasField(lookupLied(item.liedId), item);
+}
+
 function liedHasField(lied, item) {
     if (!lied) return false;
     if (item.kind === 'mxl') return !!lied.notentext_mxml;
@@ -755,6 +832,10 @@ function liedHasField(lied, item) {
 }
 
 function fieldFor(item) {
+    // Choralbuchsatz -> Feld auf der Melodie (nicht auf dem Lied).
+    if (item.kind === 'choralbuch') {
+        return { field: 'choralbuchNoten', fileField: 'choralbuch_noten_file' };
+    }
     if (item.kind === 'mxl') {
         return { field: 'notentext_mxml', fileField: 'notentext_mxml_file' };
     }
@@ -815,7 +896,12 @@ const FINALE_FOLDER_ID =
 const MIDI_FOLDER_ID =
     import.meta.env.VITE_MIDI_FOLDER_ID || 'd0d76c68-87fe-4c23-a799-753d38f584c5';
 
+// Choralbuchsätze optional in einen eigenen Ordner, sonst zu den Notenbildern.
+const CHORALBUCH_FOLDER_ID =
+    import.meta.env.VITE_CHORALBUCH_FOLDER_ID || NOTENTEXT_FOLDER_ID;
+
 function folderForItem(item) {
+    if (item.kind === 'choralbuch') return CHORALBUCH_FOLDER_ID;
     if (item.kind === 'finale') return FINALE_FOLDER_ID;
     if (item.kind === 'midi') return MIDI_FOLDER_ID;
     return NOTENTEXT_FOLDER_ID;
@@ -842,7 +928,46 @@ async function patchLiedField(liedId, field, fileId, extraFields = null) {
     return resp.data.data;
 }
 
+// Choralbuchsatz hochladen und an die Melodie hängen (Issue #108). Kein
+// Fingerabdruck und kein notentext_uploaded_at – beides betrifft nur den
+// Gesangbuch-Notentext.
+async function processChoralbuchItem(item) {
+    const melodie = lookupMelodie(item.melodieId);
+    if (!melodie) {
+        item.status = item.melodieId ? 'error' : 'unmatched';
+        item.errorMessage = item.melodieId ? 'Melodie nicht gefunden' : 'Keine Melodie zugeordnet';
+        return;
+    }
+    if (item.conflictChoice === 'skip') {
+        item.status = 'skipped';
+        return;
+    }
+    if (targetHasFile(item) && item.conflictChoice !== 'overwrite') {
+        item.status = 'conflict';
+        return;
+    }
+    item.status = 'uploading';
+    item.errorMessage = '';
+    try {
+        const uploaded = await uploadBlob(item.file, item.file.name, item.name, folderForItem(item));
+        item.uploadedFileId = uploaded.id;
+        await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/items/melodie/${melodie.id}`, {
+            choralbuchNoten: uploaded.id,
+        });
+        store.file.push(uploaded);
+        // Die Lieder zeigen auf dasselbe Melodie-Objekt, das Karussell sieht
+        // den neuen Satz also sofort.
+        melodie.choralbuchNoten = uploaded.id;
+        melodie.choralbuch_noten_file = uploaded;
+        item.status = 'done';
+    } catch (e) {
+        item.status = 'error';
+        item.errorMessage = e?.response?.data?.errors?.[0]?.message || e.message || String(e);
+    }
+}
+
 async function processItem(item) {
+    if (item.kind === 'choralbuch') return processChoralbuchItem(item);
     if (!item.liedId) {
         item.status = 'unmatched';
         item.errorMessage = 'Kein Lied zugeordnet';
@@ -940,7 +1065,7 @@ async function uploadAll() {
     uploading_all.value = true;
     for (const item of queue.value) {
         if (item.status === 'done' || item.status === 'skipped') continue;
-        if (!item.liedId) continue;
+        if (!targetId(item)) continue;
         if (item.status === 'conflict' && !item.conflictChoice) continue;
         await processItem(item);
     }
@@ -964,7 +1089,20 @@ const stats = computed(() => {
         (q) => q.scan?.status === 'pending' || q.scan?.status === 'scanning',
     ).length;
     const ready = matched;
+    // Erkennung der PDFs: wie viele Gesangbuch-/Choralbuchsätze, wie viele unsicher.
+    const pdfs = queue.value.filter((q) => q.pdfInfo);
+    const pdf_gesangbuch = pdfs.filter((q) => q.kind === 'pdf').length;
+    const pdf_choralbuch = pdfs.filter((q) => q.kind === 'choralbuch').length;
+    const pdf_unsure = pdfs.filter(
+        (q) => !q.kindManual && q.pdfInfo.confidence !== 'sicher',
+    ).length;
+    const pdf_warn = pdfs.filter((q) => itemWarnings(q).length).length;
     return {
+        pdf_total: pdfs.length,
+        pdf_gesangbuch,
+        pdf_choralbuch,
+        pdf_unsure,
+        pdf_warn,
         total,
         done,
         skipped,
@@ -1009,9 +1147,17 @@ function sortItemsForGroup(items) {
 
 const groups = computed(() => {
     const byLied = new Map();
+    const byMelodie = new Map();
     const unmatched = [];
     for (const item of queue.value) {
-        if (item.liedId) {
+        if (item.kind === 'choralbuch') {
+            if (item.melodieId) {
+                if (!byMelodie.has(item.melodieId)) byMelodie.set(item.melodieId, []);
+                byMelodie.get(item.melodieId).push(item);
+            } else {
+                unmatched.push(item);
+            }
+        } else if (item.liedId) {
             if (!byLied.has(item.liedId)) byLied.set(item.liedId, []);
             byLied.get(item.liedId).push(item);
         } else {
@@ -1035,6 +1181,21 @@ const groups = computed(() => {
             liedId,
             lied: lookupLied(liedId),
             items,
+        });
+    }
+    // Choralbuchsätze nach den Liedern, sortiert nach Choralbuchnummer.
+    const melodieIds = Array.from(byMelodie.keys()).sort((a, b) => {
+        const na = Number(lookupMelodie(a)?.choralbuchNummer) || Infinity;
+        const nb = Number(lookupMelodie(b)?.choralbuchNummer) || Infinity;
+        return na - nb || a - b;
+    });
+    for (const melodieId of melodieIds) {
+        result.push({
+            key: `melodie-${melodieId}`,
+            kind: 'melodie',
+            melodieId,
+            melodie: lookupMelodie(melodieId),
+            items: byMelodie.get(melodieId).sort((a, b) => a.uid - b.uid),
         });
     }
     for (const item of unmatched) {
@@ -1065,8 +1226,27 @@ function setGroupLied(group, lied) {
     sortQueue();
 }
 
+function setGroupMelodie(group, melodie) {
+    const newId = melodie?.id || null;
+    for (const item of group.items) {
+        if (['uploading', 'done'].includes(item.status)) continue;
+        item.melodieId = newId;
+        item.conflictChoice = null;
+        refreshItemStatus(item);
+    }
+    editing_group_key.value = null;
+    sortQueue();
+}
+
 function detachItem(item) {
     if (['uploading', 'done'].includes(item.status)) return;
+    if (item.kind === 'choralbuch') {
+        item.melodieId = null;
+        item.conflictChoice = null;
+        refreshItemStatus(item);
+        sortQueue();
+        return;
+    }
     item.liedId = null;
     item.conflictChoice = null;
     refreshItemStatus(item);
@@ -1094,7 +1274,10 @@ watch(queue, () => {
 }, { deep: true });
 
 watch(
-    () => queue.value.map((q) => `${q.liedId}|${q.page}|${q.midiVariant}`).join(','),
+    () =>
+        queue.value
+            .map((q) => `${q.kind}|${q.liedId}|${q.melodieId}|${q.page}|${q.midiVariant}`)
+            .join(','),
     () => refreshAllStatuses(),
 );
 
@@ -1141,6 +1324,13 @@ function buildSummaryText() {
     if (done.length) {
         lines.push(`Hochgeladen (${done.length}):`);
         done.forEach((q) => {
+            if (q.kind === 'choralbuch') {
+                const m = lookupMelodie(q.melodieId);
+                lines.push(
+                    `  • Melodie „${m?.titel || ''}" (Choralbuch-Nr. ${m?.choralbuchNummer ?? '–'}) – Choralbuchsatz (${q.name})`,
+                );
+                return;
+            }
             const lied = lookupLied(q.liedId);
             const kindLabel =
                 q.kind === 'mxl'
@@ -1151,7 +1341,7 @@ function buildSummaryText() {
                             ? 'Finale'
                             : q.kind === 'midi'
                                 ? `MIDI ${midiVariantLabel(q.midiVariant)}`
-                                : `Seite ${q.page}`;
+                                : `Gesangbuchsatz Seite ${q.page}`;
             lines.push(
                 `  • Lied ${lied?.liednummer2026 || lied?.liednummer2000 || '–'} „${lied?.titel || ''}" – ${kindLabel} (${q.name})`,
             );
@@ -1220,6 +1410,23 @@ async function shareSummary() {
         >
             Bake-Fehler: {{ stats.bake_fail }}
         </v-chip>
+        <template v-if="stats.pdf_total">
+            <v-divider vertical class="mx-1" />
+            <v-chip color="indigo" variant="tonal" prepend-icon="mdi-book-music-outline">
+                Gesangbuchsätze: {{ stats.pdf_gesangbuch }}
+            </v-chip>
+            <v-chip color="pink" variant="tonal" prepend-icon="mdi-piano">
+                Choralbuchsätze: {{ stats.pdf_choralbuch }}
+            </v-chip>
+            <v-chip
+                v-if="stats.pdf_unsure"
+                color="warning"
+                variant="tonal"
+                prepend-icon="mdi-help-circle-outline"
+            >
+                Typ unsicher: {{ stats.pdf_unsure }}
+            </v-chip>
+        </template>
     </div>
 
     <v-card class="mb-3">
@@ -1246,6 +1453,10 @@ async function shareSummary() {
                         Bearbeitungs-Vorlage. Liegen SVG und PDF zum selben Lied vor, kann die SVG
                         auf Knopfdruck am PDF-Layout ausgerichtet werden. Bei MIDI-Dateien wählt
                         „_intro"/„_main"/„_outro" den Slot (Vorspiel/Strophe/Ausleitung).
+                        PDFs werden am Format erkannt: Gesangbuchseite (120 × 176 mm) →
+                        Notentext des Lieds, A4 quer → vierstimmiger Choralbuchsatz der Melodie.
+                        Choralbuchsätze bitte als „&lt;Choralbuchnummer&gt; &lt;Titel&gt;.pdf"
+                        benennen – die Nummer bestimmt die Melodie.
                     </div>
                 </div>
             </div>
@@ -1295,6 +1506,82 @@ async function shareSummary() {
     </div>
 
     <div v-else class="d-flex flex-column ga-3">
+        <!-- Erkennung der PDFs auf einen Blick (Issue #108) -->
+        <v-expansion-panels v-if="stats.pdf_total" variant="accordion">
+            <v-expansion-panel>
+                <v-expansion-panel-title>
+                    <v-icon class="me-2">mdi-file-search-outline</v-icon>
+                    PDF-Erkennung: {{ stats.pdf_gesangbuch }} Gesangbuchsatz/-sätze,
+                    {{ stats.pdf_choralbuch }} Choralbuchsatz/-sätze
+                    <span v-if="stats.pdf_unsure" class="text-warning ms-2">
+                        · {{ stats.pdf_unsure }} unsicher
+                    </span>
+                    <span v-if="stats.pdf_warn" class="text-warning ms-2">
+                        · {{ stats.pdf_warn }} mit Hinweis
+                    </span>
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                    <v-table density="compact">
+                        <thead>
+                            <tr>
+                                <th>Datei</th>
+                                <th>Erkannt als</th>
+                                <th>Format</th>
+                                <th>Ziel</th>
+                                <th>Hinweise</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="q in queue.filter((x) => x.pdfInfo)" :key="q.uid">
+                                <td class="text-truncate" style="max-width: 280px">{{ q.name }}</td>
+                                <td>
+                                    <v-chip
+                                        size="x-small"
+                                        variant="tonal"
+                                        :color="q.kind === 'choralbuch' ? 'pink' : 'indigo'"
+                                    >
+                                        {{ pdfKindLabel(pdfKindOf(q)) }}
+                                    </v-chip>
+                                    <span
+                                        v-if="q.kindManual"
+                                        class="text-caption text-medium-emphasis ms-1"
+                                    >
+                                        (per Hand)
+                                    </span>
+                                    <span
+                                        v-else-if="q.pdfInfo.confidence !== 'sicher'"
+                                        class="text-caption text-warning ms-1"
+                                    >
+                                        (vermutet)
+                                    </span>
+                                </td>
+                                <td class="text-caption">{{ q.pdfInfo.format }}</td>
+                                <td class="text-caption">
+                                    <template v-if="q.kind === 'choralbuch'">
+                                        <template v-if="lookupMelodie(q.melodieId)">
+                                            Melodie „{{ lookupMelodie(q.melodieId).titel }}"
+                                            (Nr. {{ lookupMelodie(q.melodieId).choralbuchNummer ?? '–' }})
+                                        </template>
+                                        <span v-else class="text-warning">Melodie wählen</span>
+                                    </template>
+                                    <template v-else>
+                                        <template v-if="lookupLied(q.liedId)">
+                                            Lied
+                                            {{ lookupLied(q.liedId).liednummer2026 || lookupLied(q.liedId).liednummer2000 || '–' }}
+                                            „{{ lookupLied(q.liedId).titel }}", Seite {{ q.page }}
+                                        </template>
+                                        <span v-else class="text-warning">Lied wählen</span>
+                                    </template>
+                                </td>
+                                <td class="text-caption text-warning">
+                                    {{ itemWarnings(q).join(' · ') }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </v-table>
+                </v-expansion-panel-text>
+            </v-expansion-panel>
+        </v-expansion-panels>
         <v-card
             v-for="group in groups"
             :key="group.key"
@@ -1302,19 +1589,162 @@ async function shareSummary() {
             :style="{
                 borderLeft: group.kind === 'matched'
                     ? `5px solid ${groupColor(group.liedId)}`
-                    : '5px solid rgb(var(--v-theme-warning))',
+                    : group.kind === 'melodie'
+                        ? '5px solid #C2185B'
+                        : '5px solid rgb(var(--v-theme-warning))',
             }"
         >
             <!-- Group header -->
             <div
                 class="d-flex align-center ga-2 flex-wrap pa-3"
                 :style="{
-                    background: group.kind === 'matched'
+                    background: group.kind === 'matched' || group.kind === 'melodie'
                         ? 'rgba(0,0,0,0.02)'
                         : 'rgba(var(--v-theme-warning), 0.06)',
                 }"
             >
-                <template v-if="group.kind === 'matched' && editing_group_key !== group.key">
+                <!-- Choralbuchsatz: Gruppe je Melodie (Issue #108) -->
+                <template v-if="group.kind === 'melodie' && editing_group_key !== group.key">
+                    <v-chip
+                        size="small"
+                        variant="flat"
+                        :style="{ backgroundColor: '#C2185B', color: 'white' }"
+                    >
+                        Choralbuch {{ group.melodie?.choralbuchNummer ?? '–' }}
+                    </v-chip>
+                    <span class="text-subtitle-1 font-weight-medium">
+                        Melodie: {{ group.melodie?.titel || 'Unbekannte Melodie' }}
+                    </span>
+                    <v-tooltip
+                        v-if="liederAufMelodie(group.melodieId).length"
+                        location="top"
+                        max-width="420"
+                    >
+                        <template #activator="{ props }">
+                            <v-chip
+                                v-bind="props"
+                                size="x-small"
+                                variant="tonal"
+                                prepend-icon="mdi-music-note-outline"
+                            >
+                                {{ liederAufMelodie(group.melodieId).length }}
+                                Lied{{ liederAufMelodie(group.melodieId).length === 1 ? '' : 'er' }}
+                            </v-chip>
+                        </template>
+                        <div v-for="l in liederAufMelodie(group.melodieId)" :key="l.id">
+                            {{ l.liednummer2026 || l.liednummer2000 || '–' }} · {{ l.titel }}
+                        </div>
+                    </v-tooltip>
+                    <v-chip
+                        v-if="!group.melodie?.choralbuchNummer"
+                        size="x-small"
+                        variant="tonal"
+                        color="warning"
+                        prepend-icon="mdi-alert-outline"
+                    >
+                        Melodie hat keine Choralbuchnummer
+                    </v-chip>
+                    <v-spacer />
+                    <v-tooltip text="Melodie wechseln" location="top">
+                        <template #activator="{ props }">
+                            <v-btn
+                                v-bind="props"
+                                icon="mdi-pencil-outline"
+                                variant="text"
+                                size="small"
+                                @click="startEditLied(group)"
+                            />
+                        </template>
+                    </v-tooltip>
+                    <v-tooltip text="Melodie im Directus öffnen" location="top">
+                        <template #activator="{ props }">
+                            <v-btn
+                                v-bind="props"
+                                icon="mdi-open-in-new"
+                                variant="text"
+                                size="small"
+                                :href="melodieAdminUrl(group.melodieId)"
+                                target="_blank"
+                            />
+                        </template>
+                    </v-tooltip>
+                </template>
+                <template v-else-if="group.kind === 'melodie'">
+                    <v-autocomplete
+                        :model-value="group.melodieId"
+                        :items="melodieAutocompleteItems"
+                        item-title="title"
+                        item-value="id"
+                        density="compact"
+                        hide-details
+                        clearable
+                        label="Melodie wechseln"
+                        style="min-width: 320px; max-width: 480px"
+                        autofocus
+                        @update:model-value="(v) => setGroupMelodie(group, lookupMelodie(v))"
+                    />
+                    <v-btn
+                        size="small"
+                        variant="text"
+                        prepend-icon="mdi-close"
+                        @click="cancelEditLied"
+                    >
+                        Abbrechen
+                    </v-btn>
+                    <template v-if="group.items[0].melodieSuggestions?.length">
+                        <span class="text-caption text-medium-emphasis">Vorschläge:</span>
+                        <v-chip
+                            v-for="s in group.items[0].melodieSuggestions.slice(0, 3).filter((s) => s.score > 0.2 && s.melodie.id !== group.melodieId)"
+                            :key="s.melodie.id"
+                            size="x-small"
+                            variant="tonal"
+                            color="pink"
+                            class="cursor-pointer"
+                            :title="s.reason"
+                            @click="setGroupMelodie(group, s.melodie)"
+                        >
+                            {{ s.melodie.choralbuchNummer ?? '?' }} ·
+                            {{ s.melodie.titel }}
+                            ({{ (s.score * 100).toFixed(0) }}%)
+                        </v-chip>
+                    </template>
+                </template>
+                <template
+                    v-else-if="group.kind === 'unmatched' && group.items[0].kind === 'choralbuch'"
+                >
+                    <v-icon color="warning">mdi-alert-outline</v-icon>
+                    <v-autocomplete
+                        :model-value="group.items[0].melodieId"
+                        :items="melodieAutocompleteItems"
+                        item-title="title"
+                        item-value="id"
+                        density="compact"
+                        hide-details
+                        clearable
+                        label="Melodie wählen (Choralbuchsatz)"
+                        style="min-width: 320px; max-width: 480px"
+                        :disabled="['uploading', 'done'].includes(group.items[0].status)"
+                        @update:model-value="(v) => setMelodie(group.items[0], lookupMelodie(v))"
+                    />
+                    <template v-if="group.items[0].melodieSuggestions?.length">
+                        <span class="text-caption text-medium-emphasis">Vorschläge:</span>
+                        <v-chip
+                            v-for="s in group.items[0].melodieSuggestions.slice(0, 3).filter((s) => s.score > 0.2)"
+                            :key="s.melodie.id"
+                            size="x-small"
+                            variant="tonal"
+                            color="pink"
+                            class="cursor-pointer"
+                            :title="s.reason"
+                            @click="setMelodie(group.items[0], s.melodie)"
+                        >
+                            {{ s.melodie.choralbuchNummer ?? '?' }} ·
+                            {{ s.melodie.titel }}
+                            ({{ (s.score * 100).toFixed(0) }}%)
+                        </v-chip>
+                    </template>
+                </template>
+                <template v-else-if="group.kind === 'matched' && editing_group_key !== group.key">
                     <v-chip
                         size="small"
                         variant="flat"
@@ -1442,23 +1872,23 @@ async function shareSummary() {
                 <div
                     class="item-thumb"
                     :class="{
-                        'item-thumb--clickable': item.kind === 'svg' && item.previewUrl,
-                        'item-thumb--sheet': item.kind === 'svg' && item.previewUrl,
+                        'item-thumb--clickable': item.previewUrl,
+                        'item-thumb--sheet': item.previewUrl,
                     }"
-                    :title="item.kind === 'svg' && item.previewUrl ? 'Vorschau vergrößern' : ''"
+                    :title="item.previewUrl ? 'Vorschau vergrößern' : ''"
                     @click="openPreviewDialog(item)"
                 >
                     <img
-                        v-if="item.kind === 'svg' && item.previewUrl"
+                        v-if="item.previewUrl"
                         :src="item.previewUrl"
-                        alt="SVG-Vorschau"
+                        :alt="item.kind === 'svg' ? 'SVG-Vorschau' : 'PDF-Vorschau'"
                         style="max-width: 100%; max-height: 100%; object-fit: contain"
                     />
                     <template v-else-if="item.kind === 'mxl'">
                         <v-icon size="40" color="primary">mdi-music-box-multiple-outline</v-icon>
                         <div class="text-caption text-medium-emphasis mt-1">MusicXML</div>
                     </template>
-                    <template v-else-if="item.kind === 'pdf'">
+                    <template v-else-if="item.kind === 'pdf' || item.kind === 'choralbuch'">
                         <v-icon size="40" color="error">mdi-file-pdf-box</v-icon>
                         <div class="text-caption text-medium-emphasis mt-1">PDF</div>
                     </template>
@@ -1486,8 +1916,79 @@ async function shareSummary() {
                         <span class="text-body-2 font-weight-medium text-truncate">
                             {{ item.name }}
                         </span>
+                        <!-- Erkannter PDF-Typ mit Begründung (Issue #108) -->
+                        <template v-if="item.pdfInfo">
+                            <v-tooltip location="top" max-width="420">
+                                <template #activator="{ props }">
+                                    <v-chip
+                                        v-bind="props"
+                                        size="x-small"
+                                        :variant="item.pdfInfo.confidence === 'sicher' || item.kindManual ? 'flat' : 'outlined'"
+                                        :color="item.kind === 'choralbuch' ? 'pink' : 'indigo'"
+                                        :prepend-icon="item.kind === 'choralbuch' ? 'mdi-piano' : 'mdi-book-music-outline'"
+                                    >
+                                        {{ pdfKindLabel(pdfKindOf(item)) }}
+                                        <template v-if="item.kindManual">&nbsp;(per Hand)</template>
+                                        <template v-else-if="item.pdfInfo.confidence !== 'sicher'">
+                                            &nbsp;(vermutet)
+                                        </template>
+                                    </v-chip>
+                                </template>
+                                <div class="font-weight-medium mb-1">
+                                    Erkannt als {{ pdfKindLabel(item.pdfInfo.kind) }}
+                                    ({{ item.pdfInfo.confidence }})
+                                </div>
+                                <div v-for="(r, ri) in item.pdfInfo.reasons" :key="ri">• {{ r }}</div>
+                                <div v-if="item.kindManual" class="mt-1">
+                                    Per Hand auf {{ pdfKindLabel(pdfKindOf(item)) }} umgestellt.
+                                </div>
+                            </v-tooltip>
+                            <v-tooltip
+                                :text="item.kind === 'choralbuch'
+                                    ? 'Stattdessen als Gesangbuchsatz (Notentext des Lieds) hochladen'
+                                    : 'Stattdessen als Choralbuchsatz (an die Melodie) hochladen'"
+                                location="top"
+                            >
+                                <template #activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        icon="mdi-swap-horizontal"
+                                        variant="text"
+                                        size="x-small"
+                                        density="comfortable"
+                                        :disabled="['uploading', 'done'].includes(item.status)"
+                                        @click="setPdfKind(item, item.kind === 'choralbuch' ? PDF_KIND_GESANGBUCH : PDF_KIND_CHORALBUCH)"
+                                    />
+                                </template>
+                            </v-tooltip>
+                            <v-tooltip
+                                v-if="itemWarnings(item).length"
+                                location="top"
+                                max-width="420"
+                            >
+                                <template #activator="{ props }">
+                                    <v-chip
+                                        v-bind="props"
+                                        size="x-small"
+                                        variant="tonal"
+                                        color="warning"
+                                        prepend-icon="mdi-alert-outline"
+                                    >
+                                        Hinweis
+                                    </v-chip>
+                                </template>
+                                <div v-for="(w, wi) in itemWarnings(item)" :key="wi">• {{ w }}</div>
+                            </v-tooltip>
+                        </template>
                         <v-chip
-                            v-if="item.kind === 'mxl'"
+                            v-if="item.kind === 'choralbuch'"
+                            size="x-small"
+                            variant="tonal"
+                        >
+                            → melodie.choralbuchNoten
+                        </v-chip>
+                        <v-chip
+                            v-else-if="item.kind === 'mxl'"
                             size="x-small"
                             variant="tonal"
                             color="primary"
@@ -1722,6 +2223,9 @@ async function shareSummary() {
                             <template v-else-if="item.kind === 'finale'">
                                 Lied hat bereits eine Finale-Datei. Was tun?
                             </template>
+                            <template v-else-if="item.kind === 'choralbuch'">
+                                Melodie hat bereits einen Choralbuchsatz. Was tun?
+                            </template>
                             <template v-else-if="item.kind === 'midi'">
                                 Lied hat bereits eine MIDI-Datei für
                                 {{ midiVariantLabel(item.midiVariant) }}. Was tun?
@@ -1777,7 +2281,7 @@ async function shareSummary() {
                                 Mit hochgeladener Version vergleichen
                             </v-btn>
                             <v-btn
-                                v-if="item.kind === 'pdf' && canComparePdf(item)"
+                                v-if="(item.kind === 'pdf' || item.kind === 'choralbuch') && canComparePdf(item)"
                                 size="x-small"
                                 variant="tonal"
                                 color="primary"
@@ -1835,7 +2339,7 @@ async function shareSummary() {
                         </template>
                     </v-tooltip>
                     <v-tooltip
-                        v-if="item.kind === 'pdf' && canComparePdf(item)"
+                        v-if="(item.kind === 'pdf' || item.kind === 'choralbuch') && canComparePdf(item)"
                         text="Mit vorhandenem Notentext (Seite 1/2) vergleichen"
                         location="top"
                     >
@@ -1851,7 +2355,7 @@ async function shareSummary() {
                         </template>
                     </v-tooltip>
                     <v-tooltip
-                        v-if="group.kind === 'matched' && group.items.length > 1"
+                        v-if="(group.kind === 'matched' || group.kind === 'melodie') && group.items.length > 1"
                         text="Aus dieser Gruppe lösen (Lied entfernen)"
                         location="top"
                     >

@@ -87,19 +87,16 @@ function getDocumentWithOwnWorker(pdfjs, params) {
 // dann ohne Fingerabdruck weiter, der Druck-Check lädt die PDF eben nach).
 const GET_DOCUMENT_TIMEOUT_MS = 20000;
 
-// Fingerabdruck aus einer Notensatz-PDF (ArrayBuffer/Uint8Array) rechnen.
-export async function fingerprintFromPdfBytes(bytes, fileId) {
+// Lädt ein PDF mit unserem eigenen Worker und hartem Timeout (s. o.).
+async function loadPdfDocument(bytes, params = {}) {
     const pdfjs = await getPdfjs();
     const loadingTask = getDocumentWithOwnWorker(pdfjs, {
         data: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
-        // Die Glyphen kommen aus dem Text-Layer; gerendert wird nichts. Ohne
-        // diesen Schalter lädt pdf.js die eingebetteten Fonts unnötig.
-        disableFontFace: true,
+        ...params,
     });
     let timeoutId;
-    let doc;
     try {
-        doc = await Promise.race([
+        return await Promise.race([
             loadingTask.promise,
             new Promise((_, reject) => {
                 timeoutId = setTimeout(
@@ -109,14 +106,73 @@ export async function fingerprintFromPdfBytes(bytes, fileId) {
             }),
         ]);
     } catch (e) {
-        clearTimeout(timeoutId);
         // Hängenden/laufenden Ladevorgang samt Worker abbrechen.
         loadingTask.destroy?.();
         throw e;
+    } finally {
+        clearTimeout(timeoutId);
     }
-    clearTimeout(timeoutId);
+}
+
+// Fingerabdruck aus einer Notensatz-PDF (ArrayBuffer/Uint8Array) rechnen.
+export async function fingerprintFromPdfBytes(bytes, fileId) {
+    // Die Glyphen kommen aus dem Text-Layer; gerendert wird nichts. Ohne
+    // disableFontFace lädt pdf.js die eingebetteten Fonts unnötig.
+    const doc = await loadPdfDocument(bytes, { disableFontFace: true });
     try {
         return await fingerprintNotenPdf(doc, fileId);
+    } finally {
+        doc.destroy?.();
+    }
+}
+
+// Breite des Vorschaubilds in px. Reicht, um im Choralbuchsatz oben links die
+// Choralbuchnummer zu lesen, und bleibt bei ein paar hundert PDFs klein.
+const PREVIEW_WIDTH_PX = 900;
+
+/**
+ * Was der Upload über ein Noten-PDF wissen muss, um es einzuordnen
+ * (Gesangbuchsatz oder Choralbuchsatz, Issue #108): Seitengrößen in pt (mit
+ * Drehung), Metadaten und ein Vorschaubild der ersten Seite als JPEG-Data-URL.
+ */
+export async function inspectNotenPdfFile(file) {
+    const doc = await loadPdfDocument(await file.arrayBuffer());
+    try {
+        const pages = [];
+        let firstPage = null;
+        for (let i = 1; i <= doc.numPages; i++) {
+            const page = await doc.getPage(i);
+            const { width, height } = page.getViewport({ scale: 1 });
+            pages.push({ width, height });
+            if (i === 1) firstPage = page;
+        }
+        let title = '';
+        let producer = '';
+        try {
+            const meta = await doc.getMetadata();
+            title = meta?.info?.Title || '';
+            producer = meta?.info?.Producer || '';
+        } catch {
+            // Metadaten sind nur Beiwerk für die Begründung.
+        }
+        let previewUrl = null;
+        if (firstPage && typeof document !== 'undefined') {
+            try {
+                const base = firstPage.getViewport({ scale: 1 });
+                const viewport = firstPage.getViewport({ scale: PREVIEW_WIDTH_PX / base.width });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.ceil(viewport.width);
+                canvas.height = Math.ceil(viewport.height);
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                await firstPage.render({ canvasContext: ctx, viewport }).promise;
+                previewUrl = canvas.toDataURL('image/jpeg', 0.8);
+            } catch (e) {
+                console.warn('PDF-Vorschau konnte nicht gerendert werden', file?.name, e);
+            }
+        }
+        return { pages, title, producer, previewUrl };
     } finally {
         doc.destroy?.();
     }
