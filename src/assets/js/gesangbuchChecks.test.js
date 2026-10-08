@@ -234,3 +234,70 @@ describe('Check „Autorennamen ohne Leerzeichen“ (Issue #118)', () => {
         expect(run([{ id: 1, vorname: 'A', nachname: 'B' }]).status).toBe('ok');
     });
 });
+
+describe('Check „Nach Eberhard Köhler nur mit Text geändert“ (Issue #119)', () => {
+    const run = (lieder) =>
+        runChecks(lieder).find((c) => c.id === 'nach-koehler-ohne-text-geaendert');
+    const koehler = (autorPrefix, autor_id = 28) => ({
+        autor_id,
+        vorname: 'Eberhard',
+        nachname: 'Köhler',
+        autorPrefix,
+    });
+
+    it('warnt bei „Nach Eberhard Köhler“ ohne gesetztes „Text geändert“', () => {
+        const r = run([
+            {
+                id: 1,
+                titel: 'Nicht gesetzt',
+                status: 'accepted',
+                textGeaendert: false,
+                text: { authors: [koehler('Nach')] },
+            },
+            {
+                id: 2,
+                titel: 'Leer',
+                status: 'accepted',
+                textGeaendert: null,
+                text: { authors: [koehler('nach')] },
+            },
+            {
+                id: 3,
+                titel: 'Gesetzt',
+                status: 'accepted',
+                textGeaendert: true,
+                text: { authors: [koehler('Nach')] },
+            },
+            {
+                id: 4,
+                titel: 'Ohne Nach',
+                status: 'accepted',
+                textGeaendert: false,
+                text: { authors: [koehler(null)] },
+            },
+            {
+                id: 5,
+                titel: 'Anderer Autor',
+                status: 'accepted',
+                textGeaendert: false,
+                text: { authors: [koehler('Nach', 29)] },
+            },
+            {
+                id: 6,
+                titel: 'Entwurf',
+                status: 'draft',
+                textGeaendert: false,
+                text: { authors: [koehler('Nach')] },
+            },
+        ]);
+        expect(r.status).toBe('warning');
+        expect(r.items.map((i) => [i.id, i.detail])).toEqual([
+            [1, '„Text geändert“ nicht gesetzt'],
+            [2, '„Text geändert“ leer'],
+        ]);
+    });
+
+    it('ok ohne Befund', () => {
+        expect(run([]).status).toBe('ok');
+    });
+});

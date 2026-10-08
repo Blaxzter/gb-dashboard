@@ -285,6 +285,10 @@ function result(ok, severity, summary, items) {
 // nicht originalen Text. Als ganzes Wort, Groß-/Kleinschreibung egal.
 const NACH_PREFIX_REGEX = /(^|[^\p{L}])nach([^\p{L}]|$)/iu;
 
+// Directus-ID von Eberhard Köhler (Issue #119): „Nach Eberhard Köhler“ heißt,
+// dass der Text überarbeitet wurde – am Lied muss dann „Text geändert“ stehen.
+const EBERHARD_KOEHLER_ID = 28;
+
 // Name eines Autors ohne Lebensdaten – Vor- und Nachname getrimmt.
 function autorName(autor) {
     return (
@@ -1077,6 +1081,38 @@ export const CHECKS = [
                 items.length === 0
                     ? 'Alle genommenen Lieder mit geändertem Text haben „Nach“ beim Textautor.'
                     : `${items.length} genommene(s) Lied(er) mit geändertem Text, aber ohne „Nach“ beim Textautor.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'nach-koehler-ohne-text-geaendert',
+        category: 'Redaktion',
+        title: '„Nach Eberhard Köhler“ nur mit „Text geändert“',
+        description:
+            'Steht bei einem genommenen Lied „Nach Eberhard Köhler“ beim Textautor, wurde der Text gegenüber Köhlers Fassung überarbeitet – dann muss am Lied auch „Text geändert“ gesetzt sein. Gemeldet werden Lieder, bei denen das Häkchen fehlt (Issue #119).',
+        run({ genommen }) {
+            const items = genommen
+                .filter((l) => l.textGeaendert !== true)
+                .filter((l) =>
+                    (l.text?.authors || []).some(
+                        (a) =>
+                            Number(a?.autor_id) === EBERHARD_KOEHLER_ID &&
+                            NACH_PREFIX_REGEX.test(a?.autorPrefix || ''),
+                    ),
+                )
+                .map((l) =>
+                    songItem(
+                        l,
+                        `„Text geändert“ ${l.textGeaendert === false ? 'nicht gesetzt' : 'leer'}`,
+                    ),
+                );
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Alle genommenen Lieder mit „Nach Eberhard Köhler“ haben „Text geändert“ gesetzt.'
+                    : `${items.length} genommene(s) Lied(er) mit „Nach Eberhard Köhler“, aber ohne „Text geändert“.`,
                 items,
             );
         },
