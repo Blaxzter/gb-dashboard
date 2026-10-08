@@ -281,6 +281,32 @@ function result(ok, severity, summary, items) {
     return { status: ok ? 'ok' : severity, summary, items: items || [] };
 }
 
+// Präfix „Nach“ beim Textautor (Issue #117): kennzeichnet einen überarbeiteten,
+// nicht originalen Text. Als ganzes Wort, Groß-/Kleinschreibung egal.
+const NACH_PREFIX_REGEX = /(^|[^\p{L}])nach([^\p{L}]|$)/iu;
+
+// Name eines Autors ohne Lebensdaten – Vor- und Nachname getrimmt.
+function autorName(autor) {
+    return (
+        [autor?.vorname, autor?.nachname]
+            .map((v) => String(v ?? '').trim())
+            .filter(Boolean)
+            .join(' ') || `Autor #${autor?.autor_id ?? autor?.id}`
+    );
+}
+
+// Beschreibt Whitespace am Rand eines Namensteils (Issue #118): 'beginnt mit
+// Leerzeichen', 'endet mit Leerzeichen', beides – oder null, wenn sauber.
+function whitespaceRaender(value) {
+    if (typeof value !== 'string') return null;
+    const vorne = /^\s/.test(value);
+    const hinten = /\s$/.test(value);
+    if (vorne && hinten) return 'beginnt und endet mit Leerzeichen';
+    if (vorne) return 'beginnt mit Leerzeichen';
+    if (hinten) return 'endet mit Leerzeichen';
+    return null;
+}
+
 function songItem(lied, detail) {
     return {
         // `id` verweist auf das Lied – die View öffnet damit den Lied-Dialog.
@@ -986,6 +1012,76 @@ export const CHECKS = [
         },
     },
     {
+        id: 'autor-name-leerzeichen',
+        category: 'Redaktion',
+        title: 'Autorennamen ohne Leerzeichen am Anfang/Ende',
+        description:
+            'Vor- und Nachname eines Autors dürfen nicht mit einem Leerzeichen (oder anderem Whitespace) beginnen oder enden – sonst entstehen in der Autorenzeile doppelte Leerzeichen bzw. ein Leerzeichen vor den Lebensdaten. Geprüft werden alle Autoren, nicht nur die genommener Lieder (Issue #118).',
+        run({ authors }) {
+            const items = (authors || [])
+                .map((autor) => {
+                    const stellen = [
+                        ['Vorname', autor?.vorname],
+                        ['Nachname', autor?.nachname],
+                    ]
+                        .map(([label, wert]) => [label, whitespaceRaender(wert)])
+                        .filter(([, raender]) => raender)
+                        .map(([label, raender]) => `${label} ${raender}`);
+                    if (!stellen.length) return null;
+                    return {
+                        title: autorName(autor),
+                        detail: `${stellen.join(' · ')} – Status: ${status_mapping[autor.status] || autor.status || 'ohne Status'}`,
+                    };
+                })
+                .filter(Boolean);
+            const sortiert = _.sortBy(items, (i) => i.title.toLowerCase());
+            return result(
+                sortiert.length === 0,
+                'error',
+                sortiert.length === 0
+                    ? 'Kein Vor- oder Nachname beginnt oder endet mit einem Leerzeichen.'
+                    : `${sortiert.length} Autor(en) mit Leerzeichen am Anfang/Ende von Vor- oder Nachname.`,
+                sortiert,
+            );
+        },
+    },
+    {
+        id: 'text-geaendert-ohne-nach',
+        category: 'Redaktion',
+        title: 'Bearbeitete Texte mit „Nach“ beim Textautor',
+        description:
+            'Hinweis (kein Fehler): Ist bei einem genommenen Lied „Text geändert“ gesetzt, sollte beim Textautor das Präfix „Nach“ stehen – es zeigt an, dass nicht der Originaltext abgedruckt wird. Gemeldet werden Lieder, bei denen kein Textautor dieses Präfix trägt. Ein Mensch muss dann prüfen, ob der Autor die Überarbeitung selbst vorgenommen hat (dann ist alles in Ordnung) oder ob das „Nach“ vergessen wurde (Issue #117).',
+        run({ genommen }) {
+            const items = genommen
+                .filter((l) => l.textGeaendert === true)
+                .filter(
+                    (l) =>
+                        !(l.text?.authors || []).some((a) =>
+                            NACH_PREFIX_REGEX.test(a?.autorPrefix || ''),
+                        ),
+                )
+                .map((l) => {
+                    const autoren = (l.text?.authors || []).map((a) =>
+                        [a.autorPrefix, autorName(a)].filter(Boolean).join(' '),
+                    );
+                    return songItem(
+                        l,
+                        autoren.length
+                            ? `Textautor: ${autoren.join(' · ')}`
+                            : 'Kein Textautor hinterlegt',
+                    );
+                });
+            return result(
+                items.length === 0,
+                'info',
+                items.length === 0
+                    ? 'Alle genommenen Lieder mit geändertem Text haben „Nach“ beim Textautor.'
+                    : `${items.length} genommene(s) Lied(er) mit geändertem Text, aber ohne „Nach“ beim Textautor.`,
+                items,
+            );
+        },
+    },
+    {
         id: 'doppelte-titel',
         category: 'Redaktion',
         title: 'Keine doppelten Titel',
@@ -1507,6 +1603,62 @@ export const CHECKS = [
                     ? 'Keine ähnlichen, aber unterschiedlich geschriebenen Copyright-Angaben gefunden.'
                     : `${groups.length} Gruppe(n) ähnlicher, aber unterschiedlich geschriebener Copyright-Angaben.`,
                 items,
+            );
+        },
+    },
+    {
+        id: 'copyright-ohne-haekchen',
+        category: 'Copyright',
+        title: 'Copyright-Angabe nur mit Häkchen „Autor oder Copyright checken“',
+        description:
+            'Steht bei einem genommenen Lied im Copyright-Feld von Lied, Text oder Melodie etwas, muss am Lied das Häkchen „Autor oder Copyright checken“ gesetzt sein – sonst fällt das Lied aus der Copyright-Recherche heraus. Gemeldet werden Lieder mit gefülltem Copyright-Feld, bei denen das Häkchen nicht gesetzt oder leer ist (Issue #115).',
+        run({ genommen }) {
+            const items = [];
+            genommen.forEach((l) => {
+                if (l.autor_oder_copyright_checken === true) return;
+                const felder = [
+                    ['Lied', l.copyright],
+                    ['Text', l.text?.copyright],
+                    ['Melodie', l.melodie?.copyright],
+                ]
+                    .filter(([, wert]) => String(wert ?? '').trim())
+                    .map(([label]) => label);
+                if (!felder.length) return;
+                const haekchen =
+                    l.autor_oder_copyright_checken === false ? 'nicht gesetzt' : 'leer';
+                items.push(
+                    songItem(l, `Copyright bei: ${felder.join(' · ')} – Häkchen ${haekchen}`),
+                );
+            });
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Alle genommenen Lieder mit Copyright-Angabe haben das Häkchen „Autor oder Copyright checken“.'
+                    : `${items.length} genommene(s) Lied(er) mit Copyright-Angabe, aber ohne Häkchen „Autor oder Copyright checken“.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'copyright-checks-offen',
+        category: 'Copyright',
+        title: 'Copyright-Prüfungen abgeschlossen',
+        description:
+            'Genommene Lieder mit gesetztem Häkchen „Autor oder Copyright checken“, bei denen „Copyright-Checks abgeschlossen“ noch nicht gesetzt ist – hier ist noch etwas offen (Recherche, Lizenz-OK oder Bezahlung) (Issue #116).',
+        run({ genommen }) {
+            // Feldname in Directus tatsächlich mit Tippfehler „coyprightChecksFinished“.
+            const offen = genommen.filter(
+                (l) =>
+                    l.autor_oder_copyright_checken === true && l.coyprightChecksFinished !== true,
+            );
+            return result(
+                offen.length === 0,
+                'warning',
+                offen.length === 0
+                    ? 'Alle Copyright-Prüfungen genommener Lieder sind abgeschlossen.'
+                    : `${offen.length} genommene(s) Lied(er) mit noch nicht abgeschlossener Copyright-Prüfung.`,
+                offen.map((l) => songItem(l)),
             );
         },
     },

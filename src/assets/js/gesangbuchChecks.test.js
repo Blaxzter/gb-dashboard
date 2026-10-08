@@ -68,3 +68,169 @@ describe('Check „Kein Rein, wenn bei Text oder Melodie“ (Issue #103)', () =>
         expect(r.status).toBe('ok');
     });
 });
+
+describe('Check „Copyright-Angabe nur mit Häkchen“ (Issue #115)', () => {
+    const run = (lieder) => runChecks(lieder).find((c) => c.id === 'copyright-ohne-haekchen');
+
+    it('meldet gefüllte Copyright-Felder ohne gesetztes Häkchen', () => {
+        const r = run([
+            {
+                id: 1,
+                titel: 'Lied',
+                status: 'accepted',
+                copyright: 'Verlag',
+                autor_oder_copyright_checken: false,
+            },
+            {
+                id: 2,
+                titel: 'Text+Melodie',
+                status: 'accepted',
+                text: { copyright: 'A' },
+                melodie: { copyright: '©' },
+                autor_oder_copyright_checken: null,
+            },
+            {
+                id: 3,
+                titel: 'Mit Häkchen',
+                status: 'accepted',
+                copyright: 'Verlag',
+                autor_oder_copyright_checken: true,
+            },
+            {
+                id: 4,
+                titel: 'Leer',
+                status: 'accepted',
+                copyright: '  ',
+                autor_oder_copyright_checken: false,
+            },
+        ]);
+        expect(r.status).toBe('warning');
+        expect(r.items.map((i) => [i.id, i.detail])).toEqual([
+            [1, 'Copyright bei: Lied – Häkchen nicht gesetzt'],
+            [2, 'Copyright bei: Text · Melodie – Häkchen leer'],
+        ]);
+    });
+});
+
+describe('Check „Copyright-Prüfungen abgeschlossen“ (Issue #116)', () => {
+    const run = (lieder) => runChecks(lieder).find((c) => c.id === 'copyright-checks-offen');
+
+    it('meldet Lieder mit Häkchen, aber ohne abgeschlossene Prüfung', () => {
+        const r = run([
+            {
+                id: 1,
+                titel: 'Offen',
+                status: 'accepted',
+                autor_oder_copyright_checken: true,
+                coyprightChecksFinished: false,
+            },
+            {
+                id: 2,
+                titel: 'Null',
+                status: 'accepted',
+                autor_oder_copyright_checken: true,
+                coyprightChecksFinished: null,
+            },
+            {
+                id: 3,
+                titel: 'Fertig',
+                status: 'accepted',
+                autor_oder_copyright_checken: true,
+                coyprightChecksFinished: true,
+            },
+            {
+                id: 4,
+                titel: 'Kein Copyright',
+                status: 'accepted',
+                autor_oder_copyright_checken: false,
+                coyprightChecksFinished: false,
+            },
+            {
+                id: 5,
+                titel: 'Entwurf',
+                status: 'draft',
+                autor_oder_copyright_checken: true,
+                coyprightChecksFinished: false,
+            },
+        ]);
+        expect(r.status).toBe('warning');
+        expect(r.items.map((i) => i.id)).toEqual([1, 2]);
+    });
+});
+
+describe('Check „Bearbeitete Texte mit Nach“ (Issue #117)', () => {
+    const run = (lieder) => runChecks(lieder).find((c) => c.id === 'text-geaendert-ohne-nach');
+    const autor = (autorPrefix) => ({ vorname: 'Anna', nachname: 'Muster', autorPrefix });
+
+    it('meldet geänderte Texte ohne „Nach“ als Hinweis', () => {
+        const r = run([
+            {
+                id: 1,
+                titel: 'Ohne Nach',
+                status: 'accepted',
+                textGeaendert: true,
+                text: { authors: [autor('Strophe 1')] },
+            },
+            {
+                id: 2,
+                titel: 'Mit Nach',
+                status: 'accepted',
+                textGeaendert: true,
+                text: { authors: [autor('nach')] },
+            },
+            {
+                id: 3,
+                titel: 'Ohne Autor',
+                status: 'accepted',
+                textGeaendert: true,
+                text: { authors: [] },
+            },
+            {
+                id: 4,
+                titel: 'Unverändert',
+                status: 'accepted',
+                textGeaendert: false,
+                text: { authors: [autor(null)] },
+            },
+        ]);
+        expect(r.status).toBe('info');
+        expect(r.items.map((i) => [i.id, i.detail])).toEqual([
+            [1, 'Textautor: Strophe 1 Anna Muster'],
+            [3, 'Kein Textautor hinterlegt'],
+        ]);
+    });
+
+    it('„Nach“ nur als ganzes Wort', () => {
+        const r = run([
+            {
+                id: 1,
+                titel: 'Nachdichtung',
+                status: 'accepted',
+                textGeaendert: true,
+                text: { authors: [autor('Nachdichtung')] },
+            },
+        ]);
+        expect(r.items.map((i) => i.id)).toEqual([1]);
+    });
+});
+
+describe('Check „Autorennamen ohne Leerzeichen“ (Issue #118)', () => {
+    const run = (authors) => runChecks([], authors).find((c) => c.id === 'autor-name-leerzeichen');
+
+    it('meldet Vor- und Nachnamen mit Whitespace am Rand als Fehler', () => {
+        const r = run([
+            { id: 1, vorname: 'Anna ', nachname: 'Muster', status: 'published' },
+            { id: 2, vorname: 'Bert', nachname: ' Beispiel ', status: 'uploaded' },
+            { id: 3, vorname: 'Clara', nachname: 'Sauber', status: 'published' },
+            { id: 4, vorname: null, nachname: 'unbekannt', status: 'published' },
+        ]);
+        expect(r.status).toBe('error');
+        expect(r.items.map((i) => i.title)).toEqual(['Anna Muster', 'Bert Beispiel']);
+        expect(r.items[0].detail).toContain('Vorname endet mit Leerzeichen');
+        expect(r.items[1].detail).toContain('Nachname beginnt und endet mit Leerzeichen');
+    });
+
+    it('ok ohne Befund', () => {
+        expect(run([{ id: 1, vorname: 'A', nachname: 'B' }]).status).toBe('ok');
+    });
+});
