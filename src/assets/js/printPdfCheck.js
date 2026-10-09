@@ -107,6 +107,16 @@ function isFooterLine(line) {
     return FOOTER_LABEL.test(line.text) || FOOTER_COPYRIGHT.test(line.text);
 }
 
+// Sprach-Überschrift über einem fremdsprachigen Lied („ENGLISCH", klein und in
+// Versalien über der Liednummer, Seite 16). Sie ist weder Strophe noch Fußzeile
+// und wird vor der Zerlegung verworfen – sonst gilt sie als Textblock ohne
+// Strophennummer.
+const LANGUAGE_LABEL =
+    /^\s*(DEUTSCH|ENGLISCH|FRANZÖSISCH|SPANISCH|ITALIENISCH|PORTUGIESISCH|NIEDERLÄNDISCH|LATEINISCH|LATEIN|RUSSISCH|POLNISCH|SCHWEDISCH|NORWEGISCH|DÄNISCH|FINNISCH|UNGARISCH|TSCHECHISCH|HEBRÄISCH|GRIECHISCH|SUAHELI|SWAHILI)\s*$/;
+function isLanguageLabel(line) {
+    return LANGUAGE_LABEL.test(line.text);
+}
+
 // Signatur einer Fußzeile für den Vergleich: nur Buchstaben+Ziffern, ohne
 // Label-Wörter, ohne Jahres-Dekoration (* + – ( )). Dadurch ist der Vergleich
 // unabhängig davon, dass der Druck „(*1650 +1680)" statt „(1650–1680)" setzt und
@@ -523,7 +533,7 @@ export async function extractPdfSongs(pdfDoc) {
         const bodyItems = dropNotationItems(
             remove.size ? items.filter((i) => !remove.has(i)) : items,
         );
-        let lines = groupLines(bodyItems, sizeHint);
+        let lines = groupLines(bodyItems, sizeHint).filter((l) => !isLanguageLabel(l));
         for (const l of lines) l.page = p;
 
         // Ein Lied beginnt dort, wo sein Notensatz steht – nicht dort, wo eine
