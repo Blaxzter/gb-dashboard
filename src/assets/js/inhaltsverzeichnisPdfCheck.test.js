@@ -132,6 +132,28 @@ describe('extractIvzEntries', () => {
         );
     });
 
+    it('verkraftet einspaltigen Satz mit gespiegeltem Rand (gerade/ungerade Seiten)', async () => {
+        // Einseitige Fassung: eine Spalte je Seite, die Nummernspalte liegt auf
+        // ungeraden Seiten bei ~65 pt, auf geraden bei ~51 pt. Früher galten die
+        // beiden Lagen als zwei Spalten derselben Seite – die geraden Seiten
+        // landeten dann als „Fortsetzung" im letzten Titel der Vorseite.
+        const lage = (nummern, right) =>
+            nummern.flatMap((n, row) => {
+                const yTop = 50.4 + row * ROW_STEP;
+                const width = String(n).length * SIZE * 0.5;
+                return [
+                    { str: String(n), x: right - width, yTop, width },
+                    { str: `Lied ${n}`, x: right + 14, yTop },
+                ];
+            });
+        const ungerade = lage([1, 2, 3, 4, 5, 6], 65.3);
+        const gerade = lage([7, 8, 9, 10, 11, 12], 51.2);
+        const { entries } = await extractIvzEntries(fakePdf([ungerade, gerade]));
+        expect(entries.map((e) => `${e.nummer}|${e.titel}|${e.page}`)).toEqual(
+            Array.from({ length: 12 }, (_, i) => `${i + 1}|Lied ${i + 1}|${i < 6 ? 1 : 2}`),
+        );
+    });
+
     it('fügt umbrochene Titel zusammen und löst die Silbentrennung auf', async () => {
         const seite = spalte(
             [

@@ -22,6 +22,11 @@
 // gelesen: Die Liednummern stehen rechtsbündig in ihrer Spalte, ihre rechte
 // Kante ist damit über alle Seiten hinweg konstant. Aus den geclusterten
 // rechten Kanten ergeben sich die Spalten (aktuell zwei je Seite).
+//
+// Bei gespiegeltem Satzspiegel (einspaltige Fassung mit Bundsteg) liegt die
+// Nummernspalte auf geraden und ungeraden Seiten unterschiedlich weit links.
+// Die Cluster sind dann Spalten-*Lagen*, nicht Spalten einer Seite – welche
+// davon eine Seite tatsächlich benutzt, entscheidet `pageColumns`.
 
 import { resolveLiednummer2026, similarity } from '@/assets/js/utils';
 import { isGenommen } from '@/assets/js/gesangbuchChecks';
@@ -91,14 +96,41 @@ export function detectColumns(pagesItems) {
 
     const cols = clusters
         .filter((c) => c.length >= COL_MIN_NUMBERS)
-        .map((c) => ({ right: c[Math.floor(c.length / 2)], count: c.length }));
+        .map((c) => ({
+            right: c[Math.floor(c.length / 2)],
+            min: c[0],
+            max: c[c.length - 1],
+            count: c.length,
+        }));
 
+    return withBounds(cols);
+}
+
+// Spaltenbeginn/-ende aus der Lage der Nummernspalten ableiten.
+function withBounds(cols) {
     return cols.map((c, i) => ({
         ...c,
         left: c.right - COL_LEFT_PAD,
         // Bis zum Beginn der nächsten Spalte; die letzte läuft bis zum Rand.
         end: i + 1 < cols.length ? cols[i + 1].right - COL_LEFT_PAD : Infinity,
     }));
+}
+
+// Liegt die rechte Kante `edge` in der Nummernspalte `col`?
+function inNumberColumn(col, edge) {
+    const min = col.min ?? col.right;
+    const max = col.max ?? col.right;
+    return edge >= min - COL_TOL && edge <= max + COL_TOL;
+}
+
+// Die Spalten, die eine Seite tatsächlich benutzt: jene Nummernspalten-Lagen,
+// in denen auf dieser Seite mindestens eine Nummer steht. Trägt die Seite gar
+// keine Nummer (nur Fortsetzungszeilen), gilt `fallback`.
+export function pageColumns(columns, items, fallback = columns) {
+    const used = columns.filter((col) =>
+        items.some((it) => NUM_RE.test(it.str.trim()) && inNumberColumn(col, it.x + it.width)),
+    );
+    return used.length ? withBounds(used) : fallback;
 }
 
 // Items einer Spalte zu Zeilen gruppieren (nach yTop mit Toleranz).
@@ -175,11 +207,17 @@ export async function extractIvzEntries(pdfDoc) {
     const skipped = [];
     let cur = null;
 
+    // Spalten je Seite; Seiten ohne Nummer erben die Lage der vorletzten Seite
+    // (gleiche Seitenparität bei gespiegeltem Satzspiegel).
+    const colsByPage = [];
+
     for (let p = 1; p <= pageCount; p++) {
+        const pageCols = pageColumns(columns, perPage[p - 1], colsByPage[p - 3] || columns);
+        colsByPage[p - 1] = pageCols;
         // Was links der ersten Spalte steht, gehört zu keinem Eintrag (Kolumnen-
         // ziffer, Marginalie). Nicht still verwerfen: Es könnte auch eine aus
         // dem Rahmen gelaufene Zeile sein.
-        const firstCol = columns[0];
+        const firstCol = pageCols[0];
         if (firstCol) {
             const outside = perPage[p - 1].filter((i) => i.x < firstCol.left);
             for (const row of groupRows(outside)) {
@@ -187,13 +225,13 @@ export async function extractIvzEntries(pdfDoc) {
             }
         }
         // Lesereihenfolge: erst die linke Spalte ganz, dann die rechte.
-        for (const col of columns) {
+        for (const col of pageCols) {
             const colItems = perPage[p - 1].filter((i) => i.x >= col.left && i.x < col.end);
             for (const row of groupRows(colItems)) {
                 const first = row.items[0];
                 // Steht das erste Item rechtsbündig in der Nummernspalte, ist es
                 // die Liednummer – sonst beginnt die Zeile erst im Titelfeld.
-                const inNumberSlot = Math.abs(first.x + first.width - col.right) <= COL_TOL;
+                const inNumberSlot = inNumberColumn(col, first.x + first.width);
                 const isNumber = inNumberSlot && NUM_RE.test(first.str.trim());
 
                 if (isNumber && row.items.length > 1) {
