@@ -33,3 +33,5 @@ test-input
 /playwright-report
 /blob-report
 /playwright/.cache
+# Playwright MCP (Browser-Sitzungen, Logs)
+/.playwright-mcp
