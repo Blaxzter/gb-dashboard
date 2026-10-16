@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     canon,
     compareCopyrightScope,
+    comparePrintPdf,
     detectNumbers,
     extractPdfSongs,
     footerSignature,
@@ -160,6 +161,30 @@ describe('detectNumbers (Lied- und Choralbuchnummer)', () => {
         expect(choralItem).toBe(null);
     });
 
+    it('nimmt bei übereinanderliegenden Nummern die obenauf gezeichnete', () => {
+        // Seite 106 / Lied 74: Die korrigierte „225" liegt über der alten
+        // „226"; beide stehen im Text-Layer, die alte zuerst.
+        const alt = [
+            { ...liednummer, str: '74', yTop: 48.7 },
+            { ...choralnummer, str: '226', yTop: 70.4 },
+        ];
+        const neu = [
+            { ...liednummer, str: '74', x: liednummer.x + 0.1, yTop: 48.9 },
+            { ...choralnummer, str: '225', x: choralnummer.x - 0.1, yTop: 70.6 },
+        ];
+        const { numberItem, choralItem, covered } = detectNumbers(
+            [...alt, ...neu],
+            PAGE_HEIGHT,
+            SIZE_HINT,
+        );
+        expect(numberItem).toBe(neu[0]);
+        expect(choralItem?.str).toBe('225');
+        expect(covered).toEqual([
+            { item: alt[0], by: neu[0] },
+            { item: alt[1], by: neu[1] },
+        ]);
+    });
+
     it('liefert nichts ohne groß gesetzte Liednummer', () => {
         const { numberItem, choralItem } = detectNumbers([choralnummer], PAGE_HEIGHT, SIZE_HINT);
         expect(numberItem).toBe(null);
@@ -236,6 +261,37 @@ describe('extractPdfSongs (Seiten ohne Fließtext)', () => {
         const { songs } = await extractPdfSongs(fakePdf([nurNummern]));
         expect(songs).toHaveLength(1);
         expect(songs[0].nummer).toBe(null);
+    });
+});
+
+describe('extractPdfSongs (verdeckte Nummern)', () => {
+    // Seite 106 / Lied 74: Die Korrektur „225" wurde über die alte „226" gelegt.
+    const seite = [
+        ...kopf('74', '226'),
+        noten(),
+        strophe('2. Die Hand des Herrn ist überall', 200),
+        fusszeile('Text: Ulrike Gehde (1959)'),
+        ...kopf('74', '225'),
+    ];
+
+    it('liest die sichtbare Nummer und meldet die verdeckte', async () => {
+        const extracted = await extractPdfSongs(fakePdf([seite]));
+        expect(extracted.songs[0].choralnummer).toBe('225');
+        expect(extracted.coveredNumbers).toEqual([
+            expect.objectContaining({
+                page: 1,
+                pairs: [
+                    { hidden: '74', visible: '74' },
+                    { hidden: '226', visible: '225' },
+                ],
+            }),
+        ]);
+        const check = comparePrintPdf(extracted, []).find((c) => c.id === 'covered-numbers');
+        expect(check.items).toHaveLength(1);
+        expect(check.items[0].sev).toBe('warning');
+        expect(check.items[0].detail).toBe(
+            'Seite 1: „74" liegt doppelt übereinander, unter „225" liegt verdeckt „226"',
+        );
     });
 });
 

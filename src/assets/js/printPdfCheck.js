@@ -296,14 +296,34 @@ function clampRectToPage(rect, width, height) {
 // als Choralbuchnummer gelesen. Unterschieden wird über Schrift und Grad: Lied-
 // und Choralbuchnummer stehen im selben Stil (nur kleiner gesetzt), die
 // Notensatz-Ziffern in dessen eigener Schrift und deutlich kleiner.
+// Zwei Items an (fast) derselben Stelle im selben Grad: Das später im Content-
+// Stream gezeichnete liegt obenauf und ist das sichtbare. So entstehen
+// Korrekturen im Satz – auf Seite 106 (Lied 74) liegt die neue „225" über der
+// alten, verdeckten „226", beide stehen im Text-Layer.
+function isCoveredBy(a, b) {
+    return (
+        Math.abs(a.x - b.x) < 2 && Math.abs(a.yTop - b.yTop) < 2 && Math.abs(a.size - b.size) < 0.5
+    );
+}
+
 export function detectNumbers(items, pageHeight, sizeHint) {
-    const nums = items.filter(
+    const candidates = items.filter(
         (i) => i.yTop < pageHeight * 0.5 && /^\d{1,3}[a-zA-Z]?$/.test(i.str.trim()),
     );
+    // Verdeckte Nummern aussortieren (items stehen in Content-Stream-Reihenfolge)
+    // und mit der Nummer, die sie verdeckt, zurückgeben – gemeldet werden sie
+    // als Satz-Überbleibsel (Check „Verdeckte Nummer").
+    const covered = [];
+    candidates.forEach((item, k) => {
+        const by = candidates.slice(k + 1).find((b) => isCoveredBy(item, b));
+        if (by) covered.push({ item, by });
+    });
+    const coveredItems = covered.map((c) => c.item);
+    const nums = candidates.filter((i) => !coveredItems.includes(i));
     const numberItem = nums
         .filter((i) => i.size >= sizeHint * 1.4)
         .sort((a, b) => b.size - a.size || a.yTop - b.yTop)[0];
-    if (!numberItem) return { numberItem: null, choralItem: null };
+    if (!numberItem) return { numberItem: null, choralItem: null, covered };
     // Kandidaten: gleiche Randspalte, direkt unter der Liednummer, kleiner als
     // sie – aber nicht winzig (Choralbuchnummer 11 pt zu Liednummer 20 pt,
     // Notensatz-Ziffern rund 6 pt). Der nächstliegende gewinnt.
@@ -321,7 +341,7 @@ export function detectNumbers(items, pageHeight, sizeHint) {
     // Schrift der Liednummer bevorzugt; sonst der nächstliegende Kandidat,
     // damit ein anderer Satz der Nummern die Erkennung nicht ganz verliert.
     const choralItem = below.find((i) => i.font === numberItem.font) || below[0] || null;
-    return { numberItem, choralItem };
+    return { numberItem, choralItem, covered };
 }
 
 // Items zu Zeilen gruppieren (nach yTop mit Toleranz), innerhalb der Zeile nach x
@@ -471,13 +491,14 @@ function expectedNumberRect(page, width) {
 }
 
 // Eine ganze PDF (PDFDocumentProxy von vue-pdf-embed/pdf.js) in Lieder zerlegen.
-// Rückgabe: { songs, pageCount, blankPages, introPages, clipped, warnings }.
+// Rückgabe: { songs, pageCount, blankPages, introPages, clipped, coveredNumbers, warnings }.
 export async function extractPdfSongs(pdfDoc) {
     const pageCount = pdfDoc.numPages;
     const songs = [];
     const blankPages = [];
     const introPages = [];
     const clipped = []; // Text außerhalb der Seite – je Seite ein Eintrag.
+    const coveredNumbers = []; // verdeckte alte Lied-/Choralbuchnummern – je Seite
     const pageSizes = {};
     let cur = null;
     // Zuletzt gemessener Fließtext-Grad (siehe sizeHint weiter unten).
@@ -525,11 +546,24 @@ export async function extractPdfSongs(pdfDoc) {
         const sizeHint = pageTextSize || bodyTextSize || median(items.map((i) => i.size));
 
         // Liednummer (groß) und Choralbuchnummer (kleiner, darunter).
-        const { numberItem, choralItem } = detectNumbers(items, height, sizeHint);
+        const { numberItem, choralItem, covered } = detectNumbers(items, height, sizeHint);
+        if (covered.length) {
+            coveredNumbers.push({
+                page: p,
+                pairs: covered.map((c) => ({
+                    hidden: c.item.str.trim(),
+                    visible: c.by.str.trim(),
+                })),
+                box: { page: p, rect: bboxOfItems(covered.map((c) => c.by)) },
+            });
+        }
 
         // Lied- und Choralbuchnummer sind erkannt (und sind selbst reine Zahlen in
-        // eigener Schrift) – erst danach den Notensatz-Text aussortieren.
-        const remove = new Set([numberItem, choralItem].filter(Boolean));
+        // eigener Schrift) – erst danach den Notensatz-Text aussortieren. Verdeckte
+        // alte Nummern gehören ebenso wenig zum Text des Liedes.
+        const remove = new Set(
+            [numberItem, choralItem, ...covered.map((c) => c.item)].filter(Boolean),
+        );
         const bodyItems = dropNotationItems(
             remove.size ? items.filter((i) => !remove.has(i)) : items,
         );
@@ -641,7 +675,16 @@ export async function extractPdfSongs(pdfDoc) {
         delete song.lines;
     }
 
-    return { songs, pageCount, blankPages, introPages, clipped, pageSizes, warnings: [] };
+    return {
+        songs,
+        pageCount,
+        blankPages,
+        introPages,
+        clipped,
+        coveredNumbers,
+        pageSizes,
+        warnings: [],
+    };
 }
 
 // --- Vergleich PDF ↔ DB ----------------------------------------------------
@@ -744,7 +787,14 @@ const CAT_OVERVIEW = 'Übersicht';
 // Vergleicht das aus der PDF extrahierte Ergebnis mit den DB-Liedern und liefert
 // die flache Liste von Checks (nach Kategorie gruppiert die View selbst).
 export function comparePrintPdf(extracted, dbSongs) {
-    const { songs: pdfSongs, pageCount, blankPages, introPages, clipped = [] } = extracted;
+    const {
+        songs: pdfSongs,
+        pageCount,
+        blankPages,
+        introPages,
+        clipped = [],
+        coveredNumbers = [],
+    } = extracted;
 
     const byId = {};
     for (const l of dbSongs) byId[l.id] = l.liednummer2026;
@@ -1179,6 +1229,40 @@ export function comparePrintPdf(extracted, dbSongs) {
             {
                 okSummary: 'Kein Text außerhalb des Druckbereichs',
                 problemSummary: (i) => `${i.length} Seite(n) mit Text außerhalb des Druckbereichs`,
+            },
+        ),
+    );
+
+    // Verdeckte Nummern: Eine Korrektur wurde über die alte Nummer gelegt, statt
+    // sie zu ersetzen (Seite 106: neue „225" über alter „226"). Geprüft wird die
+    // sichtbare, obenauf liegende Nummer; die verdeckte steht aber weiter im PDF
+    // und kann beim Ausschießen, Kopieren oder Durchsuchen wieder auftauchen.
+    checks.push(
+        makeCheck(
+            'covered-numbers',
+            CAT_COMPLETE,
+            'Verdeckte Nummer',
+            'Im PDF liegt unter einer Lied- oder Choralbuchnummer eine zweite, verdeckte Nummer – meist eine übermalte statt ersetzte Korrektur. Geprüft wird die sichtbare Nummer; die verdeckte sollte im Satz gelöscht werden.',
+            coveredNumbers.map((c) => {
+                const ps = pdfSongs.find((s) => s.pages.includes(c.page));
+                const rec = ps ? recognized.find((r) => r.nummer === ps.nummer) : null;
+                const parts = c.pairs.map((pr) =>
+                    pr.hidden === pr.visible
+                        ? `„${pr.visible}" liegt doppelt übereinander`
+                        : `unter „${pr.visible}" liegt verdeckt „${pr.hidden}"`,
+                );
+                return {
+                    sev: 'warning',
+                    id: rec?.id ?? null,
+                    nummer: ps?.nummer,
+                    title: rec?.title || (ps ? `Lied ${ps.nummer}` : `Seite ${c.page}`),
+                    detail: `Seite ${c.page}: ${parts.join(', ')}`,
+                    loc: c.box,
+                };
+            }),
+            {
+                okSummary: 'Keine verdeckten Nummern',
+                problemSummary: (i) => `${i.length} Seite(n) mit verdeckter Nummer`,
             },
         ),
     );
