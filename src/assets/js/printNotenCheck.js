@@ -15,6 +15,8 @@
 //     die fremdsprachige statt der deutschen).
 //   * Der Notensatz gehört zu KEINER DB-Datei – meist hängt der InDesign-Rahmen
 //     noch an einem alten Export.
+//   * Es liegen MEHRERE Notensätze übereinander (doppelt platzierter Rahmen,
+//     alter Export unter dem neuen).
 
 import { resolveLiednummer2026 } from '@/assets/js/utils';
 import {
@@ -23,6 +25,7 @@ import {
     diffGlyphMarks,
     isFingerprintUsable,
     pickBestCandidate,
+    splitStackedPlacement,
 } from '@/assets/js/notenFingerprint';
 
 const CAT_NOTEN = 'Notensatz';
@@ -31,6 +34,9 @@ const CAT_NOTEN = 'Notensatz';
 // Notensatz-Seite, die im Druck stehen muss (eine leere Folgeseite oder ein
 // einzelnes verirrtes Zeichen lösen keinen Befund aus).
 const MIN_PAGE_GLYPHS = 8;
+// Kleinster Rest einer nur teilweise gedruckten Datei-Seite, der noch als „das
+// ist ein Stück dieser Seite" zählt (Lied 222: 6 von 21 Notenzeichen).
+const MIN_PARTIAL_GLYPHS = 4;
 
 // Vergleichsschlüssel einer Liednummer (wie in printPdfCheck.js).
 function numKey(v) {
@@ -79,6 +85,62 @@ function mainPlacement(ps) {
     const list = (ps.placements || []).filter((p) => p.seq.length);
     if (!list.length) return null;
     return list.reduce((a, b) => (b.seq.length > a.seq.length ? b : a));
+}
+
+// Liegen zwei Platzierungen übereinander? Bringt jeder Rahmen seine eigene
+// Kopie der Notenschrift mit, sind es getrennte Platzierungen derselben Seite –
+// übereinander liegen sie, wenn sich ihre Kästen größtenteils decken. (Lied 260,
+// Seite 82: zwei Notensätze untereinander auf einer Seite, die sich nicht
+// überschneiden – kein Befund.)
+function overlaps(a, b) {
+    const A = placementBox(a)?.rect;
+    const B = placementBox(b)?.rect;
+    if (!A || !B) return false;
+    const w = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x);
+    const h = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y);
+    if (w <= 0 || h <= 0) return false;
+    return w * h >= 0.5 * Math.min(A.w * A.h, B.w * B.h);
+}
+
+// Ebenen eines Notensatzes von unten nach oben ([{ placement, best }]) – oder
+// null, wenn auf der Seite nur EIN Notensatz liegt. Zwei Wege führen dahin:
+// eine Platzierung, deren Folge mehrere Dateien hintereinander enthält (eine
+// gemeinsame Kopie der Notenschrift, splitStackedPlacement), und weitere
+// Platzierungen derselben Seite, die sich mit ihr decken. Die Reihenfolge der
+// Platzierungen ist die Zeichenreihenfolge: Die letzte liegt obenauf.
+function stackedLayers(ps, placement, best, usable) {
+    const others = (ps.placements || []).filter(
+        (p) =>
+            p !== placement && p.page === placement.page && p.seq.length && overlaps(p, placement),
+    );
+    const own = best ? null : splitStackedPlacement(placement, usable);
+    if (!own && !others.length) return null;
+    const layers = [];
+    for (const p of ps.placements) {
+        if (p === placement) layers.push(...(own || [{ placement, best }]));
+        else if (others.includes(p))
+            layers.push({ placement: p, best: pickBestCandidate(p, usable).best });
+    }
+    return layers;
+}
+
+// Eine untere Ebene in Worten – relativ zur obersten.
+function describeLayer(layer, top) {
+    const b = layer.best;
+    if (!b)
+        return `ein Notensatz ohne passende DB-Datei (${layer.placement.seq.length} Notenzeichen, vermutlich ein alter Export)`;
+    if (top.best && b.lied.id === top.best.lied.id && b.fpPage === top.best.fpPage) {
+        const off = layerOffset(layer, top);
+        return off <= GEOMETRY_TOLERANCE_PT
+            ? 'noch einmal dieselbe Datei, deckungsgleich'
+            : `noch einmal dieselbe Datei, um ${off.toFixed(1)} pt versetzt`;
+    }
+    return `der Notensatz von „${b.lied.titel || b.lied.id}"`;
+}
+
+// Versatz einer Ebene gegenüber der obersten (beide müssen getroffen sein).
+function layerOffset(layer, top) {
+    return Math.max(Math.abs(layer.best.dx - top.best.dx), Math.abs(layer.best.dy - top.best.dy));
 }
 
 // Führende Ganzzahl einer Liednummer ("12a" -> 12).
@@ -208,12 +270,14 @@ export async function checkPrintNotensatz(
     const deviation = [];
     const unknownSource = [];
     const drift = [];
+    const stacked = [];
     const notCheckable = [];
     // Je (Lied, Datei-Seite) nur ein Befund „Seite fehlt im Druck" – auch wenn
     // mehrere Platzierungen desselben Liedes geprüft werden.
     const reportedMissingPages = new Set();
 
-    for (const { ps, placement, lied, cands } of jobs) {
+    for (const { ps, lied, cands, ...job } of jobs) {
+        let placement = job.placement;
         const page = placement.page;
 
         // Kandidaten mit brauchbarem Fingerabdruck.
@@ -237,7 +301,61 @@ export async function checkPrintNotensatz(
             continue;
         }
 
-        const { best } = pickBestCandidate(placement, usable);
+        let { best } = pickBestCandidate(placement, usable);
+
+        // Mehrere Notensätze übereinander: Sichtbar ist der oberste – er wird wie
+        // gewohnt weitergeprüft, die darunter liegenden werden gemeldet.
+        const layers = stackedLayers(ps, placement, best, usable);
+        if (layers) {
+            const top = layers[layers.length - 1];
+            const lower = layers.slice(0, -1).reverse(); // von oben nach unten
+            const lowerText = lower.map((l) => describeLayer(l, top)).join('; ');
+            const title = lied?.titel || top.best?.lied.titel || `Seite ${page}`;
+            if (!top.best) {
+                unknownSource.push({
+                    id: lied?.id ?? null,
+                    nummer: ps.nummer,
+                    title,
+                    sev: 'error',
+                    detail:
+                        `Auf Seite ${page} liegen ${layers.length} Notensätze übereinander. Der oberste ` +
+                        `(sichtbare, ${top.placement.seq.length} Notenzeichen) stimmt mit keiner ` +
+                        `Notensatz-Datei ${lied ? 'dieses Liedes' : `für Seite ${page}`} überein – ` +
+                        `vermutlich ein alter Export. Darunter (verdeckt): ${lowerText}.`,
+                    loc: placementBox(top.placement),
+                });
+                continue;
+            }
+            const harmless = lower.every(
+                (l) =>
+                    l.best?.lied.id === top.best.lied.id &&
+                    l.best.fpPage === top.best.fpPage &&
+                    layerOffset(l, top) <= GEOMETRY_TOLERANCE_PT,
+            );
+            stacked.push({
+                id: (lied || top.best.lied).id,
+                nummer: ps.nummer ?? resolveLiednummer2026(top.best.lied, byId),
+                title,
+                notentextId: top.best.lied.notentext || null,
+                // Immer nur eine Warnung: Der sichtbare (oberste) Notensatz wird
+                // unten ganz normal geprüft – steht dort der falsche, meldet das
+                // der jeweilige Check als Fehler.
+                sev: 'warning',
+                detail:
+                    `Auf Seite ${page} liegen ${layers.length} Notensätze übereinander. Obenauf ` +
+                    `(sichtbar) liegt ${
+                        !lied || top.best.lied.id === lied.id
+                            ? 'die Notensatz-Datei aus der Datenbank'
+                            : `der Notensatz von „${top.best.lied.titel || top.best.lied.id}"`
+                    }, darunter: ${lowerText}. ` +
+                    (harmless
+                        ? 'Das Druckbild stimmt – im Satz sollte der doppelte Rahmen trotzdem gelöscht werden.'
+                        : 'Der untere Notensatz kann im Druck durchscheinen – bitte im Druckbild prüfen und im Satz löschen.'),
+                loc: placementBox(top.placement),
+            });
+            placement = top.placement;
+            best = top.best;
+        }
 
         if (!best) {
             unknownSource.push({
@@ -316,6 +434,34 @@ export async function checkPrintNotensatz(
                 );
                 if (covered) return;
                 reportedMissingPages.add(key);
+                // Teilweise gedruckt: Die Seite IST platziert, aber verschoben – ein
+                // Teil ihrer Systeme liegt neben der Seite und fällt weg. Lied 222,
+                // Seite 28: Datei-Seite 2 hat zwei Systeme, das erste („Wir stehn
+                // staunend …") liegt bei y < 0 über dem Seitenrand, gedruckt wird
+                // nur „unser Vater". Auf der Seite bleibt ein Stück aus der Mitte
+                // oder vom Ende der Datei-Seite übrig.
+                const partial = (ps.placements || []).find(
+                    (pl) =>
+                        pl.seq.length >= MIN_PARTIAL_GLYPHS &&
+                        pl.seq.length < fpPage.seq.length &&
+                        fpPage.seq.includes(pl.seq),
+                );
+                if (partial) {
+                    truncated.push({
+                        ...base,
+                        sev: 'error',
+                        detail:
+                            `Von Seite ${idx + 1} der Notensatz-Datei stehen auf Seite ${partial.page} nur ` +
+                            `${partial.seq.length} von ${fpPage.seq.length} Notenzeichen im Druck – der Rest ` +
+                            `liegt außerhalb der Seite und wird nicht gedruckt. Der Notensatz ist im Satz ` +
+                            `verschoben oder sein Rahmen zu klein; es fehlt mindestens ein System.` +
+                            viaNoten,
+                        loc: placementBox(partial),
+                        pdf: `${partial.seq.length} von ${fpPage.seq.length} Notenzeichen von Datei-Seite ${idx + 1} gedruckt`,
+                        expected: `Datei-Seite ${idx + 1} vollständig (${fpPage.seq.length} Notenzeichen)`,
+                    });
+                    return;
+                }
                 truncated.push({
                     ...base,
                     sev: 'warning',
@@ -408,6 +554,7 @@ export async function checkPrintNotensatz(
         deviation,
         unknownSource,
         drift,
+        stacked,
         notCheckable,
         checked: jobs.length,
     };
@@ -483,6 +630,19 @@ export function notensatzChecks(result, makeCheck) {
             {
                 okSummary: 'Alle Notensätze stehen exakt wie in der Datenbank',
                 problemSummary: (i) => `${i.length} Notensatz/Notensätze mit Abweichung`,
+            },
+        ),
+    );
+    checks.push(
+        makeCheck(
+            'noten-gestapelt',
+            CAT_NOTEN,
+            'Notensatz nur einmal platziert',
+            'Auf jeder Seite darf genau ein Notensatz liegen. Liegen mehrere übereinander – ein doppelt platzierter Rahmen oder ein alter Export unter dem aktuellen –, zählt für die übrigen Notensatz-Checks der oberste (sichtbare). Gemeldet wird das als Warnung: Ob der sichtbare Notensatz stimmt, prüfen die übrigen Checks. Eine andere oder versetzte Datei darunter kann aber durchscheinen und sollte im Satz gelöscht werden.',
+            result.stacked,
+            {
+                okSummary: 'Kein Notensatz liegt mehrfach übereinander',
+                problemSummary: (i) => `${i.length} Seite(n) mit übereinanderliegenden Notensätzen`,
             },
         ),
     );

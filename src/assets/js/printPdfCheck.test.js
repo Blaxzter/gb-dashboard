@@ -185,6 +185,37 @@ describe('detectNumbers (Lied- und Choralbuchnummer)', () => {
         ]);
     });
 
+    it('findet die Choralbuchnummer auch knapp unter der Seitenmitte', () => {
+        // Seite 107 / Lied 279: Der Strophenüberhang von Lied 278 schiebt den
+        // Liedblock nach unten – die Liednummer steht gerade noch in der oberen
+        // Hälfte (y=228), die Choralbuchnummer schon darunter (y=249).
+        const { numberItem, choralItem } = detectNumbers(
+            [
+                { ...liednummer, str: '279', x: 5.7, yTop: 227.7 },
+                { ...choralnummer, str: '141', x: 12.6, yTop: 249.4 },
+            ],
+            PAGE_HEIGHT,
+            SIZE_HINT,
+        );
+        expect(numberItem?.str).toBe('279');
+        expect(choralItem?.str).toBe('141');
+    });
+
+    it('erkennt einen Liedblock auch ganz in der unteren Seitenhälfte', () => {
+        // Langer Strophenüberhang des vorherigen Liedes: Beide Nummern rutschen
+        // unter die Seitenmitte.
+        const { numberItem, choralItem } = detectNumbers(
+            [
+                { ...liednummer, yTop: PAGE_HEIGHT * 0.5 + 30 },
+                { ...choralnummer, yTop: PAGE_HEIGHT * 0.5 + 52 },
+            ],
+            PAGE_HEIGHT,
+            SIZE_HINT,
+        );
+        expect(numberItem?.str).toBe('275');
+        expect(choralItem?.str).toBe('168');
+    });
+
     it('liefert nichts ohne groß gesetzte Liednummer', () => {
         const { numberItem, choralItem } = detectNumbers([choralnummer], PAGE_HEIGHT, SIZE_HINT);
         expect(numberItem).toBe(null);
@@ -343,5 +374,108 @@ describe('extractPdfSongs (mehrseitiger Notensatz vs. fehlende Liednummer)', () 
         expect(songs).toHaveLength(2);
         expect(songs.map((s) => s.nummer)).toEqual(['99', null]);
         expect(songs[1].pages).toEqual([2]);
+    });
+});
+
+describe('comparePrintPdf (Refrain-Blöcke)', () => {
+    const R = 'Herr, wir bitten: Komm und segne uns.';
+    const lied = (strophen) => ({
+        id: 1,
+        liednummer2026: 250,
+        status: 'accepted',
+        titel: 'Herr, wir bitten',
+        text: { strophenEinzeln: strophen.map((strophe) => ({ strophe })) },
+    });
+    const run = async (zeilen, strophen) => {
+        const seite = [...kopf('250', '151'), noten(), ...zeilen];
+        const checks = comparePrintPdf(await extractPdfSongs(fakePdf([seite])), [lied(strophen)]);
+        const items = (id) => checks.find((c) => c.id === id).items;
+        return {
+            text: items('verse-text'),
+            count: items('verse-count'),
+            spacing: items('verse-spacing'),
+        };
+    };
+
+    it('ordnet einen Refrain vor Strophe 2 dem Anfang von Strophe 2 zu (Lied 250)', async () => {
+        // Die DB trägt den Refrain vorn in Strophe 2, der Satz druckt ihn als
+        // eigenen Block direkt unter dem Notensatz.
+        const { text, count } = await run(
+            [
+                strophe('Refrain', 200),
+                strophe(R, 213),
+                strophe('2. In die Schuld der Welt hast du uns gestellt.', 235),
+                strophe('3. In den Streit der Welt hast du uns gestellt.', 257),
+            ],
+            [
+                `Refrain\n${R}\n\nIn die Nacht der Welt`,
+                `Refrain\n${R}\n\nIn die Schuld der Welt hast du uns gestellt.`,
+                'In den Streit der Welt hast du uns gestellt.',
+            ],
+        );
+        expect(count).toEqual([]);
+        expect(text).toEqual([]);
+    });
+
+    it('verschiebt Refrains hinter den Strophen an den Anfang der nächsten (Lied 135)', async () => {
+        // DB: jede Strophe beginnt mit dem Refrain, die letzte hat ihn auch
+        // hinten. Der Satz druckt ihn hinter jede Strophe – dieselbe Folge.
+        const { text, count } = await run(
+            [
+                strophe('Refrain', 200),
+                strophe(R, 213),
+                strophe('2. Noch ist alles um mich still.', 235),
+                strophe('Refrain', 257),
+                strophe(R, 270),
+                strophe('3. Was mir Angst und Sorgen schafft.', 292),
+                strophe('Refrain', 314),
+                strophe(R, 327),
+            ],
+            [
+                `Refrain\n${R}\n\nWarst die ganze Nacht mir nah.`,
+                `Refrain\n${R}\n\nNoch ist alles um mich still.`,
+                `Refrain\n${R}\n\nWas mir Angst und Sorgen schafft.\n\nRefrain\n${R}`,
+            ],
+        );
+        expect(count).toEqual([]);
+        expect(text).toEqual([]);
+    });
+
+    it('meldet einen Refrain, der in der DB fehlt, weiterhin', async () => {
+        const { text } = await run(
+            [
+                strophe('2. Noch ist alles um mich still.', 200),
+                strophe('Refrain', 222),
+                strophe(R, 235),
+            ],
+            ['Warst die ganze Nacht mir nah.', 'Noch ist alles um mich still.'],
+        );
+        expect(text).toHaveLength(1);
+    });
+
+    it('meldet einen nummerierten Refrain als EINEN Befund (Lied 286)', async () => {
+        const F = 'Freude, immer wieder Freude uns das Werk des Schöpfers schenkt!';
+        const { text, count, spacing } = await run(
+            [
+                strophe('2. Ein Grünen und Blühen, so weit wie ich schau,', 200),
+                strophe('am Himmel kein Wölkchen im leuchtenden Blau!', 213),
+                strophe('Refrain', 235),
+                strophe(F, 248),
+                strophe('3. Mein Herz ist erfüllt, und so kann ich nicht ruhn,', 270),
+                strophe('es treibt mich die Liebe, ein Gutes zu tun.', 283),
+                strophe('Refrain', 305),
+                strophe(`4. ${F}`, 318),
+            ],
+            [
+                `Ich wandre durch Täler\n\nRefrain\n${F}`,
+                `Ein Grünen und Blühen, so weit wie ich schau, am Himmel kein Wölkchen im leuchtenden Blau!\n\nRefrain\n${F}`,
+                `Mein Herz ist erfüllt, und so kann ich nicht ruhn, es treibt mich die Liebe, ein Gutes zu tun.\n\nRefrain\n${F}`,
+            ],
+        );
+        expect(count.map((i) => i.detail)).toEqual([
+            'Refrain nach Strophe 3 ist im Satz als „4." nummeriert – der Refrain trägt keine Strophennummer',
+        ]);
+        expect(text).toEqual([]);
+        expect(spacing).toEqual([]);
     });
 });

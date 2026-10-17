@@ -356,3 +356,70 @@ export function pickBestCandidate(placement, candidates) {
     );
     return { best: scored[0], runnerUp: scored[1] || null };
 }
+
+// --- Übereinanderliegende Notensätze ---------------------------------------
+
+// Kleinste Ebene, die beim Zerlegen zählt – darunter ist ein Treffer Zufall.
+const MIN_LAYER_GLYPHS = 8;
+
+// Glyphen [from, to) einer Platzierung als eigene Platzierung.
+function slicePlacement(placement, from, to) {
+    return {
+        ...placement,
+        seq: placement.seq.slice(from, to),
+        items: placement.items
+            .filter((i) => i.off >= from && i.off < to)
+            .map((i) => ({ ...i, off: i.off - from })),
+    };
+}
+
+// Eine Platzierung in übereinanderliegende Notensätze zerlegen.
+//
+// Liegen im Satz zwei Rahmen mit Notensatz übereinander, teilen sie sich oft
+// EINE Kopie der Notenschrift – groupMusicPlacements sieht dann nur eine
+// Platzierung, deren Folge die beiden Dateien hintereinander enthält (jeder
+// Rahmen wird am Stück gezeichnet, der untere zuerst). Seite 81 (Lied 259): 88
+// Notenzeichen, zweimal die 44 der DB-Datei, deckungsgleich. Als Ganzes passt
+// das zu keiner Datei – der Check meldete „alter Export verknüpft", obwohl das
+// Druckbild stimmt.
+//
+// Abgeschält werden vorne und hinten Stücke, die exakt so lang sind wie eine
+// Kandidaten-Datei und zu ihr passen; die Schnittstelle muss ein Item-Anfang
+// sein (ein Text-Item stammt immer aus genau einem Rahmen). Was übrig bleibt
+// und zu keiner Datei passt, ist eine eigene Ebene ohne Treffer – meist der
+// alte Export.
+//
+// Ergebnis: Ebenen von unten nach oben ([{ placement, best }], `best` wie bei
+// pickBestCandidate oder null), oder null, wenn sich nichts zerlegen lässt.
+export function splitStackedPlacement(placement, candidates) {
+    const lens = [...new Set(candidates.map((c) => c.fpPage?.seq?.length || 0))].filter(
+        (n) => n >= MIN_LAYER_GLYPHS,
+    );
+    const matchOf = (pl) => {
+        const { best } = pickBestCandidate(pl, candidates);
+        return best && (best.match === 'exact' || best.match === 'fuzzy') ? best : null;
+    };
+    const peel = (pl) => {
+        const whole = matchOf(pl);
+        if (whole?.match === 'exact') return [{ placement: pl, best: whole }];
+        const n = pl.seq.length;
+        const starts = new Set(pl.items.map((i) => i.off));
+        for (const len of lens) {
+            if (n - len < MIN_LAYER_GLYPHS) continue;
+            if (starts.has(len)) {
+                const front = slicePlacement(pl, 0, len);
+                const best = matchOf(front);
+                if (best) return [{ placement: front, best }, ...peel(slicePlacement(pl, len, n))];
+            }
+            if (starts.has(n - len)) {
+                const back = slicePlacement(pl, n - len, n);
+                const best = matchOf(back);
+                if (best)
+                    return [...peel(slicePlacement(pl, 0, n - len)), { placement: back, best }];
+            }
+        }
+        return [{ placement: pl, best: whole }];
+    };
+    const layers = peel(placement);
+    return layers.length > 1 && layers.some((l) => l.best) ? layers : null;
+}

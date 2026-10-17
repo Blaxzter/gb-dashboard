@@ -221,13 +221,45 @@ async function extractPageItems(page) {
     }
     return {
         items,
-        offPage,
+        offPage: dropForeignNotationText(offPage, musicItems, viewport),
         musicItems,
         musicCount,
         musicTop,
         width: viewport.width,
         height: viewport.height,
     };
+}
+
+// Text neben der Seite, der zu einem FREMDEN Notensatz gehört. Die Einzelseiten
+// werden aus Doppelseiten exportiert; im Text-Layer steht dann oft der komplette
+// Notensatz der Nachbarseite – vollständig neben der Seite (Seite 11: alle 58
+// Glyphen bei x = 344…561 auf einer 312 pt breiten Seite, Seite 104: bei
+// x = −265…−41). Dessen Beschriftungen in Textschrift (Wiederholungsklammern
+// „1." / „2.", Triolen-„3") galten als „Text außerhalb des Druckbereichs",
+// obwohl sie auf der Nachbarseite ganz normal gedruckt werden. Aussortiert wird
+// nur, was im Kasten eines Notensatzes liegt, von dem KEINE Glyphe auf der
+// Seite steht – eine aus dem Rahmen gelaufene Strophe bleibt ein Befund.
+function dropForeignNotationText(offPage, musicItems, viewport) {
+    if (!offPage.length) return offPage;
+    const inPage = (i) =>
+        i.x >= 0 && i.x <= viewport.width && i.yTop >= 0 && i.yTop <= viewport.height;
+    const byFont = new Map();
+    for (const m of musicItems) {
+        if (!byFont.has(m.font)) byFont.set(m.font, []);
+        byFont.get(m.font).push(m);
+    }
+    const PAD = 15;
+    const boxes = [...byFont.values()]
+        .filter((ms) => !ms.some(inPage))
+        .map((ms) => ({
+            x0: Math.min(...ms.map((m) => m.x)) - PAD,
+            x1: Math.max(...ms.map((m) => m.x)) + PAD,
+            y0: Math.min(...ms.map((m) => m.yTop)) - PAD,
+            y1: Math.max(...ms.map((m) => m.yTop)) + PAD,
+        }));
+    return offPage.filter(
+        (i) => !boxes.some((b) => i.x >= b.x0 && i.x <= b.x1 && i.yTop >= b.y0 && i.yTop <= b.y1),
+    );
 }
 
 // Text, der zum Notensatz gehört, nicht zum Lied: Der platzierte Notensatz
@@ -306,10 +338,18 @@ function isCoveredBy(a, b) {
     );
 }
 
+// Größter Abstand Liednummer → Choralbuchnummer (Oberkante zu Oberkante).
+const CHORAL_MAX_GAP = 60;
+
 export function detectNumbers(items, pageHeight, sizeHint) {
-    const candidates = items.filter(
-        (i) => i.yTop < pageHeight * 0.5 && /^\d{1,3}[a-zA-Z]?$/.test(i.str.trim()),
-    );
+    // Keine Grenze nach Position: Rutscht der Liedblock wegen eines langen
+    // Strophenüberhangs nach unten, kann er bis in die untere Seitenhälfte
+    // reichen (Seite 107, Lied 279: Liednummer bei y=228, Choralbuchnummer bei
+    // y=249 auf einer 482 pt hohen Seite). Eine Grenze bei der Hälfte schnitt
+    // dort die Choralbuchnummer ab („DB-Choralbuchnummer fehlt im PDF"), eine
+    // Zeile mehr Überhang hätte auch die Liednummer gekostet. Erkannt wird die
+    // Liednummer allein am Schriftgrad.
+    const candidates = items.filter((i) => /^\d{1,3}[a-zA-Z]?$/.test(i.str.trim()));
     // Verdeckte Nummern aussortieren (items stehen in Content-Stream-Reihenfolge)
     // und mit der Nummer, die sie verdeckt, zurückgeben – gemeldet werden sie
     // als Satz-Überbleibsel (Check „Verdeckte Nummer").
@@ -335,7 +375,7 @@ export function detectNumbers(items, pageHeight, sizeHint) {
                 i.size >= numberItem.size * 0.4 &&
                 Math.abs(i.x - numberItem.x) < 40 &&
                 i.yTop > numberItem.yTop &&
-                i.yTop - numberItem.yTop < 60,
+                i.yTop - numberItem.yTop < CHORAL_MAX_GAP,
         )
         .sort((a, b) => a.yTop - b.yTop);
     // Schrift der Liednummer bevorzugt; sonst der nächstliegende Kandidat,
@@ -1461,6 +1501,134 @@ function alignStrophen(verse, expectedNums, strophen) {
     return parts;
 }
 
+// Refrain-Blöcke den DB-Strophen zuschlagen, zu denen sie gehören.
+//
+// Die DB speichert einen Refrain als Teil einer Strophe („…\n\nRefrain\n…"),
+// mal hinten (Lied 286), mal VORN (Lied 135: jede Strophe beginnt mit dem
+// Refrain, Strophe 6 hat ihn zusätzlich hinten). Der Satz druckt ihn als eigenen
+// Block mit der Überschrift „Refrain" dort, wo er gesungen wird – und die
+// Zerlegung hängt jeden unnummerierten Block an die Strophe DAVOR. Bei Lied 135
+// stand damit jeder Refrain an der falschen Strophe: der erste (direkt unter
+// dem Notensatz, noch vor „2.") galt als „Textblock ohne Strophennummer", jede
+// Strophe 2–6 wich im Text ab – sechs Befunde, obwohl Druck und DB dieselbe
+// Folge singen (Refrain, Strophe 1, Refrain, Strophe 2, …). Ebenso Lied 250.
+//
+// Deshalb werden die Refrain-Blöcke aus den Strophen herausgelöst und jeweils
+// der Nachbar-Strophe zugeschlagen, deren DB-Text sie enthält: der folgenden,
+// wenn das deutlich besser passt, sonst wie bisher der vorangehenden. Ein
+// Refrain, der in der DB gar nicht steht, fällt danach weiter im Textvergleich
+// auf.
+//
+// Vorher ein Sonderfall – der Refrain trägt im Satz eine Strophennummer (Lied
+// 286, Seite 121: „Refrain / 4. Freude…", die DB hat 3 Strophen). Ein echter
+// Satzfehler, aber nur EINER; ohne diese Erkennung zerfiel er in drei Befunde
+// (Strophe 3 ohne Refrain, „PDF zeigt Strophe 4", Strophenabstand 3→4).
+const REFRAIN_LABEL_LINE = /^\s*(Refrain|Kehrvers)\s*:?\s*$/i;
+
+// Zwei Blöcke zu einem zusammenlegen; Nummer & Co. kommen von `base`.
+function mergeVerseBlocks(a, b, base) {
+    const { refrain, ...props } = base;
+    const lines = [...(a.lines || []), ...(b.lines || [])];
+    const textLines = [...(a.textLines || [a.text]), ...(b.textLines || [b.text])];
+    return {
+        ...props,
+        lines,
+        textLines,
+        text: joinDehyphen(textLines),
+        box: boxOfLines(lines) || a.box || b.box,
+    };
+}
+
+// Einen Block an seinen „Refrain"-Überschriften zerlegen. Die Überschrift
+// beginnt den Refrain-Teil (sie steht ja auch in der DB davor).
+function splitAtRefrains(v) {
+    const texts = v.textLines || [];
+    const lines = v.lines || [];
+    if (!texts.length || texts.length !== lines.length) return [v];
+    const cuts = [];
+    texts.forEach((t, j) => {
+        if (REFRAIN_LABEL_LINE.test(t)) cuts.push(j);
+    });
+    if (!cuts.length) return [v];
+    const bounds = [0, ...cuts.filter((j) => j > 0), texts.length];
+    const pieces = [];
+    for (let k = 0; k < bounds.length - 1; k++) {
+        const ts = texts.slice(bounds[k], bounds[k + 1]);
+        const ls = lines.slice(bounds[k], bounds[k + 1]);
+        const isRefrain = REFRAIN_LABEL_LINE.test(ts[0]);
+        const props = k === 0 ? v : {};
+        pieces.push({
+            ...props,
+            num: k === 0 ? v.num : null,
+            refrain: isRefrain && (k > 0 || v.num == null),
+            lines: ls,
+            textLines: ts,
+            text: joinDehyphen(ts),
+            box: boxOfLines(ls) || v.box,
+        });
+    }
+    return pieces;
+}
+
+function foldRefrains(verses, strophen, report) {
+    const N = strophen.length;
+    const inDb = (v) => v?.num >= 1 && v.num <= N;
+    const sim = (v, num) => similarity(canon(v.text), canon(dbVerseText(strophen[num - 1])));
+    // Wie viel besser passt `merged` zur DB-Strophe als `before`?
+    const gain = (before, merged) => sim(merged, merged.num) - sim(before, before.num);
+
+    // 1. Nummerierter Refrain: Die Strophe davor endet mit der Überschrift
+    //    „Refrain", der Refrain selbst trägt eine eigene Nummer.
+    const fixed = [];
+    for (const v of verses) {
+        const prev = fixed[fixed.length - 1];
+        if (
+            v.num != null &&
+            inDb(prev) &&
+            REFRAIN_LABEL_LINE.test(prev.textLines?.[prev.textLines.length - 1] || '')
+        ) {
+            const merged = mergeVerseBlocks(prev, v, prev);
+            if (sim(merged, prev.num) >= 0.8 && gain(prev, merged) > 0.15) {
+                report(
+                    'error',
+                    `Refrain nach Strophe ${prev.num} ist im Satz als „${v.num}." nummeriert – der Refrain trägt keine Strophennummer`,
+                    v.box,
+                );
+                fixed[fixed.length - 1] = merged;
+                continue;
+            }
+        }
+        fixed.push(v);
+    }
+
+    // 2. Refrains herauslösen und der passenden Nachbar-Strophe zuschlagen.
+    const pieces = fixed.flatMap(splitAtRefrains);
+    if (!pieces.some((p) => p.refrain)) return fixed;
+    const out = [];
+    for (let i = 0; i < pieces.length; i++) {
+        const p = pieces[i];
+        if (!p.refrain) {
+            out.push(p);
+            continue;
+        }
+        const prev = out[out.length - 1];
+        const next = pieces[i + 1] && !pieces[i + 1].refrain ? pieces[i + 1] : null;
+        const toPrev = inDb(prev) ? gain(prev, mergeVerseBlocks(prev, p, prev)) : 0;
+        const toNext = inDb(next) ? gain(next, mergeVerseBlocks(p, next, next)) : 0;
+        if (next && toNext > 0.05 && toNext > toPrev) {
+            pieces[i + 1] = mergeVerseBlocks(p, next, next);
+        } else if (prev) {
+            out[out.length - 1] = mergeVerseBlocks(prev, p, prev);
+        } else {
+            // Nichts davor, und die Strophe danach will ihn nicht: bleibt ein
+            // eigener Block (und wird als solcher gemeldet).
+            const { refrain, ...rest } = p;
+            out.push(rest);
+        }
+    }
+    return out;
+}
+
 function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
     const strophen = lied.text?.strophenEinzeln || [];
     const N = strophen.length; // inkl. Strophe 1 (im Notensatz)
@@ -1474,6 +1642,8 @@ function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
             detail,
             loc: loc || ps.numberBox,
         });
+
+    ps.verses = foldRefrains(ps.verses, strophen, vc);
 
     // Strophen mit gedruckter Nummer …
     const printed = ps.verses.filter((v) => v.num != null);
