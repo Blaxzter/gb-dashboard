@@ -109,10 +109,14 @@ function isFooterLine(line) {
 
 // Sprach-Überschrift über einem fremdsprachigen Lied („ENGLISCH", klein und in
 // Versalien über der Liednummer, Seite 16). Sie ist weder Strophe noch Fußzeile
-// und wird vor der Zerlegung verworfen – sonst gilt sie als Textblock ohne
-// Strophennummer.
+// und wird vor der Zerlegung herausgenommen – sonst gilt sie als Textblock ohne
+// Strophennummer. Geprüft wird sie trotzdem (Check „Sprach-Kennzeichnung"),
+// deshalb auch in falscher Schreibweise erkennen („Englisch").
 const LANGUAGE_LABEL =
-    /^\s*(DEUTSCH|ENGLISCH|FRANZÖSISCH|SPANISCH|ITALIENISCH|PORTUGIESISCH|NIEDERLÄNDISCH|LATEINISCH|LATEIN|RUSSISCH|POLNISCH|SCHWEDISCH|NORWEGISCH|DÄNISCH|FINNISCH|UNGARISCH|TSCHECHISCH|HEBRÄISCH|GRIECHISCH|SUAHELI|SWAHILI)\s*$/;
+    /^\s*(DEUTSCH|ENGLISCH|FRANZÖSISCH|SPANISCH|ITALIENISCH|PORTUGIESISCH|NIEDERLÄNDISCH|LATEINISCH|LATEIN|RUSSISCH|POLNISCH|SCHWEDISCH|NORWEGISCH|DÄNISCH|FINNISCH|UNGARISCH|TSCHECHISCH|HEBRÄISCH|GRIECHISCH|SUAHELI|SWAHILI)\s*$/iu;
+// Sollgrad der Sprach-Überschrift (wie die Fußzeile).
+const LANGUAGE_LABEL_PT = 7;
+const LANGUAGE_LABEL_TOL = 0.1;
 function isLanguageLabel(line) {
     return LANGUAGE_LABEL.test(line.text);
 }
@@ -607,8 +611,15 @@ export async function extractPdfSongs(pdfDoc) {
         const bodyItems = dropNotationItems(
             remove.size ? items.filter((i) => !remove.has(i)) : items,
         );
-        let lines = groupLines(bodyItems, sizeHint).filter((l) => !isLanguageLabel(l));
+        const allLines = groupLines(bodyItems, sizeHint);
+        let lines = allLines.filter((l) => !isLanguageLabel(l));
         for (const l of lines) l.page = p;
+        const languageLabels = allLines.filter(isLanguageLabel).map((l) => ({
+            text: l.text.trim(),
+            size: l.size,
+            page: p,
+            box: { page: p, rect: bboxOfItems(l.items) },
+        }));
 
         // Ein Lied beginnt dort, wo sein Notensatz steht – nicht dort, wo eine
         // Liednummer steht. Beides fällt fast immer zusammen (in beiden Test-PDFs
@@ -664,6 +675,10 @@ export async function extractPdfSongs(pdfDoc) {
                 pages: [p],
                 lines: [...lines],
                 placements: [...placements],
+                // Die Sprach-Überschrift steht im Kopf der Seite, auf der das
+                // Lied beginnt – sie gehört zum neuen Lied, nicht zum Überhang.
+                languageLabels,
+                pageWidth: width,
             };
             songs.push(cur);
         } else if (cur) {
@@ -672,6 +687,7 @@ export async function extractPdfSongs(pdfDoc) {
             cur.pages.push(p);
             cur.lines.push(...lines);
             cur.placements.push(...placements);
+            cur.languageLabels.push(...languageLabels);
         } else {
             // Text vor dem ersten Lied → Vorspann/Deckblatt.
             introPages.push(p);
@@ -869,6 +885,7 @@ export function comparePrintPdf(extracted, dbSongs) {
     const verseSpacing = [];
     const footer = [];
     const copyrightScope = []; // Issue #78: Melodie-Copyright unklar der Melodie zugeordnet
+    const languageLabel = []; // „ENGLISCH" über fremdsprachigen Fassungen
     const allUnderNotes = [];
     const anmerkung = [];
 
@@ -958,6 +975,7 @@ export function comparePrintPdf(extracted, dbSongs) {
                 loc: ps.numberBox,
             });
             compareChoral(ps, lied, { choral });
+            checkLanguageLabel(ps, lied, { languageLabel });
             compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
             checkVerseSpacing(ps, lied, { verseSpacing });
             compareFooter(ps, lied, { footer });
@@ -1043,6 +1061,7 @@ export function comparePrintPdf(extracted, dbSongs) {
         // Choralbuchnummer NICHT prüfen: Sie fehlt zwangsläufig mit der Nummer –
         // das steht schon im Befund oben und wäre nur ein zweiter für denselben
         // Satzfehler. Strophen und Fußzeile werden ganz normal geprüft.
+        checkLanguageLabel(ps, lied, { languageLabel });
         compareVerses(ps, lied, { verseText, verseCount, allUnderNotes });
         checkVerseSpacing(ps, lied, { verseSpacing });
         compareFooter(ps, lied, { footer });
@@ -1156,6 +1175,20 @@ export function comparePrintPdf(extracted, dbSongs) {
             {
                 okSummary: 'Alle geprüften Choralbuchnummern stimmen überein',
                 problemSummary: (i) => `${i.length} abweichende Choralbuchnummer(n)`,
+            },
+        ),
+    );
+
+    checks.push(
+        makeCheck(
+            'language-label',
+            CAT_COMPLETE,
+            'Sprach-Kennzeichnung',
+            `Über jedem fremdsprachigen Lied – jeder Übersetzung (deutsche Liedfassung hinterlegt) und jedem englischen Lied, auch ohne deutsche Fassung – muss oben in der Ecke die Sprache stehen, in Versalien und ${LANGUAGE_LABEL_PT} pt („ENGLISCH"). Deutsche Lieder tragen keine Sprach-Kennzeichnung. Ein Sprachfeld hat die Datenbank nicht: Englisch wird am Titel und an Strophe 1 erkannt.`,
+            languageLabel,
+            {
+                okSummary: 'Alle fremdsprachigen Lieder sind gekennzeichnet',
+                problemSummary: (i) => `${i.length} Auffälligkeit(en) bei der Sprach-Kennzeichnung`,
             },
         ),
     );
@@ -1387,6 +1420,124 @@ function versionScore(ps, lied) {
     const fe = footerSignature(buildFooter(lied));
     if (fp && fe) return similarity(fp, fe);
     return 0.5;
+}
+
+// Häufige Funktionswörter beider Sprachen – Grundlage der Spracherkennung.
+const EN_WORDS = new Set(
+    'the and of to you your our my is in we are for with all be his he me i it this that on will thy thee thou lord love let us who from have not no so'.split(
+        ' ',
+    ),
+);
+const DE_WORDS = new Set(
+    'und der die das ich du wir ist nicht mit dem den ein eine zu in sich auf uns mein dein sein des im ihr er sie es so wie was gott herr mir dir'.split(
+        ' ',
+    ),
+);
+
+// Ist das Lied englischsprachig? Die Datenbank hat kein Sprachfeld, also wird
+// gezählt: englische gegen deutsche Funktionswörter in Titel und Strophe 1.
+// Strophe 1 und Titel geben die Leitsprache an – mehrsprachige Lieder mit
+// deutscher erster Strophe (353 „Lobsingt, ihr Völker alle", danach englisch,
+// lateinisch, schwedisch …) bleiben so deutsch. Bei einer Übersetzung zählt
+// die zweite Titel-Hälfte („Herbei, all ihr Gläubigen / O Come, All Ye
+// Faithful"), sonst die erste; ein Klammerzusatz („10.000 Reasons") nicht.
+export function isEnglishSong(lied) {
+    const halves = String(lied?.titel || '').split('/');
+    const titel = (lied?.deutscheLiedfassung ? halves.slice(1).join(' ') : halves[0]).replace(
+        /\([^()]*\)/g,
+        ' ',
+    );
+    const s1 = dbVerseText(lied?.text?.strophenEinzeln?.[0]);
+    let en = 0;
+    let de = 0;
+    for (const w of `${titel} ${s1}`.toLowerCase().match(/\p{L}+/gu) || []) {
+        if (EN_WORDS.has(w)) en++;
+        if (DE_WORDS.has(w)) de++;
+    }
+    return en > de;
+}
+
+// Fremdsprachig im Sinne des Satzes (Sprach-Überschrift im Liederteil, Kursive
+// im Inhaltsverzeichnis): jede Übersetzung (deutsche Liedfassung hinterlegt)
+// und jedes englischsprachige Lied, auch ohne deutsche Fassung.
+export function isForeignSong(lied) {
+    return !!lied?.deutscheLiedfassung || isEnglishSong(lied);
+}
+
+// Kasten dort, wo die Sprach-Überschrift stehen müsste: oben in der äußeren
+// Ecke (gerade Seiten links, ungerade rechts – wie die Liednummer).
+function expectedLanguageLabelRect(page, width) {
+    const w = 40;
+    return { x: page % 2 === 0 ? 40 : width - w - 38, y: 12, w, h: 10 };
+}
+
+// Sprach-Überschrift („ENGLISCH") über fremdsprachigen Liedern: Pflicht bei
+// jeder Übersetzung und jedem englischen Lied (isForeignSong), fehl am Platz
+// bei einem deutschen Lied. Gesetzt wird sie in Versalien und 7 pt.
+function checkLanguageLabel(ps, lied, { languageLabel }) {
+    const foreign = isForeignSong(lied);
+    // Nur Englisch ist erkennbar; bei anderen Übersetzungen zählt jede Sprache.
+    const expected = isEnglishSong(lied) ? 'ENGLISCH' : null;
+    const labels = ps.languageLabels || [];
+    const base = {
+        id: lied.id,
+        nummer: ps.nummer ?? null,
+        title: lied.titel || `Lied ${ps.nummer}`,
+    };
+    const page = ps.pages[0];
+
+    if (!foreign) {
+        for (const l of labels) {
+            languageLabel.push({
+                ...base,
+                sev: 'warning',
+                detail: `Deutsche Fassung trägt die Sprach-Kennzeichnung „${l.text}" (Seite ${l.page})`,
+                loc: l.box,
+            });
+        }
+        return;
+    }
+
+    const own = labels.filter((l) => l.page === page);
+    if (!own.length) {
+        const later = labels.length
+            ? ` – „${labels[0].text}" steht erst auf Seite ${labels[0].page}`
+            : '';
+        languageLabel.push({
+            ...base,
+            sev: 'error',
+            detail: `${expected ? 'Englisches Lied' : 'Fremdsprachige Fassung'} ohne Sprach-Kennzeichnung oben in der Ecke (Seite ${page}; erwartet ${expected ? '' : 'z. B. '}„${expected || 'ENGLISCH'}" in ${LANGUAGE_LABEL_PT} pt)${later}`,
+            loc: { page, rect: expectedLanguageLabelRect(page, ps.pageWidth || 311.811) },
+        });
+        return;
+    }
+    for (const l of own) {
+        const upper = l.text.toLocaleUpperCase('de');
+        if (expected && upper !== expected) {
+            languageLabel.push({
+                ...base,
+                sev: 'error',
+                detail: `Sprach-Kennzeichnung „${l.text}", das Lied ist aber englisch – erwartet „${expected}"`,
+                loc: l.box,
+            });
+        }
+        if (l.text !== upper) {
+            languageLabel.push({
+                ...base,
+                sev: 'error',
+                detail: `Sprach-Kennzeichnung „${l.text}" nicht in Versalien – erwartet „${upper}"`,
+                loc: l.box,
+            });
+        }
+        if (Math.abs(l.size - LANGUAGE_LABEL_PT) > LANGUAGE_LABEL_TOL) {
+            languageLabel.push({
+                ...base,
+                sev: 'error',
+                detail: `Sprach-Kennzeichnung „${l.text}" in ${+l.size.toFixed(2)} pt statt ${LANGUAGE_LABEL_PT} pt`,
+                loc: l.box,
+            });
+        }
+    }
 }
 
 function compareChoral(ps, lied, { choral }) {

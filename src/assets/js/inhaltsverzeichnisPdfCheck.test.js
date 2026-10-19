@@ -384,3 +384,74 @@ describe('compareIvzPdf', () => {
         expect(loc.rect.w).toBeGreaterThan(0);
     });
 });
+
+describe('compareIvzPdf (Kursivsatz)', () => {
+    // fakePdf mit Schriftnamen: Der Kursiv-Check liest den Schnitt aus dem
+    // geladenen Font-Objekt (getOperatorList + commonObjs), wie in pdf.js.
+    function fakePdfMitFonts(items) {
+        const pdf = fakePdf([items]);
+        const fonts = { f_text: 'ABCDEF+OptimaLTStd', f_italic: 'ABCDEF+OptimaLTStd-Italic' };
+        return {
+            ...pdf,
+            getPage: async (p) => ({
+                ...(await pdf.getPage(p)),
+                getOperatorList: async () => ({}),
+                commonObjs: { get: (id) => ({ name: fonts[id] }) },
+            }),
+        };
+    }
+    const kursiv = (items) => items.map((it) => ({ ...it, font: 'f_italic' }));
+    const db = [
+        lied(1, 7, 'All unser Leben und Wandern'),
+        lied(2, null, 'All unser Leben und Wandern / All Our Lives and Travels', {
+            deutscheLiedfassung: 1,
+        }),
+        lied(3, 344, 'Let the Words of the Lord', {
+            text: { strophenEinzeln: [{ strophe: 'Let the words of the Lord dwell in you.' }] },
+        }),
+    ];
+    const run = async (items) => {
+        const checks = compareIvzPdf(
+            await extractIvzEntries(
+                fakePdfMitFonts([...items, ...spalte(FUELL.map(([n, t]) => [n, t]))]),
+            ),
+            [...db, ...fuellLieder],
+        );
+        return checks.find((c) => c.id === 'ivz-italic').items;
+    };
+    // Füllzeilen unterhalb der Prüfzeilen, damit die Zeilen nicht kollidieren.
+    const row = (nummer, titel, r) => zeile(nummer, titel, { row: r + FUELL.length });
+
+    it('meldet nichts, wenn Übersetzung und englisches Lied kursiv stehen', async () => {
+        const items = [
+            ...row(7, 'All unser Leben und Wandern', 0),
+            ...kursiv(row(7, 'All Our Lives and Travels', 1)),
+            ...kursiv(row(344, 'Let the Words of the Lord', 2)),
+        ];
+        expect(await run(items)).toEqual([]);
+    });
+
+    it('meldet aufrecht gesetzte englische Lieder und kursive deutsche', async () => {
+        const items = [
+            ...kursiv(row(7, 'All unser Leben und Wandern', 0)),
+            ...kursiv(row(7, 'All Our Lives and Travels', 1)),
+            ...row(344, 'Let the Words of the Lord', 2),
+        ];
+        const found = await run(items);
+        expect(found.map((i) => [i.id, i.detail])).toEqual([
+            [1, expect.stringContaining('Deutsches Lied – muss aufrecht stehen')],
+            [3, expect.stringContaining('Englisches Lied – muss kursiv stehen')],
+        ]);
+    });
+
+    it('ist ohne lesbare Schriftnamen nur ein Hinweis', async () => {
+        const extracted = await extractIvzEntries(
+            fakePdf([[...row(344, 'Let the Words of the Lord', 0), ...spalte(FUELL)]]),
+        );
+        const check = compareIvzPdf(extracted, [...db, ...fuellLieder]).find(
+            (c) => c.id === 'ivz-italic',
+        );
+        expect(check.status).toBe('info');
+        expect(check.items).toEqual([]);
+    });
+});

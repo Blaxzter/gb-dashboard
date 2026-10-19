@@ -7,6 +7,7 @@ import {
     extractPdfSongs,
     footerSignature,
     footerSignaturesMatch,
+    isEnglishSong,
 } from '@/assets/js/printPdfCheck';
 
 describe('canon (Vergleichsform)', () => {
@@ -477,5 +478,127 @@ describe('comparePrintPdf (Refrain-Blöcke)', () => {
         ]);
         expect(text).toEqual([]);
         expect(spacing).toEqual([]);
+    });
+});
+
+describe('isEnglishSong', () => {
+    const lied = (titel, s1, extra = {}) => ({
+        titel,
+        text: { strophenEinzeln: [{ strophe: s1 }] },
+        ...extra,
+    });
+
+    it('erkennt englische Lieder auch ohne deutsche Fassung (Lied 344)', () => {
+        expect(
+            isEnglishSong(
+                lied(
+                    'Let the Words of the Lord',
+                    'Let the words of the Lord Jesus Christ dwell in you.',
+                ),
+            ),
+        ).toBe(true);
+    });
+
+    it('nimmt bei Übersetzungen die zweite Titel-Hälfte (Lied 230)', () => {
+        expect(
+            isEnglishSong(
+                lied(
+                    'Herbei, all ihr Gläubigen / O Come, All Ye Faithful',
+                    'O come, all ye faithful',
+                    {
+                        deutscheLiedfassung: 1,
+                    },
+                ),
+            ),
+        ).toBe(true);
+    });
+
+    it('lässt mehrsprachige Lieder mit deutscher erster Strophe deutsch (Lied 353)', () => {
+        expect(
+            isEnglishSong(
+                lied(
+                    'Lobsingt, ihr Völker alle, lobsingt und preist den Herrn / Laudate omnes gentes',
+                    'Lobsingt, ihr Völker alle, lobsingt und preist den Herrn',
+                ),
+            ),
+        ).toBe(false);
+    });
+});
+
+describe('comparePrintPdf (Sprach-Kennzeichnung)', () => {
+    const deutsch = {
+        id: 1,
+        liednummer2026: 230,
+        status: 'accepted',
+        titel: 'Herbei, all ihr Gläubigen',
+        text: {
+            strophenEinzeln: [
+                { strophe: 'Herbei, o ihr Gläub’gen, fröhlich triumphieret' },
+                { strophe: 'Du König der Ehren, Herrscher der Heerscharen' },
+            ],
+        },
+    };
+    const englisch = {
+        id: 2,
+        liednummer2026: null,
+        deutscheLiedfassung: 1,
+        status: 'accepted',
+        titel: 'Herbei, all ihr Gläubigen / O Come, All Ye Faithful',
+        text: {
+            strophenEinzeln: [
+                { strophe: 'O come, all ye faithful, joyful and triumphant' },
+                { strophe: 'Sing, choirs of angels, sing in exultation' },
+            ],
+        },
+    };
+    const label = (str, size = 7) => ({ str, x: 42.6, yTop: 19.3, size });
+    const run = async (seiteDe, seiteEn) => {
+        const checks = comparePrintPdf(await extractPdfSongs(fakePdf([seiteDe, seiteEn])), [
+            deutsch,
+            englisch,
+        ]);
+        return checks.find((c) => c.id === 'language-label').items;
+    };
+    // Je eine Textstrophe, damit die beiden Seiten ihren Fassungen zugeordnet
+    // werden (Zuordnung über den Strophentext).
+    const de = (...extra) => [
+        ...extra,
+        ...kopf('230', '139'),
+        noten(),
+        strophe('2. Du König der Ehren, Herrscher der Heerscharen', 200),
+    ];
+    const en = (...extra) => [
+        ...extra,
+        ...kopf('230', '139'),
+        noten(),
+        strophe('2. Sing, choirs of angels, sing in exultation', 200),
+    ];
+
+    it('meldet nichts bei „ENGLISCH" in 7 pt über der Übersetzung', async () => {
+        expect(await run(de(), en(label('ENGLISCH')))).toEqual([]);
+    });
+
+    it('meldet die fehlende Kennzeichnung (Seite 41)', async () => {
+        const items = await run(de(), en());
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({ sev: 'error', id: 2, nummer: '230' });
+        expect(items[0].loc.page).toBe(2);
+    });
+
+    it('meldet falschen Schriftgrad, Kleinschreibung und falsche Sprache', async () => {
+        expect((await run(de(), en(label('ENGLISCH', 8)))).map((i) => i.detail)).toEqual([
+            expect.stringContaining('8 pt statt 7 pt'),
+        ]);
+        expect((await run(de(), en(label('Englisch')))).map((i) => i.detail)).toEqual([
+            expect.stringContaining('nicht in Versalien'),
+        ]);
+        expect((await run(de(), en(label('FRANZÖSISCH')))).map((i) => i.detail)).toEqual([
+            expect.stringContaining('erwartet „ENGLISCH"'),
+        ]);
+    });
+
+    it('warnt bei einer Kennzeichnung über dem deutschen Lied', async () => {
+        const items = await run(de(label('ENGLISCH')), en(label('ENGLISCH')));
+        expect(items.map((i) => [i.sev, i.id])).toEqual([['warning', 1]]);
     });
 });

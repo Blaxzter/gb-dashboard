@@ -34,6 +34,8 @@ import {
     assignItemFingerprints,
     bboxOfItems,
     canon,
+    isEnglishSong,
+    isForeignSong,
     makeCheck,
     numInt,
     numKey,
@@ -56,23 +58,61 @@ const COL_MIN_NUMBERS = 5;
 // --- Extraktion ------------------------------------------------------------
 
 // Text-Items einer Seite mit Position (x, yTop von oben) und Schriftgrad.
-async function pageItems(page) {
+// Mit `withFonts` zusätzlich `italic` je Item (siehe fontNames) – kostet einen
+// getOperatorList-Lauf je Seite und wird deshalb nur für die Prüfung selbst
+// gebraucht, nicht für detectPdfKind.
+async function pageItems(page, { withFonts = false } = {}) {
     const viewport = page.getViewport({ scale: 1 });
     const items = [];
     const content = await page.getTextContent();
+    const names = withFonts ? await fontNames(page, content) : null;
     for (const it of content.items) {
         if (typeof it.str !== 'string' || !it.str.trim()) continue;
         const t = it.transform;
+        const font = it.fontName || '';
         items.push({
             str: it.str,
             x: t[4],
             yTop: viewport.height - t[5], // von oben: Lesereihenfolge = aufsteigend
             width: it.width || 0,
             size: Math.abs(t[3]) || it.height || 0,
-            font: it.fontName || '',
+            font,
+            italic: names ? isItalic(names[font], t) : null,
         });
     }
-    return { items, width: viewport.width, height: viewport.height };
+    return { items, width: viewport.width, height: viewport.height, fontInfo: !!names?.ok };
+}
+
+// Echte Schriftnamen der Seite („AJMGMT+OptimaLTStd-Italic"). Der Text-Layer
+// nennt nur pdf.js-interne Ids (g_d0_f2) und eine generische Familie
+// („sans-serif") – ob kursiv gesetzt ist, steht erst im geladenen Font-Objekt,
+// und das gibt es erst nach getOperatorList. `ok` = mindestens ein Name gelesen.
+async function fontNames(page, content) {
+    const names = { ok: false };
+    if (typeof page.getOperatorList !== 'function' || !page.commonObjs) return names;
+    try {
+        await page.getOperatorList();
+    } catch {
+        return names;
+    }
+    for (const it of content.items) {
+        const id = it.fontName;
+        if (!id || id in names) continue;
+        try {
+            names[id] = page.commonObjs.get(id)?.name || '';
+            if (names[id]) names.ok = true;
+        } catch {
+            names[id] = ''; // Font (noch) nicht aufgelöst
+        }
+    }
+    return names;
+}
+
+// Kursiv: Schnitt im Fontnamen – oder schräg gestellt (künstliche Kursive über
+// die Textmatrix, transform[2] ≠ 0).
+function isItalic(fontName, transform) {
+    if (/italic|oblique|kursiv/i.test(fontName || '')) return true;
+    return Math.abs(transform?.[2] || 0) > 0.01;
 }
 
 // Spalten aus den rechten Kanten der reinen Zahl-Items ableiten (siehe Kopf).
@@ -195,11 +235,15 @@ export async function extractIvzEntries(pdfDoc) {
     const pageCount = pdfDoc.numPages;
     const pageSizes = {};
     const perPage = [];
+    // Ließ sich irgendwo ein Schriftname lesen? Sonst ist „kursiv" unbekannt
+    // und der Kursiv-Check wird übersprungen statt alles anzumeckern.
+    let fontInfo = false;
     for (let p = 1; p <= pageCount; p++) {
         const page = await pdfDoc.getPage(p);
-        const { items, width, height } = await pageItems(page);
+        const { items, width, height, fontInfo: fi } = await pageItems(page, { withFonts: true });
         pageSizes[p] = { width, height };
         perPage.push(items);
+        if (fi) fontInfo = true;
     }
 
     const columns = detectColumns(perPage);
@@ -237,6 +281,7 @@ export async function extractIvzEntries(pdfDoc) {
                 if (isNumber && row.items.length > 1) {
                     cur = {
                         nummer: first.str.trim(),
+                        numberItem: first,
                         page: p,
                         numberBox: { page: p, rect: bboxOfItems([first]) },
                         rows: [{ page: p, text: rowText(row.items.slice(1)), items: row.items }],
@@ -263,9 +308,23 @@ export async function extractIvzEntries(pdfDoc) {
         e.titleBox = boxOfRows(e.rows);
         // Anker für Befunde: Nummer und Titel der ersten Zeile zusammen.
         e.box = boxOfRows([e.rows[0]]) || e.numberBox;
+        // Satzschnitt des Eintrags: fremdsprachige Fassungen stehen kursiv
+        // (Nummer UND Titel). Gemischt = ein Teil kursiv, ein Teil nicht.
+        if (fontInfo) {
+            const titleItems = e.titleItems.filter((it) => it.str.trim());
+            e.numberItalic = !!e.numberItem?.italic;
+            e.titleItalic = titleItems.length
+                ? titleItems.every((it) => it.italic)
+                    ? true
+                    : titleItems.some((it) => it.italic)
+                      ? 'mixed'
+                      : false
+                : null;
+        }
+        delete e.numberItem;
     });
 
-    return { entries, columns, skipped, pageCount, pageSizes };
+    return { entries, columns, skipped, pageCount, pageSizes, fontInfo };
 }
 
 // Kasten über die Items mehrerer Zeilen (Seite der ersten Zeile).
@@ -445,7 +504,7 @@ const CAT_OVERVIEW = 'Übersicht';
 // Vergleicht die aus der Inhaltsverzeichnis-PDF gelesenen Einträge mit den
 // „genommenen" Liedern der Datenbank und liefert die flache Liste von Checks.
 export function compareIvzPdf(extracted, dbSongs) {
-    const { entries, pageCount, skipped = [] } = extracted;
+    const { entries, pageCount, skipped = [], fontInfo = false } = extracted;
 
     const byId = {};
     for (const l of dbSongs) byId[l.id] = l.liednummer2026;
@@ -475,6 +534,7 @@ export function compareIvzPdf(extracted, dbSongs) {
     const titleDiff = [];
     const titleSuffix = [];
     const wrapped = [];
+    const italic = [];
 
     // Reihenfolge: Die Nummern müssen in der Lesereihenfolge (Spalte für Spalte,
     // Seite für Seite) aufsteigen. Dieselbe Nummer darf mehrfach vorkommen
@@ -579,6 +639,37 @@ export function compareIvzPdf(extracted, dbSongs) {
             expected,
             loc: m.entry.titleBox || m.entry.box,
         });
+    }
+
+    // Satzschnitt: Fremdsprachige Lieder (Übersetzungen und englische Lieder,
+    // siehe isForeignSong) stehen kursiv – Nummer und Titel –, deutsche aufrecht. Ohne lesbare
+    // Schriftnamen ist das nicht feststellbar (fontInfo), dann kein Befund.
+    if (fontInfo) {
+        for (const m of matches) {
+            const foreign = isForeignSong(m.lied);
+            const e = m.entry;
+            const wrong = [];
+            if (foreign) {
+                if (e.numberItalic !== true) wrong.push('die Nummer');
+                if (e.titleItalic !== true)
+                    wrong.push(e.titleItalic === 'mixed' ? 'ein Teil des Titels' : 'der Titel');
+            } else {
+                if (e.numberItalic === true) wrong.push('die Nummer');
+                if (e.titleItalic === true || e.titleItalic === 'mixed')
+                    wrong.push(e.titleItalic === 'mixed' ? 'ein Teil des Titels' : 'der Titel');
+            }
+            if (!wrong.length) continue;
+            italic.push({
+                sev: 'error',
+                id: m.lied.id,
+                nummer: e.nummer,
+                title: `Nr. ${e.nummer} · ${e.titel}`,
+                detail: foreign
+                    ? `${isEnglishSong(m.lied) ? 'Englisches Lied' : 'Fremdsprachige Fassung'} – muss kursiv stehen, aber ${wrong.join(' und ')} ${wrong.length > 1 ? 'sind' : 'ist'} aufrecht gesetzt.`
+                    : `Deutsches Lied – muss aufrecht stehen, aber ${wrong.join(' und ')} ${wrong.length > 1 ? 'sind' : 'ist'} kursiv gesetzt.`,
+                loc: e.box,
+            });
+        }
     }
 
     // Fehlende Einträge: genommen + Nummer, aber im Inhaltsverzeichnis nicht da.
@@ -709,6 +800,25 @@ export function compareIvzPdf(extracted, dbSongs) {
                 okSummary: 'Keine weggelassenen Klammerzusätze',
                 problemSummary: (i) => `${i.length} Titel ohne den Klammerzusatz der Datenbank`,
             },
+        ),
+    );
+
+    checks.push(
+        makeCheck(
+            'ivz-italic',
+            CAT_TITLE,
+            'Kursivsatz fremdsprachiger Lieder',
+            'Fremdsprachige Lieder – jede Übersetzung (deutsche Liedfassung hinterlegt) und jedes englische Lied, auch ohne deutsche Fassung – stehen im Inhaltsverzeichnis kursiv, Nummer und Titel, z. B. „7 All Our Lives and Travels". Deutsche Lieder stehen aufrecht. Erkannt wird der Schnitt am Schriftnamen im PDF (…-Italic), Englisch am Titel und an Strophe 1.',
+            italic,
+            fontInfo
+                ? {
+                      okSummary: 'Alle fremdsprachigen Lieder kursiv, alle deutschen aufrecht',
+                      problemSummary: (i) => `${i.length} Eintrag/Einträge im falschen Schnitt`,
+                  }
+                : {
+                      forceStatus: 'info',
+                      okSummary: 'Nicht prüfbar – die Schriftnamen der PDF ließen sich nicht lesen',
+                  },
         ),
     );
 
