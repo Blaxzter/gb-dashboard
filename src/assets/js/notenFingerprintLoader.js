@@ -120,7 +120,8 @@ export async function fingerprintFromPdfBytes(bytes, fileId) {
     // disableFontFace lädt pdf.js die eingebetteten Fonts unnötig.
     const doc = await loadPdfDocument(bytes, { disableFontFace: true });
     try {
-        return await fingerprintNotenPdf(doc, fileId);
+        const { OPS } = await getPdfjs();
+        return await fingerprintNotenPdf(doc, fileId, OPS);
     } finally {
         doc.destroy?.();
     }

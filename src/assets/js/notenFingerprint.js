@@ -90,22 +90,181 @@ export async function pageMusicGlyphs(page) {
     return glyphs;
 }
 
+// --- Notenlinien -----------------------------------------------------------
+//
+// Die Glyphen allein sagen nicht, welcher TON ein Notenkopf ist: Dafür braucht
+// es die Lage der fünf Notenlinien, und die sind keine Glyphen, sondern
+// Vektorlinien. Ab dem zweiten System ist selbst der Schlüssel eine Vektorgrafik.
+// Der PDF↔MusicXML-Abgleich (notenAbgleich.js) liest die Tonhöhen deshalb über
+// die Notenlinien, die hier aus der Operator-Liste der Seite kommen.
+//
+// Portiert aus gb-scripts (app/utils/notenbild.py, detect_staves): Ein System
+// ist ein Lauf gleich langer, gleichmäßig gestapelter waagrechter Linien, in
+// Fünfergruppen geschnitten.
+
+// Eine Notenlinie ist mindestens so lang wie dieser Anteil der Seitenbreite.
+const MIN_STAFF_LINE_RATIO = 0.12;
+
+const IDENTITY = [1, 0, 0, 1, 0, 0];
+
+// m ∘ n: erst n, dann m – so wirkt `cm` im PDF auf die aktuelle Matrix.
+function multiply(m, n) {
+    return [
+        m[0] * n[0] + m[2] * n[1],
+        m[1] * n[0] + m[3] * n[1],
+        m[0] * n[2] + m[2] * n[3],
+        m[1] * n[2] + m[3] * n[3],
+        m[0] * n[4] + m[2] * n[5] + m[4],
+        m[1] * n[4] + m[3] * n[5] + m[5],
+    ];
+}
+
+function apply(m, x, y) {
+    return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+}
+
+// Lange waagrechte Linien einer Seite als { y, x0, x1 } (y von oben, in pt).
+// `OPS` ist pdfjs.OPS – die Operator-Nummern gehören zur pdf.js-Version.
+export async function pageHorizontalLines(page, OPS) {
+    const { width, height } = page.getViewport({ scale: 1 });
+    const minLen = MIN_STAFF_LINE_RATIO * width;
+    const { fnArray, argsArray } = await page.getOperatorList();
+    const out = [];
+    const stack = [];
+    let ctm = IDENTITY;
+    // Der aktuelle Punkt gilt über `constructPath` hinweg: pdf.js teilt einen
+    // Pfad mitunter auf, `moveTo` und `lineTo` kommen dann einzeln.
+    let cx = 0;
+    let cy = 0;
+
+    const addLine = (x1, y1, x2, y2) => {
+        const [ax, ay] = apply(ctm, x1, y1);
+        const [bx, by] = apply(ctm, x2, y2);
+        if (Math.abs(ay - by) < 1 && Math.abs(bx - ax) >= minLen) {
+            out.push({ y: height - (ay + by) / 2, x0: Math.min(ax, bx), x1: Math.max(ax, bx) });
+        }
+    };
+    const addRect = (x, y, w, h) => {
+        const [ax, ay] = apply(ctm, x, y);
+        const [bx, by] = apply(ctm, x + w, y + h);
+        if (Math.abs(bx - ax) >= minLen && Math.abs(by - ay) < 2.5) {
+            out.push({ y: height - (ay + by) / 2, x0: Math.min(ax, bx), x1: Math.max(ax, bx) });
+        }
+    };
+
+    for (let i = 0; i < fnArray.length; i++) {
+        const fn = fnArray[i];
+        const args = argsArray[i];
+        if (fn === OPS.save) stack.push(ctm);
+        else if (fn === OPS.restore) ctm = stack.pop() || IDENTITY;
+        else if (fn === OPS.transform) ctm = multiply(ctm, args);
+        else if (fn === OPS.paintFormXObjectBegin) {
+            stack.push(ctm);
+            if (Array.isArray(args?.[0]) && args[0].length === 6) ctm = multiply(ctm, args[0]);
+        } else if (fn === OPS.paintFormXObjectEnd) ctm = stack.pop() || IDENTITY;
+        else if (fn === OPS.constructPath) {
+            const [ops, coords] = args;
+            let k = 0;
+            for (const op of ops) {
+                if (op === OPS.moveTo) {
+                    cx = coords[k++];
+                    cy = coords[k++];
+                } else if (op === OPS.lineTo) {
+                    const x = coords[k++];
+                    const y = coords[k++];
+                    addLine(cx, cy, x, y);
+                    cx = x;
+                    cy = y;
+                } else if (op === OPS.curveTo) {
+                    k += 4;
+                    cx = coords[k++];
+                    cy = coords[k++];
+                } else if (op === OPS.curveTo2 || op === OPS.curveTo3) {
+                    k += 2;
+                    cx = coords[k++];
+                    cy = coords[k++];
+                } else if (op === OPS.rectangle) {
+                    addRect(coords[k], coords[k + 1], coords[k + 2], coords[k + 3]);
+                    k += 4;
+                }
+            }
+        }
+    }
+    out.sort((a, b) => a.y - b.y || a.x0 - b.x0);
+    return out;
+}
+
+// Waagrechte Linien (nach y sortiert) zu Fünfliniensystemen gruppieren.
+// Liefert [{ top, bottom }] von oben nach unten, y von oben in pt.
+export function stavesFromLines(lines) {
+    const runs = [];
+    let current = [];
+    for (const seg of lines) {
+        if (!current.length) {
+            current = [seg];
+            continue;
+        }
+        const prev = current[current.length - 1];
+        const gap = seg.y - prev.y;
+        const sameX = Math.abs(seg.x0 - prev.x0) < 3 && Math.abs(seg.x1 - prev.x1) < 3;
+        const reference = current.length >= 2 ? current[1].y - current[0].y : gap;
+        const even =
+            current.length < 2 || Math.abs(gap - reference) <= Math.max(0.6, 0.2 * reference);
+        const neighbour = sameX && gap > 0 && gap < 12;
+        if (neighbour && even) {
+            current.push(seg);
+        } else {
+            runs.push(current);
+            // Die Linie, die einen Lauf beendet, kann die ZWEITE des nächsten
+            // Systems sein (eine Volta-Klammer über dem System sieht aus wie
+            // eine Notenlinie) – also mitnehmen, wie in notenbild.py.
+            current = neighbour && current.length >= 2 ? [prev, seg] : [seg];
+        }
+    }
+    if (current.length) runs.push(current);
+
+    const staves = [];
+    for (const run of runs) {
+        for (let start = 0; start + 5 <= run.length; start += 5) {
+            const chunk = run.slice(start, start + 5);
+            staves.push({ top: chunk[0].y, bottom: chunk[4].y });
+        }
+    }
+    staves.sort((a, b) => a.top - b.top);
+    return staves;
+}
+
 // Fingerabdruck einer ganzen Notensatz-PDF (PDFDocumentProxy).
 // `fileId` wandert mit in den Wert: Wird `notentext` ausgetauscht, ohne den
 // Fingerabdruck neu zu rechnen, ist der alte Wert erkennbar veraltet und wird
 // verworfen, statt einen Fehlalarm auszulösen.
-export async function fingerprintNotenPdf(pdfDoc, fileId) {
+//
+// `staves` je Seite ([top, bottom] in pt, von oben) ist später dazugekommen und
+// nur für den PDF↔MusicXML-Abgleich nötig. Ältere Werte haben es nicht – für
+// den Druck-Check bleiben sie gültig, der Abgleich prüft dann ohne Tonhöhen.
+// Ohne `OPS` (pdfjs.OPS) entfällt es.
+export async function fingerprintNotenPdf(pdfDoc, fileId, OPS) {
     const pages = [];
     for (let p = 1; p <= pdfDoc.numPages; p++) {
         const page = await pdfDoc.getPage(p);
         const glyphs = await pageMusicGlyphs(page);
-        pages.push({
+        const entry = {
             seq: glyphs.map((g) => g.ch).join(''),
             x: glyphs.map((g) => r2(g.x)),
             y: glyphs.map((g) => r2(g.yTop)),
-        });
+        };
+        if (OPS) {
+            const staves = stavesFromLines(await pageHorizontalLines(page, OPS));
+            entry.staves = staves.map((s) => [r2(s.top), r2(s.bottom)]);
+        }
+        pages.push(entry);
     }
     return { v: FINGERPRINT_VERSION, file: fileId ?? null, pages };
+}
+
+// Trägt der Fingerabdruck die Notenlinien (für den PDF↔MusicXML-Abgleich)?
+export function hasStaffLines(fp) {
+    return Array.isArray(fp?.pages) && fp.pages.every((p) => Array.isArray(p?.staves));
 }
 
 // Ist der gespeicherte Wert benutzbar – und gehört er noch zur aktuellen Datei?

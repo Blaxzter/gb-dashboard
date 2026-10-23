@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
 import { useUserStore } from '@/store/user';
 import { runChecks, isGenommen } from '@/assets/js/gesangbuchChecks.js';
+import { isFingerprintUsable } from '@/assets/js/notenFingerprint';
+import { createMusicXmlLoader } from '@/assets/js/notenAbgleichLoader';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 import CheckCategory from '@/components/checks/CheckCategory.vue';
 
@@ -60,12 +62,66 @@ watch(song_dialog, (is_open) => {
 
 const alle_lieder = computed(() => store.gesangbuchlieder);
 const genommen = computed(() => alle_lieder.value.filter(isGenommen));
-const results = computed(() => runChecks(alle_lieder.value, store.authors));
+
+// PDF↔MusicXML-Abgleich: Die Checks laufen synchron, die MusicXML-Dateien
+// müssen aber geladen werden. Das passiert hier einmal je Besuch (der Loader
+// cached je Datei-Id); `mxml_state` reicht den Stand an die Checks weiter. Er
+// wird nur alle paar Dateien ersetzt, weil jede Änderung ALLE Checks neu laufen
+// lässt.
+const MXML_PARALLEL = 6;
+const MXML_PUBLISH_EVERY = 50;
+const mxml_state = shallowRef(null);
+let mxml_started = false;
+const loadScore = createMusicXmlLoader({ backendUrl: import.meta.env.VITE_BACKEND_URL });
+
+async function loadMusicXml() {
+    if (mxml_started || alle_lieder.value.length === 0) return;
+    mxml_started = true;
+    const list = genommen.value.filter(
+        (l) =>
+            l.notentext &&
+            l.notentext_mxml &&
+            !l.notentext_seite2 &&
+            isFingerprintUsable(l.notentext_fingerprint, l.notentext),
+    );
+    const scores = new Map();
+    let done = 0;
+    const publish = () => {
+        mxml_state.value = { scores: new Map(scores), done, total: list.length };
+    };
+    publish();
+    let next = 0;
+    async function worker() {
+        while (next < list.length) {
+            const lied = list[next++];
+            const fileId = lied.notentext_mxml;
+            try {
+                scores.set(lied.id, { fileId, score: await loadScore(fileId) });
+            } catch (e) {
+                scores.set(lied.id, { fileId, error: e?.message || String(e) });
+            }
+            done++;
+            if (done % MXML_PUBLISH_EVERY === 0) publish();
+        }
+    }
+    await Promise.all(Array.from({ length: MXML_PARALLEL }, worker));
+    publish();
+}
+
+const results = computed(() =>
+    runChecks(alle_lieder.value, store.authors, { musicxml: mxml_state.value }),
+);
 
 // Beim ersten Laden und sobald die Lieder verfügbar sind ein evtl. in der URL
-// hinterlegtes Lied öffnen.
-onMounted(openSongFromRoute);
-watch(alle_lieder, () => openSongFromRoute());
+// hinterlegtes Lied öffnen und den MusicXML-Abgleich anstoßen.
+onMounted(() => {
+    openSongFromRoute();
+    loadMusicXml();
+});
+watch(alle_lieder, () => {
+    openSongFromRoute();
+    loadMusicXml();
+});
 
 const summary = computed(() => {
     const counts = { ok: 0, info: 0, warning: 0, error: 0 };

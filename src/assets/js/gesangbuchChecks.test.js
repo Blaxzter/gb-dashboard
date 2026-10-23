@@ -301,3 +301,76 @@ describe('Check „Nach Eberhard Köhler nur mit Text geändert“ (Issue #119)'
         expect(run([]).status).toBe('ok');
     });
 });
+
+describe('Check „Noten-PDF und MusicXML passen zusammen“', () => {
+    // Ein System 40–55.2 pt, Violinschlüssel, ein ♭, Noten F4 G4 (Stufen über E4).
+    const y = (steps) => 55.2 - steps * 1.9;
+    const codes = [0xe050, 0xe260, 0xe0a4, 0xe0a4];
+    const fingerprint = {
+        v: 1,
+        file: 'pdf-1',
+        pages: [
+            {
+                seq: codes.map((c) => String.fromCodePoint(c)).join(''),
+                x: [10, 20, 50, 60],
+                y: [y(2), y(4), y(1), y(2)],
+                staves: [[40, 55.2]],
+            },
+        ],
+    };
+    const score = (fifths) => ({
+        key: fifths,
+        times: new Set(),
+        pitches: new Map([
+            [31, 1], // F4
+            [32, 1], // G4
+        ]),
+        otherClefs: [],
+    });
+    const lied = (id, extra = {}) => ({
+        id,
+        titel: `Lied ${id}`,
+        status: 'accepted',
+        notentext: 'pdf-1',
+        notentext_mxml: `mxml-${id}`,
+        notentext_fingerprint: fingerprint,
+        ...extra,
+    });
+    const run = (lieder, scores) => {
+        const musicxml = { scores, done: scores.size, total: scores.size };
+        const results = runChecks(lieder, [], { musicxml });
+        return {
+            fehler: results.find((c) => c.id === 'notentext-mxml-abgleich'),
+            hinweise: results.find((c) => c.id === 'notentext-mxml-abgleich-hinweise'),
+        };
+    };
+
+    it('meldet eine MusicXML in anderer Tonart als Fehler', () => {
+        const scores = new Map([
+            [1, { fileId: 'mxml-1', score: score(-1) }],
+            [2, { fileId: 'mxml-2', score: score(4) }],
+        ]);
+        const { fehler, hinweise } = run([lied(1), lied(2)], scores);
+        expect(fehler.status).toBe('error');
+        expect(fehler.items.map((i) => [i.id, i.detail])).toEqual([
+            [2, 'Tonart: PDF 1 ♭, MusicXML 4 ♯'],
+        ]);
+        expect(hinweise.status).toBe('ok');
+    });
+
+    it('ohne aktuellen Fingerabdruck nur ein Hinweis', () => {
+        const { fehler, hinweise } = run([lied(1, { notentext: 'pdf-neu' })], new Map());
+        expect(fehler.status).toBe('ok');
+        expect(hinweise.items.map((i) => i.detail)).toEqual([
+            'Kein aktueller Notensatz-Fingerabdruck – nicht geprüft',
+        ]);
+    });
+
+    it('zeigt den Ladestand, solange MusicXML-Dateien fehlen', () => {
+        const pending = runChecks([lied(1)], [], { musicxml: null }).find(
+            (c) => c.id === 'notentext-mxml-abgleich',
+        );
+        expect(pending.status).toBe('info');
+        expect(pending.summary).toContain('werden geladen');
+    });
+});

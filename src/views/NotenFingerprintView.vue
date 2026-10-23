@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import axios from '@/assets/js/axiossConfig';
-import { isFingerprintUsable } from '@/assets/js/notenFingerprint';
+import { hasStaffLines, isFingerprintUsable } from '@/assets/js/notenFingerprint';
 import { fingerprintFromPdfBytes } from '@/assets/js/notenFingerprintLoader';
 
 // Superadmin-Werkzeug: Notensatz-Fingerabdrücke pflegen.
@@ -29,15 +29,26 @@ const result = ref(null); // { written, failed }
 const confirm_dialog = ref(false);
 
 // Fingerabdruck-Zustand eines Liedes. `notentext` ohne Fingerabdruck heißt
-// „fehlt", ein Fingerabdruck zu einer ANDEREN Datei heißt „veraltet".
+// „fehlt", ein Fingerabdruck zu einer ANDEREN Datei heißt „veraltet". Einer
+// ohne Notenlinien („lines") reicht dem Druck-Check, dem PDF↔MusicXML-Abgleich
+// aber nur halb – er prüft dann keine Tonhöhen. Neu berechnet ergänzt er sie.
 function stateOf(l) {
-    if (isFingerprintUsable(l.notentext_fingerprint, l.notentext)) return 'ok';
+    if (isFingerprintUsable(l.notentext_fingerprint, l.notentext)) {
+        return hasStaffLines(l.notentext_fingerprint) ? 'ok' : 'lines';
+    }
     return l.notentext_fingerprint ? 'stale' : 'missing';
 }
 
+const STATE_LABEL = {
+    stale: 'veraltet (andere Datei)',
+    missing: 'fehlt',
+    lines: 'ohne Notenlinien',
+};
+const STATE_COLOR = { stale: 'warning', missing: 'error', lines: 'info' };
+
 const rows = computed(() => (lieder.value || []).map((l) => ({ ...l, state: stateOf(l) })));
 const counts = computed(() => {
-    const c = { ok: 0, stale: 0, missing: 0 };
+    const c = { ok: 0, stale: 0, missing: 0, lines: 0 };
     for (const r of rows.value) c[r.state]++;
     return c;
 });
@@ -187,7 +198,29 @@ async function recompute() {
                         >
                             Fehlt: {{ counts.missing }}
                         </v-chip>
+                        <v-chip
+                            v-if="counts.lines"
+                            color="info"
+                            variant="tonal"
+                            prepend-icon="mdi-music-clef-treble"
+                        >
+                            Ohne Notenlinien: {{ counts.lines }}
+                        </v-chip>
                     </div>
+
+                    <v-alert
+                        v-if="counts.lines"
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                        class="mb-4"
+                    >
+                        Fingerabdrücke „ohne Notenlinien“ stammen aus der Zeit vor dem
+                        PDF↔MusicXML-Abgleich. Dem Druck-Check genügen sie; der Abgleich unter
+                        <strong>Checks</strong>
+                        kann damit aber keine Tonhöhen prüfen. Neu berechnet bekommen sie die
+                        Notenlinien dazu.
+                    </v-alert>
 
                     <v-alert
                         v-if="!todo.length"
@@ -272,13 +305,9 @@ async function recompute() {
                                         <v-chip
                                             size="x-small"
                                             variant="tonal"
-                                            :color="row.state === 'stale' ? 'warning' : 'error'"
+                                            :color="STATE_COLOR[row.state]"
                                         >
-                                            {{
-                                                row.state === 'stale'
-                                                    ? 'veraltet (andere Datei)'
-                                                    : 'fehlt'
-                                            }}
+                                            {{ STATE_LABEL[row.state] }}
                                         </v-chip>
                                     </td>
                                 </tr>

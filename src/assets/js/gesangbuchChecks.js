@@ -10,13 +10,14 @@
 //     id, category, title, description,
 //     run(ctx) -> { status, summary, items }
 //   }
-// wobei `ctx = { alle, genommen }` und
+// wobei `ctx = { alle, genommen, authors, musicxml }` und
 //   status ∈ 'ok' | 'info' | 'warning' | 'error'
 //   items  = [{ id?, title, nummer?, detail?, to? }]
 
 import _ from 'lodash';
 import { status_mapping } from '@/assets/js/utils';
 import { isFingerprintUsable } from '@/assets/js/notenFingerprint';
+import { compareAbgleich, engravingFromFingerprint } from '@/assets/js/notenAbgleich';
 
 // "Genommen" = Lieder mit Status 'accepted' ("Bewertet und genommen").
 export const GENOMMEN_STATUS = 'accepted';
@@ -1753,6 +1754,62 @@ export const CHECKS = [
         },
     },
     {
+        id: 'notentext-mxml-abgleich',
+        category: 'Export-Bereitschaft',
+        title: 'Noten-PDF und MusicXML passen zusammen',
+        description:
+            'Notentext (PDF) und MusicXML werden getrennt hochgeladen. Wird nur die PDF ausgetauscht – etwa in eine andere Tonart umgesetzt oder Noten geändert –, beschreibt die MusicXML ein Lied, das es so nicht mehr gibt, und alles, was beide verbindet (Notenkarte im SVG, Wiedergabe in der App), läuft auf falschen Noten. Verglichen werden Tonart, Taktarten und die Tonhöhen aller Notenköpfe (Reihenfolge egal). Abhilfe: MusicXML aus der aktuellen Finale-Datei neu erzeugen und hochladen. Dieselbe Prüfung hält in gb-scripts den SVG-Upload (Script 30) an.',
+        run({ genommen, musicxml }) {
+            const { rows, pending } = musicXmlAbgleich(genommen, musicxml);
+            const items = rows
+                .filter((r) => r.sperrt.length)
+                .map((r) => songItem(r.lied, r.sperrt.join(' · ')));
+            if (pending) {
+                return {
+                    status: items.length ? 'error' : 'info',
+                    summary: `MusicXML-Dateien werden geladen … (${pending}) – bisher ${items.length} Abweichung(en).`,
+                    items,
+                };
+            }
+            return result(
+                items.length === 0,
+                'error',
+                items.length === 0
+                    ? 'Bei allen geprüften Liedern passen Noten-PDF und MusicXML zusammen.'
+                    : `${items.length} genommene(s) Lied(er), deren MusicXML nicht zur Noten-PDF passt.`,
+                items,
+            );
+        },
+    },
+    {
+        id: 'notentext-mxml-abgleich-hinweise',
+        category: 'Export-Bereitschaft',
+        title: 'PDF↔MusicXML-Abgleich: Hinweise',
+        description:
+            'Was der Abgleich von Noten-PDF und MusicXML nicht prüfen konnte oder nur bemerkt, ohne dass es ein Fehler sein muss: Lieder ohne aktuellen Notensatz-Fingerabdruck oder ohne Notenlinien darin (beides unter „Notensatz-Fingerabdrücke“ neu berechnen), MusicXML, die nicht geladen werden konnte, eine zweite Notenseite, und Lieder, deren MusicXML die Melodie eine Oktave tiefer oder höher notiert.',
+        run({ genommen, musicxml }) {
+            const { rows, pending } = musicXmlAbgleich(genommen, musicxml);
+            const items = rows
+                .filter((r) => !r.sperrt.length && r.hinweise.length)
+                .map((r) => songItem(r.lied, r.hinweise.join(' · ')));
+            if (pending) {
+                return {
+                    status: 'info',
+                    summary: `MusicXML-Dateien werden geladen … (${pending})`,
+                    items,
+                };
+            }
+            return result(
+                items.length === 0,
+                'info',
+                items.length === 0
+                    ? 'Keine Hinweise – alle Lieder vollständig geprüft.'
+                    : `${items.length} Lied(er) mit Hinweisen zum Abgleich.`,
+                items,
+            );
+        },
+    },
+    {
         id: 'fehlende-verknuepfung',
         category: 'Export-Bereitschaft',
         title: 'Text und Melodie verknüpft',
@@ -1778,13 +1835,68 @@ export const CHECKS = [
     },
 ];
 
+// PDF↔MusicXML-Abgleich je genommenem Lied mit Notentext und MusicXML.
+//
+// `musicxml` kommt aus der View, die die MusicXML-Dateien nachlädt (die Checks
+// selbst laufen synchron): { scores: Map(liedId → { fileId, score | error }),
+// done, total } oder null, solange noch nichts geladen ist. Die PDF-Seite steht
+// im gespeicherten Notensatz-Fingerabdruck – dafür wird nichts geladen.
+//
+// Liefert { rows: [{ lied, sperrt: [text], hinweise: [text] }], pending }, wobei
+// `pending` ('x von y') gesetzt ist, solange noch geladen wird.
+function musicXmlAbgleich(genommen, musicxml) {
+    const rows = [];
+    const scores = musicxml?.scores || new Map();
+    for (const lied of genommen) {
+        if (!lied.notentext || !lied.notentext_mxml) continue;
+        const row = { lied, sperrt: [], hinweise: [] };
+        rows.push(row);
+        if (!isFingerprintUsable(lied.notentext_fingerprint, lied.notentext)) {
+            row.hinweise.push('Kein aktueller Notensatz-Fingerabdruck – nicht geprüft');
+            continue;
+        }
+        if (lied.notentext_seite2) {
+            // Der Fingerabdruck kennt nur die erste Datei; die MusicXML enthält
+            // beide Seiten. Verglichen würde also immer zu wenig.
+            row.hinweise.push('Zweite Notenseite als eigene Datei – nicht geprüft');
+            continue;
+        }
+        const entry = scores.get(lied.id);
+        if (!entry) continue; // noch nicht geladen
+        if (entry.fileId !== lied.notentext_mxml) {
+            row.hinweise.push('MusicXML wurde inzwischen ausgetauscht – Seite neu laden');
+            continue;
+        }
+        if (entry.error) {
+            row.hinweise.push(`MusicXML nicht lesbar: ${entry.error}`);
+            continue;
+        }
+        const befunde = compareAbgleich(
+            engravingFromFingerprint(lied.notentext_fingerprint),
+            entry.score,
+        );
+        for (const b of befunde) (b.sperrt ? row.sperrt : row.hinweise).push(b.text);
+    }
+    const pending =
+        !musicxml || musicxml.done < musicxml.total
+            ? `${musicxml?.done || 0} von ${musicxml?.total ?? '…'}`
+            : '';
+    return { rows, pending };
+}
+
 // Führt alle Checks aus und liefert die angereicherten Ergebnisse zurück.
 // `authors` ist die vollständige Autorenliste (store.authors) – für Prüfungen,
-// die den Autor-Status (z. B. „Veröffentlicht“) auswerten.
-export function runChecks(alle, authors) {
+// die den Autor-Status (z. B. „Veröffentlicht“) auswerten. `extras.musicxml`
+// sind die nachgeladenen MusicXML-Auswertungen (siehe musicXmlAbgleich).
+export function runChecks(alle, authors, extras = {}) {
     const list = alle || [];
     const genommen = list.filter(isGenommen);
-    const ctx = { alle: list, genommen, authors: authors || [] };
+    const ctx = {
+        alle: list,
+        genommen,
+        authors: authors || [],
+        musicxml: extras.musicxml || null,
+    };
     // Ausgeblendete Checks (z. B. abgeschlossene Silbentrennung) überspringen.
     return CHECKS.filter((check) => !check.hidden).map((check) => {
         let r;
