@@ -138,8 +138,10 @@ const SILBEN_MINUS_WORT_REGEX = /\p{L}+(?:-\p{L}+)+/gu;
 // Fälschlicher Gedankenstrich (Issue #40): Ein von Leerzeichen umschlossenes
 // Minus „ - " soll als Halbgeviertstrich (Gedankenstrich) „ – " (U+2013) gesetzt
 // werden. Erkannt wird ein Bindestrich-Minus „-" (U+002D) mit jeweils einem
-// Leerzeichen (normales oder geschütztes) davor und dahinter.
-const GEDANKENSTRICH_MINUS_REGEX = /[  ]-[  ]/g; // Zeichenklasse: normales Leerzeichen oder geschütztes Leerzeichen (U+00A0)
+// Leerzeichen (normales oder geschütztes) davor und dahinter. Ein Zeilenumbruch
+// bzw. Text-Anfang/-Ende zählt ebenfalls als Grenze, damit auch „Wort -⏎" am
+// Zeilenende und „⏎- Wort" am Zeilenanfang erkannt werden.
+const GEDANKENSTRICH_MINUS_REGEX = /(?<=^|[ \u00A0\r\n])-(?=[ \u00A0\r\n]|$)/g;
 
 // Schwellen für den Strophenlängen-Check (siehe Check „strophen-laenge-ausreisser“).
 const STROPHENLAENGE_MIN_STROPHEN = 3; // erst ab 3 (gefüllten) Strophen vergleichbar
@@ -1472,7 +1474,7 @@ export const CHECKS = [
         category: 'Redaktion',
         title: 'Gedankenstrich „–“ statt „ - “',
         description:
-            'Ein von Leerzeichen umschlossenes Minus „ - “ soll als Gedankenstrich (Halbgeviertstrich) „ – “ gesetzt werden. Gemeldet werden genommene Lieder, in deren Strophen die Zeichenfolge „ - “ vorkommt (Issue #40).',
+            'Ein von Leerzeichen umschlossenes Minus „ - “ soll als Gedankenstrich (Halbgeviertstrich) „ – “ gesetzt werden. Gemeldet werden genommene Lieder, in deren Strophen die Zeichenfolge „ - “ vorkommt – auch am Zeilenende oder -anfang (Issue #40).',
         run({ genommen }) {
             const items = [];
             genommen.forEach((l) => {
