@@ -126,6 +126,21 @@ describe('compareAbgleich', () => {
         });
     });
 
+    it('ohne Notenlinien zählen die Vorzeichen späterer Systeme nicht zur Tonart', () => {
+        // Zweites System 40 pt tiefer: wiederholt das ♭ am Zeilenanfang, ohne
+        // Schlüssel-Glyphe (die ist dort Vektorgrafik).
+        const zweitesSystem = [
+            [G.flat, 20, yOf(4) + 40],
+            [G.black, 50, yOf(1) + 40],
+        ];
+        const befunde = check(
+            [...F_DUR, ...zweitesSystem],
+            musicXml({ notes: ['F4', 'G4', 'A4', 'F4'] }),
+            null,
+        );
+        expect(befunde.filter((b) => b.sperrt)).toEqual([]);
+    });
+
     it('ohne Notenlinien: Tonart und Notenzahl, Tonhöhen nur als Hinweis', () => {
         const ok = check(F_DUR, musicXml(), null);
         expect(ok).toHaveLength(1);

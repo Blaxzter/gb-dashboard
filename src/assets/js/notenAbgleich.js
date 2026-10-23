@@ -91,13 +91,21 @@ export function engravingFromFingerprint(fp) {
         let staves = withLines
             ? page.staves.map(([top, bottom]) => ({ top, bottom, gap: (bottom - top) / 4 }))
             : [];
+        let estimated = false;
         if (!staves.length) {
             if (withLines) out.problems.push(`Seite ${pageIndex + 1} ohne erkannte Notenzeilen`);
-            if (pageIndex === 0) staves = fallbackFirstStaff(glyphs);
+            if (pageIndex === 0) {
+                staves = fallbackFirstStaff(glyphs);
+                estimated = staves.length > 0;
+            }
         }
         const onStaff = staves.map(() => []);
         for (const g of glyphs) {
             if (!staves.length) break;
+            // Das geschätzte System ist das einzige bekannte – ohne Grenze fielen
+            // ihm die Zeichen ALLER Systeme zu, und die Vorzeichen jeder Zeile
+            // zählten zur Tonart.
+            if (estimated && !withinStaff(g.y, staves[0])) continue;
             onStaff[nearestStaff(g.y, staves)].push(g);
         }
 
@@ -124,6 +132,11 @@ function fallbackFirstStaff(glyphs) {
     if (!clef) return [];
     const bottom = clef.y + FALLBACK_LINE_GAP;
     return [{ top: bottom - 4 * FALLBACK_LINE_GAP, bottom, gap: FALLBACK_LINE_GAP }];
+}
+
+// Liegt y im System oder knapp darüber/darunter (zwei Hilfslinien)?
+function withinStaff(y, staff) {
+    return y >= staff.top - 2 * staff.gap && y <= staff.bottom + 2 * staff.gap;
 }
 
 function nearestStaff(y, staves) {
