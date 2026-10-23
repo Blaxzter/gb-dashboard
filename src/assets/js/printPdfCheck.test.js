@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     canon,
+    checkToTsv,
     compareCopyrightScope,
     comparePrintPdf,
     detectNumbers,
@@ -8,6 +9,7 @@ import {
     footerSignature,
     footerSignaturesMatch,
     isEnglishSong,
+    makeCheck,
 } from '@/assets/js/printPdfCheck';
 
 describe('canon (Vergleichsform)', () => {
@@ -600,5 +602,43 @@ describe('comparePrintPdf (Sprach-Kennzeichnung)', () => {
     it('warnt bei einer Kennzeichnung über dem deutschen Lied', async () => {
         const items = await run(de(label('ENGLISCH')), en(label('ENGLISCH')));
         expect(items.map((i) => [i.sev, i.id])).toEqual([['warning', 1]]);
+    });
+});
+
+describe('checkToTsv (Befunde kopieren, Issue #120)', () => {
+    const copyTable = {
+        header: ['PDF', 'DB', 'Lied', 'Titel'],
+        row: (it) => [it.pdfChoral, it.dbChoral, it.nummer, it.title],
+    };
+    it('liefert Kopfzeile + eine Tab-getrennte Zeile je Befund', () => {
+        const check = makeCheck(
+            'choral',
+            'x',
+            'Choralbuchnummer',
+            '',
+            [
+                {
+                    sev: 'error',
+                    pdfChoral: '316',
+                    dbChoral: '315',
+                    nummer: 22,
+                    title: 'Auf, bleibet treu',
+                },
+                {
+                    sev: 'warning',
+                    pdfChoral: '',
+                    dbChoral: '7',
+                    nummer: 30,
+                    title: 'Tab\tim\nTitel',
+                },
+            ],
+            { copyTable },
+        );
+        expect(checkToTsv(check)).toBe(
+            'PDF\tDB\tLied\tTitel\n316\t315\t22\tAuf, bleibet treu\n\t7\t30\tTab im Titel',
+        );
+    });
+    it('ohne copyTable leer', () => {
+        expect(checkToTsv(makeCheck('a', 'x', 'A', '', [], {}))).toBe('');
     });
 });

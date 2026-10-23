@@ -766,7 +766,7 @@ export function makeCheck(
     title,
     description,
     items,
-    { forceStatus, okSummary, problemSummary },
+    { forceStatus, okSummary, problemSummary, copyTable },
 ) {
     const forced = forceStatus || null;
     const status = deriveStatus(items, forced);
@@ -788,7 +788,18 @@ export function makeCheck(
         forced,
         okSummary,
         problemSummary: problemSummary || null,
+        copyTable: copyTable || null,
     };
+}
+
+// Befunde eines Checks als Tab-getrennte Tabelle (Kopfzeile + eine Zeile je
+// Item) – zum Einfügen in eine Tabellenkalkulation. Nur für Checks mit
+// `copyTable: { header: [...], row: (item) => [...] }`.
+export function checkToTsv(check, items = check.items) {
+    if (!check.copyTable) return '';
+    const cell = (v) => String(v ?? '').replace(/[\t\r\n]+/g, ' ');
+    const { header, row } = check.copyTable;
+    return [header, ...items.map(row)].map((r) => r.map(cell).join('\t')).join('\n');
 }
 
 // Stabiler Fingerprint (FNV-1a → base36) zur Wiedererkennung eines Befunds über
@@ -1175,6 +1186,10 @@ export function comparePrintPdf(extracted, dbSongs) {
             {
                 okSummary: 'Alle geprüften Choralbuchnummern stimmen überein',
                 problemSummary: (i) => `${i.length} abweichende Choralbuchnummer(n)`,
+                copyTable: {
+                    header: ['PDF', 'DB', 'Lied', 'Titel'],
+                    row: (it) => [it.pdfChoral, it.dbChoral, it.nummer, it.title],
+                },
             },
         ),
     );
@@ -1552,6 +1567,8 @@ function compareChoral(ps, lied, { choral }) {
         nummer: ps.nummer,
         title: lied.titel || `Lied ${ps.nummer}`,
         loc: ps.choralBox || ps.numberBox,
+        pdfChoral: pdfHas ? String(pdfChoral).trim() : '',
+        dbChoral: dbHas ? String(dbChoral).trim() : '',
     };
     if (dbHas && pdfHas) {
         if (numKey(pdfChoral) === numKey(dbChoral)) return;

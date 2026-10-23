@@ -3,6 +3,8 @@ import { ref, watch } from 'vue';
 import { STATUS } from '@/assets/js/gesangbuchChecks.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
 import AckConfirmDialog from '@/components/checks/AckConfirmDialog.vue';
+import { checkToTsv } from '@/assets/js/printPdfCheck.js';
+import { writeToClipboard } from '@/assets/js/utils.js';
 
 const props = defineProps({
     // { name, checks: [...], problems: Number }
@@ -46,6 +48,25 @@ function confirmItemAck() {
 }
 function undoItemAck(item) {
     acks.toggle(item.fp);
+}
+
+// Befunde als Tab-getrennte Liste kopieren (nur Checks mit `copyTable`, z. B.
+// Choralbuchnummer – Issue #120). Kopiert werden die offenen, nicht bestätigten
+// Befunde; das Icon zeigt kurz an, ob es geklappt hat.
+const copied = ref({});
+async function copyCheck(check) {
+    const ok = await writeToClipboard(checkToTsv(check));
+    copied.value = { ...copied.value, [check.id]: ok ? 'ok' : 'fail' };
+    setTimeout(() => {
+        const { [check.id]: _, ...rest } = copied.value;
+        copied.value = rest;
+    }, 2000);
+}
+function copyIcon(check) {
+    const s = copied.value[check.id];
+    if (s === 'ok') return 'mdi-check';
+    if (s === 'fail') return 'mdi-alert-circle-outline';
+    return 'mdi-content-copy';
 }
 
 // Eigene Auf-/Zuklapp-Steuerung über ein Set offener Check-IDs. Standardmäßig ist
@@ -104,6 +125,14 @@ watch(
                         <div class="font-weight-medium">{{ check.title }}</div>
                         <div class="text-caption text-medium-emphasis">{{ check.summary }}</div>
                     </div>
+                    <v-btn
+                        v-if="check.copyTable && check.items.length"
+                        :icon="copyIcon(check)"
+                        size="small"
+                        variant="text"
+                        title="Befunde als Tab-getrennte Liste kopieren"
+                        @click.stop="copyCheck(check)"
+                    />
                     <v-chip
                         v-if="check.count"
                         size="small"
