@@ -374,3 +374,45 @@ describe('Check „Noten-PDF und MusicXML passen zusammen“', () => {
         expect(pending.summary).toContain('werden geladen');
     });
 });
+
+describe('Check „Titel stimmt mit dem Anfang der 1. Strophe überein“ (Issue #121)', () => {
+    const run = (lieder) => runChecks(lieder).find((c) => c.id === 'lied-titel-erste-strophe');
+    const lied = (id, titel, strophe) => ({
+        id,
+        titel,
+        status: 'accepted',
+        text: { strophenEinzeln: [{ strophe }] },
+    });
+
+    it('überspringt die „Refrain“-Zeile am Strophenanfang', () => {
+        const r = run([
+            lied(1, 'Herr, rede du zu uns', 'Refrain\nHerr, rede du zu uns.\nLass Herz …'),
+            lied(2, 'Komm, Heilger Geist', 'Refrain\n|: Komm, Heilger Geist, mit Kraft :|'),
+        ]);
+        expect(r.items).toEqual([]);
+    });
+
+    it('ignoriert den Originaltitel in Klammern', () => {
+        const r = run([
+            lied(1, 'Ich bin in guten Händen (In guten Händen)', 'Ich bin in guten Händen. Mein …'),
+        ]);
+        expect(r.items).toEqual([]);
+    });
+
+    it('akzeptiert bei „Deutsch / Englisch“ jeden der beiden Teile', () => {
+        const r = run([
+            lied(1, 'Lobe den Herren / Praise to the Lord', 'Praise to the Lord, the Almighty'),
+            lied(2, 'Lobsingt, ihr Völker / Laudate omnes gentes', 'Lobsingt, ihr Völker alle'),
+            lied(3, 'Eins / We are One (They’ll Know)', 'We are one in the Spirit'),
+        ]);
+        expect(r.items).toEqual([]);
+    });
+
+    it('meldet weiterhin echte Abweichungen', () => {
+        const r = run([
+            lied(1, 'Lobe den Herren / Praise to the Lord', 'Refrain\nGanz anderer Anfang'),
+            lied(2, 'Richtiger Titel (Original)', 'Original'),
+        ]);
+        expect(r.items.map((i) => i.id)).toEqual([1, 2]);
+    });
+});

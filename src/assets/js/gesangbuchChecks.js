@@ -212,6 +212,28 @@ const HOCHZEICHEN_REGEX = new RegExp(
 // (Issue #34).
 const WIEDERHOLUNGSZEICHEN_REGEX = /\|:|:\|/g;
 
+// Refrain-Kennzeichnung am Strophenanfang (Issue #121): Beginnt eine Strophe mit
+// dem Refrain, steht davor eine eigene Zeile „Refrain“ (z. B. Lied 247 „Refrain⏎
+// Herr, rede du zu uns. …“). Diese Überschrift gehört nicht zum gesungenen Text
+// und wird vor dem Titel-Vergleich entfernt.
+const REFRAIN_KENNZEICHNUNG_REGEX = /^\s*(?:Refrain|Kehrvers)\s*:?[ \t]*\r?\n/i;
+
+// Originaltitel in Klammern hinter dem Titel (Issue #121), z. B. „Ich bin in
+// guten Händen (In guten Händen)“ – auch mehrere hintereinander.
+const TITEL_KLAMMERZUSATZ_REGEX = /(?:\s*\([^()]*\))+\s*$/;
+
+// Titel-Varianten, von denen die 1. Strophe mit einer beginnen muss (Issue
+// #121): der Titel selbst, ohne Klammerzusatz und – bei zweisprachigen Titeln
+// „Deutsch / Englisch“ – jeder Teil einzeln. Meist beginnt die Strophe mit dem
+// englischen Teil hinter dem „/“, bei Lied 353 („… / Laudate omnes gentes“)
+// aber mit dem deutschen, daher zählen beide Teile.
+function titelVarianten(titel) {
+    const ohneKlammer = (t) => t.replace(TITEL_KLAMMERZUSATZ_REGEX, '').trim();
+    const varianten = [titel, ohneKlammer(titel)];
+    titel.split(/\s+\/\s+/).forEach((teil) => varianten.push(teil.trim(), ohneKlammer(teil)));
+    return _.uniq(varianten.filter(Boolean));
+}
+
 // Alle KI-Reviews eines Liedes (über alle Strophen hinweg)
 function kiReviews(lied) {
     return strophen(lied).flatMap((s) => (Array.isArray(s?.kiReview) ? s.kiReview : []));
@@ -1185,7 +1207,7 @@ export const CHECKS = [
         category: 'Redaktion',
         title: 'Titel stimmt mit dem Anfang der 1. Strophe überein',
         description:
-            'Hinweis (kein Fehler): Genommene Lieder, deren erste Strophe nicht mit dem Liedtitel beginnt. Üblicherweise beginnt die 1. Strophe mit dem Titel (z. B. Titel „Lobe den Herren“). Weicht der Anfang ab, kann ein Tippfehler oder ein vertauschter Titel dahinterstecken. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung, Silbentrennzeichen, Anführungszeichen und Apostrophen („Hochzeichen“), Wiederholungszeichen (|: :|), Zeilenumbrüchen und mehrfachen Leerzeichen – der Titel darf also über die erste Notenzeile hinausreichen. Satzzeichen wie Punkt, Komma und Ausrufezeichen werden hingegen mitverglichen. Lieder ohne Titel oder ohne (gefüllte) 1. Strophe werden übersprungen.',
+            'Hinweis (kein Fehler): Genommene Lieder, deren erste Strophe nicht mit dem Liedtitel beginnt. Üblicherweise beginnt die 1. Strophe mit dem Titel (z. B. Titel „Lobe den Herren“). Weicht der Anfang ab, kann ein Tippfehler oder ein vertauschter Titel dahinterstecken. Verglichen wird ohne Beachtung von Groß-/Kleinschreibung, Silbentrennzeichen, Anführungszeichen und Apostrophen („Hochzeichen“), Wiederholungszeichen (|: :|), Zeilenumbrüchen und mehrfachen Leerzeichen – der Titel darf also über die erste Notenzeile hinausreichen. Satzzeichen wie Punkt, Komma und Ausrufezeichen werden hingegen mitverglichen. Eine „Refrain“-Zeile am Strophenanfang wird übersprungen, ein Originaltitel in Klammern hinter dem Titel ignoriert, und bei zweisprachigen Titeln („Deutsch / Englisch“) genügt es, wenn die Strophe mit einem der beiden Teile beginnt. Lieder ohne Titel oder ohne (gefüllte) 1. Strophe werden übersprungen.',
         run({ genommen }) {
             // Vergleichsnormalisierung: Unicode (NFC), Silbentrennzeichen entfernen,
             // Hochzeichen entfernen, Wiederholungszeichen entfernen, Whitespace
@@ -1216,8 +1238,11 @@ export const CHECKS = [
                 // jeglichen Whitespace inkl. \n zu einem Leerzeichen zusammen).
                 const strophe1 = verseText(strophen(l)[0]);
                 if (!strophe1.trim()) return;
-                // In code gedacht (Issue #17): strophe1.startsWith(title)
-                if (!norm(strophe1).startsWith(norm(titel))) {
+                // In code gedacht (Issue #17): strophe1.startsWith(title) – mit
+                // den Titel-Varianten und ohne Refrain-Kennzeichnung (Issue #121).
+                const anfangNorm = norm(strophe1.replace(REFRAIN_KENNZEICHNUNG_REGEX, ''));
+                const passt = titelVarianten(titel).some((t) => anfangNorm.startsWith(norm(t)));
+                if (!passt) {
                     // Für die Anzeige nur den (einzeiligen) Anfang der Strophe zeigen.
                     const anfang = strophe1
                         .split(SILBENTRENNER)
