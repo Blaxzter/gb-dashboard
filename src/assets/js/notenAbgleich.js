@@ -18,8 +18,12 @@
 //      Bewusst ohne Reihenfolge: Stichnoten, die die MusicXML ans Taktende
 //      schreibt, sind kein Unterschied, eine andere Melodie schon.
 //
-// Gleiche Regeln wie gb-scripts/app/utils/notenabgleich.py (dort sperrt ein
-// Befund den SVG-Upload) – über den ganzen Bestand gegeneinander geprüft.
+//   4. Liedtext – die 1. Strophe unter den Noten gegen den Liedtext der
+//      MusicXML (compareLyrics). Den PDF-Text liest gb-scripts/app/26; Jens
+//      ändert Schreibweisen gern nur im PDF („O“ → „Oh“, „Laß“ → „Lass“).
+//
+// 1.–3.: Gleiche Regeln wie gb-scripts/app/utils/notenabgleich.py (dort sperrt
+// ein Befund den SVG-Upload) – über den ganzen Bestand gegeneinander geprüft.
 // Alle Lieder stehen im Violinschlüssel; nur das erste System trägt ihn als
 // Glyphe, die späteren zeichnen ihn als Vektorgrafik. Er wird also dort gelesen
 // und gilt für das ganze Lied.
@@ -263,7 +267,124 @@ export function readMusicXml(text) {
         times,
         pitches,
         otherClefs: [...otherClefs].sort(),
+        words: lyricWords(text),
     };
+}
+
+const XML_ENTITIES = { amp: '&', apos: "'", quot: '"', lt: '<', gt: '>' };
+
+function unescapeXml(text) {
+    return text.replace(/&(amp|apos|quot|lt|gt|#(\d+)|#x([0-9a-f]+));/gi, (m, name, dec, hex) => {
+        if (dec) return String.fromCodePoint(Number(dec));
+        if (hex) return String.fromCodePoint(parseInt(hex, 16));
+        return XML_ENTITIES[name.toLowerCase()];
+    });
+}
+
+// Alle Wörter des Liedtexts, aus den Silben (`syllabic`) zusammengesetzt. Alle
+// Lyric-Nummern zählen: Unter einem wiederholten Abschnitt druckt das PDF zwei
+// Textzeilen, Finale schreibt die zweite als Nummer 2.
+function lyricWords(text) {
+    const words = [];
+    const open = new Map(); // Lyric-Nummer → angefangenes Wort
+    const partRe = /<part(?:\s[^>]*)?>([\s\S]*?)<\/part>/g;
+    const lyricRe = /<lyric\b([^>]*)>([\s\S]*?)<\/lyric>/g;
+    for (const part of text.matchAll(partRe)) {
+        for (const lyric of part[1].matchAll(lyricRe)) {
+            const [, attrs, body] = lyric;
+            const number = /number\s*=\s*"([^"]*)"/.exec(attrs)?.[1] || '1';
+            const syllable = [...body.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)]
+                .map((t) => unescapeXml(t[1]))
+                .join('');
+            const syllabic = /<syllabic>\s*(\w+)\s*<\/syllabic>/.exec(body)?.[1] || 'single';
+            const word = (open.get(number) || '') + syllable;
+            if (syllabic === 'begin' || syllabic === 'middle') open.set(number, word);
+            else {
+                open.delete(number);
+                words.push(word);
+            }
+        }
+    }
+    words.push(...[...open.values()].filter(Boolean));
+    return words;
+}
+
+// --- Liedtext ----------------------------------------------------------------
+
+// Die 1. Strophe unter den Noten (von gb-scripts/app/26 aus den Umrissen der
+// Buchstaben gelesen) gegen den Liedtext der MusicXML.
+//
+// Beide stammen aus derselben Finale-Datei; die Wörter müssen also dieselben
+// sein. Verglichen wird als MULTIMENGE, weil die Lesereihenfolge des PDF bei
+// Wiederholungen eine andere ist als die der MusicXML. Nur Buchstaben zählen:
+// Satzzeichen und Apostrophe liest app/26 an Zeilenenden nicht verlässlich,
+// Haltebögen (_) gehören nicht zum Text. Groß-/Kleinschreibung zählt – „dein“
+// → „Dein“ ist eine Änderung, die Jens im Notensatz gemacht hat.
+//
+// Liefert { onlyPdf: [Wort], onlyXml: [Wort] }; beide leer heißt: passt.
+export function compareLyrics(notenbildText, xmlWords) {
+    const pdf = wordCounts(notenbildText.replace(/\s*-\s*/g, '').split(/\s+/));
+    const xml = wordCounts(xmlWords);
+    const onlyPdf = subtract(pdf, xml);
+    const onlyXml = subtract(xml, pdf);
+    joinSplitWords(onlyPdf, onlyXml);
+    joinSplitWords(onlyXml, onlyPdf);
+    return { onlyPdf: expand(onlyPdf), onlyXml: expand(onlyXml) };
+}
+
+function letters(word) {
+    return word.replace(/[^\p{L}]/gu, '');
+}
+
+function wordCounts(words) {
+    const out = new Map();
+    for (const w of words) {
+        const key = letters(w);
+        if (key) countInto(out, key);
+    }
+    return out;
+}
+
+function subtract(a, b) {
+    const out = new Map();
+    for (const [k, v] of a) {
+        const d = v - (b.get(k) || 0);
+        if (d > 0) out.set(k, d);
+    }
+    return out;
+}
+
+function take(map, key) {
+    const n = map.get(key);
+    if (n > 1) map.set(key, n - 1);
+    else map.delete(key);
+}
+
+// Ein Wort, das die eine Seite über einen Zeilen- oder Wiederholungsumbruch
+// in zwei Stücke teilt („bit“ + „ten“), die andere aber ganz hat („bitten“),
+// ist kein Unterschied.
+function joinSplitWords(pieces, wholes) {
+    for (const whole of [...wholes.keys()]) {
+        let found = true;
+        while (found && wholes.has(whole)) {
+            found = false;
+            for (const head of pieces.keys()) {
+                if (head === whole || !whole.startsWith(head)) continue;
+                const tail = whole.slice(head.length);
+                const tails = pieces.get(tail) || 0;
+                if (tails < (tail === head ? 2 : 1)) continue;
+                take(pieces, head);
+                take(pieces, tail);
+                take(wholes, whole);
+                found = true;
+                break;
+            }
+        }
+    }
+}
+
+function expand(map) {
+    return [...map].flatMap(([k, n]) => Array(n).fill(k)).sort((a, b) => a.localeCompare(b, 'de'));
 }
 
 // --- Vergleich ----------------------------------------------------------------

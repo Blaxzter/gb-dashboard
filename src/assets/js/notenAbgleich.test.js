@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     compareAbgleich,
+    compareLyrics,
     engravingFromFingerprint,
     pitchName,
     readMusicXml,
@@ -150,6 +151,56 @@ describe('compareAbgleich', () => {
         expect(befunde[0]).toEqual({
             text: 'Notenzahl: PDF 3 Notenköpfe, MusicXML 2 Noten',
             sperrt: true,
+        });
+    });
+});
+
+describe('Liedtext', () => {
+    const lyric = (text, syllabic = 'single', number = 1) =>
+        `<note><pitch><step>C</step><octave>5</octave></pitch><lyric number="${number}">` +
+        `<syllabic>${syllabic}</syllabic><text>${text}</text></lyric></note>`;
+
+    it('setzt die Wörter aus den Silben zusammen, je Lyric-Nummer', () => {
+        const extra =
+            lyric('Hal', 'begin') +
+            lyric('le', 'middle', 1) +
+            lyric('Wie', 'single', 2) +
+            lyric('lu', 'middle') +
+            lyric('ja!', 'end') +
+            lyric('Seit&apos;');
+        expect(readMusicXml(musicXml({ notes: [], extra })).words).toEqual([
+            'Wie',
+            'Halleluja!',
+            "Seit'",
+        ]);
+    });
+
+    it('vergleicht nur Buchstaben, ohne Reihenfolge', () => {
+        expect(
+            compareLyrics('Seit an Sei - te, Hal - le - lu - ja!', [
+                'Halleluja',
+                "Seit'",
+                'an',
+                'Seite',
+            ]),
+        ).toEqual({ onlyPdf: [], onlyXml: [] });
+    });
+
+    it('meldet geänderte Wörter und Großschreibung', () => {
+        expect(compareLyrics('Lass uns Dein Lob', ['Laß', 'uns', 'dein', 'Lob'])).toEqual({
+            onlyPdf: ['Dein', 'Lass'],
+            onlyXml: ['dein', 'Laß'],
+        });
+    });
+
+    it('ein über den Umbruch geteiltes Wort ist kein Unterschied', () => {
+        expect(compareLyrics('bit ten er schie - nen', ['bitten', 'erschienen'])).toEqual({
+            onlyPdf: [],
+            onlyXml: [],
+        });
+        expect(compareLyrics('wir bitten', ['wir', 'bit', 'ten'])).toEqual({
+            onlyPdf: [],
+            onlyXml: [],
         });
     });
 });

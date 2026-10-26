@@ -4,8 +4,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAppStore } from '@/store/app.js';
 import { useUserStore } from '@/store/user';
 import { runChecks, isGenommen } from '@/assets/js/gesangbuchChecks.js';
-import { isFingerprintUsable } from '@/assets/js/notenFingerprint';
 import { createMusicXmlLoader } from '@/assets/js/notenAbgleichLoader';
+import { useStrophe1Ocr } from '@/assets/js/strophe1Ocr.js';
 import GesangbuchLiedComponent from '@/components/SongRelated/GesangbuchLiedComponent.vue';
 import CheckCategory from '@/components/checks/CheckCategory.vue';
 
@@ -77,13 +77,9 @@ const loadScore = createMusicXmlLoader({ backendUrl: import.meta.env.VITE_BACKEN
 async function loadMusicXml() {
     if (mxml_started || alle_lieder.value.length === 0) return;
     mxml_started = true;
-    const list = genommen.value.filter(
-        (l) =>
-            l.notentext &&
-            l.notentext_mxml &&
-            !l.notentext_seite2 &&
-            isFingerprintUsable(l.notentext_fingerprint, l.notentext),
-    );
+    // Der Notenabgleich braucht zusätzlich einen Fingerabdruck und nur eine
+    // Notenseite, der Liedtext-Abgleich nicht – geladen wird daher für alle.
+    const list = genommen.value.filter((l) => l.notentext && l.notentext_mxml);
     const scores = new Map();
     let done = 0;
     const publish = () => {
@@ -108,8 +104,21 @@ async function loadMusicXml() {
     publish();
 }
 
+// Text unter den Noten für den Liedtext-Abgleich: die Befunddatei von
+// gb-scripts/app/26 (dieselbe wie im Strophe-1-Abgleich). Fehlt sie oder ist
+// sie nicht lesbar, prüft der Check eben nichts (false statt null).
+const ocr = useStrophe1Ocr();
+const notenbild_text = computed(() => {
+    if (ocr.status.value === 'ready') return ocr.data.value;
+    if (ocr.status.value === 'missing' || ocr.status.value === 'error') return false;
+    return null;
+});
+
 const results = computed(() =>
-    runChecks(alle_lieder.value, store.authors, { musicxml: mxml_state.value }),
+    runChecks(alle_lieder.value, store.authors, {
+        musicxml: mxml_state.value,
+        notenbildText: notenbild_text.value,
+    }),
 );
 
 // Beim ersten Laden und sobald die Lieder verfügbar sind ein evtl. in der URL
@@ -117,6 +126,7 @@ const results = computed(() =>
 onMounted(() => {
     openSongFromRoute();
     loadMusicXml();
+    ocr.loadOnce();
 });
 watch(alle_lieder, () => {
     openSongFromRoute();

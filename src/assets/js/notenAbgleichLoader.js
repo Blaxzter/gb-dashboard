@@ -2,8 +2,8 @@
 //
 // Directus liefert sie meist als komprimiertes .mxl (ein ZIP), seltener als
 // reine .musicxml. Ausgewertet wird nur, was der Abgleich braucht (Tonart,
-// Taktarten, Tonhöhen – siehe notenAbgleich.js); das ist je Lied ein paar
-// Dutzend Zahlen, die Datei selbst wird nicht aufgehoben.
+// Taktarten, Tonhöhen, die Wörter des Liedtexts – siehe notenAbgleich.js); die
+// Datei selbst wird nicht aufgehoben.
 
 import JSZip from 'jszip';
 import { readMusicXml } from '@/assets/js/notenAbgleich';

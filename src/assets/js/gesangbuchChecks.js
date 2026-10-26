@@ -17,7 +17,11 @@
 import _ from 'lodash';
 import { status_mapping } from '@/assets/js/utils';
 import { isFingerprintUsable } from '@/assets/js/notenFingerprint';
-import { compareAbgleich, engravingFromFingerprint } from '@/assets/js/notenAbgleich';
+import {
+    compareAbgleich,
+    compareLyrics,
+    engravingFromFingerprint,
+} from '@/assets/js/notenAbgleich';
 
 // "Genommen" = Lieder mit Status 'accepted' ("Bewertet und genommen").
 export const GENOMMEN_STATUS = 'accepted';
@@ -1807,15 +1811,52 @@ export const CHECKS = [
         },
     },
     {
+        id: 'notentext-mxml-liedtext',
+        category: 'Export-Bereitschaft',
+        title: 'Liedtext im Notenbild und in der MusicXML gleich',
+        description:
+            'Die 1. Strophe unter den Noten und der Liedtext der MusicXML stammen aus derselben Finale-Datei und müssen dieselben Wörter enthalten. Wird im Notensatz nur die PDF korrigiert – „O“ → „Oh“, „Laß“ → „Lass“, „dein“ → „Dein“ –, behält die MusicXML den alten Text. Verglichen werden die Wörter als Menge (Reihenfolge egal, wegen der Wiederholungen), nur die Buchstaben: Satzzeichen und Apostrophe zählen nicht, Groß-/Kleinschreibung schon. Den Text unter den Noten liest gb-scripts/app/26-ocr-notenbild-strophe1.py aus den Umrissen der Buchstaben; geprüft wird nur, was dort exakt gelesen wurde und zur aktuellen Noten-PDF gehört. Abhilfe: MusicXML aus der aktuellen Finale-Datei neu erzeugen und hochladen.',
+        run({ genommen, musicxml, notenbildText }) {
+            const { rows, pending } = liedtextAbgleich(genommen, musicxml, notenbildText);
+            const items = rows
+                .filter((r) => r.abweichung)
+                .map((r) => songItem(r.lied, r.abweichung));
+            if (pending) {
+                return {
+                    status: items.length ? 'warning' : 'info',
+                    summary: `${pending} – bisher ${items.length} Abweichung(en).`,
+                    items,
+                };
+            }
+            return result(
+                items.length === 0,
+                'warning',
+                items.length === 0
+                    ? 'Bei allen geprüften Liedern stimmt der Liedtext von Notenbild und MusicXML überein.'
+                    : `${items.length} genommene(s) Lied(er), deren MusicXML einen anderen Liedtext hat als das Notenbild.`,
+                items,
+            );
+        },
+    },
+    {
         id: 'notentext-mxml-abgleich-hinweise',
         category: 'Export-Bereitschaft',
         title: 'PDF↔MusicXML-Abgleich: Hinweise',
         description:
-            'Was der Abgleich von Noten-PDF und MusicXML nicht prüfen konnte oder nur bemerkt, ohne dass es ein Fehler sein muss: Lieder ohne aktuellen Notensatz-Fingerabdruck oder ohne Notenlinien darin (beides unter „Notensatz-Fingerabdrücke“ neu berechnen), MusicXML, die nicht geladen werden konnte, eine zweite Notenseite, und Lieder, deren MusicXML die Melodie eine Oktave tiefer oder höher notiert.',
-        run({ genommen, musicxml }) {
+            'Was der Abgleich von Noten-PDF und MusicXML nicht prüfen konnte oder nur bemerkt, ohne dass es ein Fehler sein muss: Lieder ohne aktuellen Notensatz-Fingerabdruck oder ohne Notenlinien darin (beides unter „Notensatz-Fingerabdrücke“ neu berechnen), MusicXML, die nicht geladen werden konnte, eine zweite Notenseite, Lieder, deren MusicXML die Melodie eine Oktave tiefer oder höher notiert, und Lieder, deren Text unter den Noten (noch) nicht exakt gelesen vorliegt (gb-scripts/app/26 neu laufen lassen und die Befunddatei in Directus ersetzen).',
+        run({ genommen, musicxml, notenbildText }) {
             const { rows, pending } = musicXmlAbgleich(genommen, musicxml);
+            const text = liedtextAbgleich(genommen, musicxml, notenbildText);
+            const textHinweis = new Map(
+                text.rows.filter((r) => r.hinweis).map((r) => [r.lied.id, r.hinweis]),
+            );
             const items = rows
-                .filter((r) => !r.sperrt.length && r.hinweise.length)
+                .map((r) => {
+                    const hinweise = r.sperrt.length ? [] : [...r.hinweise];
+                    if (textHinweis.has(r.lied.id)) hinweise.push(textHinweis.get(r.lied.id));
+                    return { lied: r.lied, hinweise };
+                })
+                .filter((r) => r.hinweise.length)
                 .map((r) => songItem(r.lied, r.hinweise.join(' · ')));
             if (pending) {
                 return {
@@ -1909,10 +1950,68 @@ function musicXmlAbgleich(genommen, musicxml) {
     return { rows, pending };
 }
 
+// Liedtext-Abgleich je genommenem Lied mit Notentext und MusicXML.
+//
+// `notenbildText` ist die Befunddatei von gb-scripts/app/26 (parseOcrData in
+// strophe1Ocr.js): je Lied der Text unter den Noten, die Datei-Ids, aus denen
+// er gelesen wurde, und ob er exakt gelesen wurde. `null`, solange sie nicht
+// geladen ist; `false`, wenn es sie nicht gibt.
+//
+// Liefert { rows: [{ lied, abweichung, hinweis }], pending }.
+function liedtextAbgleich(genommen, musicxml, notenbildText) {
+    const rows = [];
+    let pending = '';
+    if (notenbildText === null) pending = 'Notenbild-Texte werden geladen …';
+    else if (!musicxml || musicxml.done < musicxml.total) {
+        pending = `MusicXML-Dateien werden geladen … (${musicxml?.done || 0} von ${musicxml?.total ?? '…'})`;
+    }
+    if (!notenbildText) return { rows, pending };
+    const scores = musicxml?.scores || new Map();
+    for (const lied of genommen) {
+        if (!lied.notentext || !lied.notentext_mxml) continue;
+        const row = { lied, abweichung: '', hinweis: '' };
+        const entry = notenbildText.bySongId.get(String(lied.id));
+        if (
+            !entry ||
+            entry.notentext_file_id !== lied.notentext ||
+            (entry.notentext_seite2_file_id || null) !== (lied.notentext_seite2 || null)
+        ) {
+            row.hinweis =
+                'Liedtext nicht geprüft: Text unter den Noten fehlt oder stammt aus einer älteren Noten-PDF';
+        } else if (entry.exakt_gelesen !== true) {
+            row.hinweis =
+                entry.exakt_gelesen === false
+                    ? 'Liedtext nicht geprüft: Text unter den Noten nur per OCR gelesen'
+                    : 'Liedtext nicht geprüft: Befunddatei aus einem älteren Lauf von app/26';
+        } else if (entry.strophe_1_notenbild) {
+            const loaded = scores.get(lied.id);
+            if (!loaded || loaded.error || loaded.fileId !== lied.notentext_mxml) continue;
+            const { onlyPdf, onlyXml } = compareLyrics(
+                entry.strophe_1_notenbild,
+                loaded.score.words,
+            );
+            const parts = [];
+            if (onlyPdf.length) parts.push(`nur im Notenbild: ${wordList(onlyPdf)}`);
+            if (onlyXml.length) parts.push(`nur in MusicXML: ${wordList(onlyXml)}`);
+            row.abweichung = parts.join(' · ');
+        }
+        if (row.abweichung || row.hinweis) rows.push(row);
+    }
+    return { rows, pending };
+}
+
+function wordList(words, limit = 8) {
+    const shown = words.slice(0, limit).map((w) => `„${w}“`);
+    if (words.length > limit) shown.push(`(+${words.length - limit} weitere)`);
+    return shown.join(', ');
+}
+
 // Führt alle Checks aus und liefert die angereicherten Ergebnisse zurück.
 // `authors` ist die vollständige Autorenliste (store.authors) – für Prüfungen,
 // die den Autor-Status (z. B. „Veröffentlicht“) auswerten. `extras.musicxml`
-// sind die nachgeladenen MusicXML-Auswertungen (siehe musicXmlAbgleich).
+// sind die nachgeladenen MusicXML-Auswertungen (siehe musicXmlAbgleich),
+// `extras.notenbildText` die Befunddatei von app/26 (siehe liedtextAbgleich;
+// nicht angegeben = noch nicht geladen).
 export function runChecks(alle, authors, extras = {}) {
     const list = alle || [];
     const genommen = list.filter(isGenommen);
@@ -1921,6 +2020,7 @@ export function runChecks(alle, authors, extras = {}) {
         genommen,
         authors: authors || [],
         musicxml: extras.musicxml || null,
+        notenbildText: extras.notenbildText === undefined ? null : extras.notenbildText,
     };
     // Ausgeblendete Checks (z. B. abgeschlossene Silbentrennung) überspringen.
     return CHECKS.filter((check) => !check.hidden).map((check) => {

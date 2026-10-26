@@ -375,6 +375,74 @@ describe('Check „Noten-PDF und MusicXML passen zusammen“', () => {
     });
 });
 
+describe('Check „Liedtext im Notenbild und in der MusicXML gleich“', () => {
+    const lied = (id, extra = {}) => ({
+        id,
+        titel: `Lied ${id}`,
+        status: 'accepted',
+        notentext: `pdf-${id}`,
+        notentext_mxml: `mxml-${id}`,
+        ...extra,
+    });
+    const entry = (id, text, extra = {}) => ({
+        song_id: String(id),
+        strophe_1_notenbild: text,
+        notentext_file_id: `pdf-${id}`,
+        notentext_seite2_file_id: null,
+        exakt_gelesen: true,
+        ...extra,
+    });
+    const score = (words) => ({
+        key: 0,
+        times: new Set(),
+        pitches: new Map(),
+        otherClefs: [],
+        words,
+    });
+    const run = (lieder, entries, scores) => {
+        const notenbildText = { bySongId: new Map(entries.map((e) => [e.song_id, e])) };
+        const musicxml = { scores, done: scores.size, total: scores.size };
+        const results = runChecks(lieder, [], { musicxml, notenbildText });
+        return {
+            text: results.find((c) => c.id === 'notentext-mxml-liedtext'),
+            hinweise: results.find((c) => c.id === 'notentext-mxml-abgleich-hinweise'),
+        };
+    };
+
+    it('meldet ein nur im Notenbild korrigiertes Wort', () => {
+        const scores = new Map([
+            [1, { fileId: 'mxml-1', score: score(['O', 'komm', 'herein']) }],
+            [2, { fileId: 'mxml-2', score: score(['Halleluja']) }],
+        ]);
+        const { text } = run(
+            [lied(1), lied(2)],
+            [entry(1, 'Oh komm her - ein'), entry(2, 'Hal - le - lu - ja!')],
+            scores,
+        );
+        expect(text.status).toBe('warning');
+        expect(text.items.map((i) => [i.id, i.detail])).toEqual([
+            [1, 'nur im Notenbild: „Oh“ · nur in MusicXML: „O“'],
+        ]);
+    });
+
+    it('prüft nur exakt gelesenen Text der aktuellen Noten-PDF', () => {
+        const scores = new Map([
+            [1, { fileId: 'mxml-1', score: score(['anders']) }],
+            [2, { fileId: 'mxml-2', score: score(['anders']) }],
+        ]);
+        const { text, hinweise } = run(
+            [lied(1, { notentext: 'pdf-neu' }), lied(2)],
+            [entry(1, 'Text'), entry(2, 'Text', { exakt_gelesen: false })],
+            scores,
+        );
+        expect(text.status).toBe('ok');
+        expect(hinweise.items.map((i) => i.detail)).toEqual([
+            'Kein aktueller Notensatz-Fingerabdruck – nicht geprüft · Liedtext nicht geprüft: Text unter den Noten fehlt oder stammt aus einer älteren Noten-PDF',
+            'Kein aktueller Notensatz-Fingerabdruck – nicht geprüft · Liedtext nicht geprüft: Text unter den Noten nur per OCR gelesen',
+        ]);
+    });
+});
+
 describe('Check „Titel stimmt mit dem Anfang der 1. Strophe überein“ (Issue #121)', () => {
     const run = (lieder) => runChecks(lieder).find((c) => c.id === 'lied-titel-erste-strophe');
     const lied = (id, titel, strophe) => ({
