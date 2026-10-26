@@ -332,6 +332,48 @@ export function compareLyrics(notenbildText, xmlWords) {
     return { onlyPdf: expand(onlyPdf), onlyXml: expand(onlyXml) };
 }
 
+// Welche der `xmlWords` sind die abweichenden? `compareLyrics` zählt nur, wie
+// oft ein Wort fehlt; um es im Notensatz an der richtigen Stelle zu zeigen,
+// werden beide Wortfolgen aneinander ausgerichtet (längste gemeinsame
+// Teilfolge). Markiert werden die nicht zugeordneten Vorkommen der Wörter aus
+// `onlyXml`, je Wort höchstens so oft, wie es dort steht.
+//
+// Liefert die Indizes in `xmlWords`.
+export function lyricsToMark(notenbildText, xmlWords, onlyXml) {
+    const budget = wordCounts(onlyXml);
+    if (!budget.size) return [];
+    const pdf = notenbildText
+        .replace(/\s*-\s*/g, '')
+        .split(/\s+/)
+        .map(letters)
+        .filter(Boolean);
+    const xml = xmlWords.map((w) => letters(String(w)));
+    // lcs[i][j]: Länge der gemeinsamen Teilfolge von pdf[i..] und xml[j..].
+    const lcs = Array.from({ length: pdf.length + 1 }, () => new Array(xml.length + 1).fill(0));
+    for (let i = pdf.length - 1; i >= 0; i--) {
+        for (let j = xml.length - 1; j >= 0; j--) {
+            lcs[i][j] =
+                pdf[i] === xml[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+        }
+    }
+    const matched = new Set();
+    for (let i = 0, j = 0; i < pdf.length && j < xml.length;) {
+        if (pdf[i] === xml[j]) {
+            matched.add(j);
+            i++;
+            j++;
+        } else if (lcs[i + 1][j] >= lcs[i][j + 1]) i++;
+        else j++;
+    }
+    const out = [];
+    xml.forEach((key, j) => {
+        if (matched.has(j) || !budget.get(key)) return;
+        take(budget, key);
+        out.push(j);
+    });
+    return out;
+}
+
 function letters(word) {
     return word.replace(/[^\p{L}]/gu, '');
 }

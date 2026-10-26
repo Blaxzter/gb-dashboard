@@ -1969,35 +1969,51 @@ function liedtextAbgleich(genommen, musicxml, notenbildText) {
     const scores = musicxml?.scores || new Map();
     for (const lied of genommen) {
         if (!lied.notentext || !lied.notentext_mxml) continue;
-        const row = { lied, abweichung: '', hinweis: '' };
         const entry = notenbildText.bySongId.get(String(lied.id));
-        if (
-            !entry ||
-            entry.notentext_file_id !== lied.notentext ||
-            (entry.notentext_seite2_file_id || null) !== (lied.notentext_seite2 || null)
-        ) {
-            row.hinweis =
-                'Liedtext nicht geprüft: Text unter den Noten fehlt oder stammt aus einer älteren Noten-PDF';
-        } else if (entry.exakt_gelesen !== true) {
-            row.hinweis =
-                entry.exakt_gelesen === false
-                    ? 'Liedtext nicht geprüft: Text unter den Noten nur per OCR gelesen'
-                    : 'Liedtext nicht geprüft: Befunddatei aus einem älteren Lauf von app/26';
-        } else if (entry.strophe_1_notenbild) {
-            const loaded = scores.get(lied.id);
-            if (!loaded || loaded.error || loaded.fileId !== lied.notentext_mxml) continue;
-            const { onlyPdf, onlyXml } = compareLyrics(
-                entry.strophe_1_notenbild,
-                loaded.score.words,
-            );
+        const loaded = scores.get(lied.id);
+        const words =
+            loaded && !loaded.error && loaded.fileId === lied.notentext_mxml
+                ? loaded.score.words
+                : null;
+        const befund = liedtextBefund(lied, entry, words);
+        if (!befund) continue;
+        const row = { lied, abweichung: '', hinweis: befund.hinweis || '' };
+        if (!befund.hinweis) {
             const parts = [];
-            if (onlyPdf.length) parts.push(`nur im Notenbild: ${wordList(onlyPdf)}`);
-            if (onlyXml.length) parts.push(`nur in MusicXML: ${wordList(onlyXml)}`);
+            if (befund.onlyPdf.length) parts.push(`nur im Notenbild: ${wordList(befund.onlyPdf)}`);
+            if (befund.onlyXml.length) parts.push(`nur in MusicXML: ${wordList(befund.onlyXml)}`);
             row.abweichung = parts.join(' · ');
         }
         if (row.abweichung || row.hinweis) rows.push(row);
     }
     return { rows, pending };
+}
+
+// Liedtext-Abgleich eines Lieds: `entry` ist sein Eintrag aus der Befunddatei
+// von app/26, `words` die Wörter seiner MusicXML (null = noch nicht geladen).
+// Liefert { hinweis }, wenn der Text unter den Noten nicht taugt, sonst
+// { onlyPdf, onlyXml }; null, solange es nichts zu sagen gibt.
+export function liedtextBefund(lied, entry, words) {
+    if (
+        !entry ||
+        entry.notentext_file_id !== lied.notentext ||
+        (entry.notentext_seite2_file_id || null) !== (lied.notentext_seite2 || null)
+    ) {
+        return {
+            hinweis:
+                'Liedtext nicht geprüft: Text unter den Noten fehlt oder stammt aus einer älteren Noten-PDF',
+        };
+    }
+    if (entry.exakt_gelesen !== true) {
+        return {
+            hinweis:
+                entry.exakt_gelesen === false
+                    ? 'Liedtext nicht geprüft: Text unter den Noten nur per OCR gelesen'
+                    : 'Liedtext nicht geprüft: Befunddatei aus einem älteren Lauf von app/26',
+        };
+    }
+    if (!entry.strophe_1_notenbild || !words) return null;
+    return compareLyrics(entry.strophe_1_notenbild, words);
 }
 
 function wordList(words, limit = 8) {

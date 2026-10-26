@@ -1,12 +1,15 @@
 allowBuilds:
-  # dev-only nativer File-Watcher (via vite-plugin-vue-devtools -> @vue/devtools).
-  # Build-Script freigeben, sonst bricht pnpm 11 den Install ab (ERR_PNPM_IGNORED_BUILDS).
-  '@parcel/watcher': true
-  core-js: true
-  esbuild: true
-  vue-demi: true
+    # dev-only nativer File-Watcher (via vite-plugin-vue-devtools -> @vue/devtools).
+    # Build-Script freigeben, sonst bricht pnpm 11 den Install ab (ERR_PNPM_IGNORED_BUILDS).
+    '@parcel/watcher': true
+    core-js: true
+    esbuild: true
+    # headless-gl (via opensheetmusicdisplay) braucht nur OSMDs Node-Bildexport,
+    # nicht den Browser – keinen nativen Build anstoßen.
+    gl: false
+    vue-demi: true
 
 # Sicherheits-Overrides fuer transitive Deps (pnpm >=10 liest overrides hier,
 # nicht mehr aus package.json). form-data <4.0.6: CRLF-Injection via axios.
 overrides:
-  form-data: '>=4.0.6'
+    form-data: '>=4.0.6'

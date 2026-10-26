@@ -96,6 +96,7 @@
                         />
                     </template>
                 </v-tooltip>
+                <NotenMxmlCompareDialog :selected-song="selectedSong" />
                 <SingModeDialog :selected-song="selectedSong" :selected-media-file="visible_file" />
             </div>
         </v-card-title>
@@ -579,6 +580,7 @@ import { useAppStore } from '@/store/app';
 
 import _ from 'lodash';
 import SingModeDialog from '@/components/SongRelated/SingModeDialog.vue';
+import NotenMxmlCompareDialog from '@/components/SongRelated/NotenMxmlCompareDialog.vue';
 
 // Das Bearbeiten der Kategorien ist auf bestimmte Directus-Rollen beschränkt
 // (Issue #66): standardmäßig Super-Editoren und Administratoren. Leere Konfig
@@ -593,6 +595,7 @@ const kategorieEditRoles = (
 export default {
     name: 'GesangbuchLiedComponent',
     components: {
+        NotenMxmlCompareDialog,
         SingModeDialog,
         NotenCarousel,
         StrophenList,

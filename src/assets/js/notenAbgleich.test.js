@@ -3,6 +3,7 @@ import {
     compareAbgleich,
     compareLyrics,
     engravingFromFingerprint,
+    lyricsToMark,
     pitchName,
     readMusicXml,
 } from '@/assets/js/notenAbgleich';
@@ -202,6 +203,17 @@ describe('Liedtext', () => {
             onlyPdf: [],
             onlyXml: [],
         });
+    });
+});
+
+describe('lyricsToMark', () => {
+    it('markiert nur das abweichende Vorkommen, nicht jedes gleiche Wort', () => {
+        const xml = ['wo', 'dein', 'Werk', 'hin', 'und', 'dein', 'Werk', 'lebt'];
+        expect(lyricsToMark('wo dein Werk hin und Dein Werk lebt', xml, ['dein'])).toEqual([5]);
+    });
+
+    it('ohne Abweichung nichts', () => {
+        expect(lyricsToMark('wir bit - ten', ['wir', 'bitten'], [])).toEqual([]);
     });
 });
 
