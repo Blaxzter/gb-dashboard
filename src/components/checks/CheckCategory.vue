@@ -3,7 +3,7 @@ import { ref, watch } from 'vue';
 import { STATUS } from '@/assets/js/gesangbuchChecks.js';
 import { useDruckCheckAcks } from '@/assets/js/druckCheckAcks.js';
 import AckConfirmDialog from '@/components/checks/AckConfirmDialog.vue';
-import { checkToTsv } from '@/assets/js/printPdfCheck.js';
+import { checkToClipboardText } from '@/assets/js/printPdfCheck.js';
 import { writeToClipboard } from '@/assets/js/utils.js';
 
 const props = defineProps({
@@ -50,12 +50,13 @@ function undoItemAck(item) {
     acks.toggle(item.fp);
 }
 
-// Befunde als Tab-getrennte Liste kopieren (nur Checks mit `copyTable`, z. B.
-// Choralbuchnummer – Issue #120). Kopiert werden die offenen, nicht bestätigten
-// Befunde; das Icon zeigt kurz an, ob es geklappt hat.
+// Befunde als Tab-getrennte Liste kopieren – mit der eigenen Tabelle des Checks
+// (`copyTable`, z. B. Choralbuchnummer – Issue #120), sonst Nummer, Befund und
+// Detail. Kopiert werden alle offenen, nicht bestätigten Befunde, auch die über
+// MAX_ITEMS hinaus; das Icon zeigt kurz an, ob es geklappt hat.
 const copied = ref({});
 async function copyCheck(check) {
-    const ok = await writeToClipboard(checkToTsv(check));
+    const ok = await writeToClipboard(checkToClipboardText(check));
     copied.value = { ...copied.value, [check.id]: ok ? 'ok' : 'fail' };
     setTimeout(() => {
         const { [check.id]: _, ...rest } = copied.value;
@@ -126,7 +127,7 @@ watch(
                         <div class="text-caption text-medium-emphasis">{{ check.summary }}</div>
                     </div>
                     <v-btn
-                        v-if="check.copyTable && check.items.length"
+                        v-if="check.status !== 'ok' && check.items.length"
                         :icon="copyIcon(check)"
                         size="small"
                         variant="text"
@@ -170,7 +171,10 @@ watch(
                                 >
                                     <!-- Gruppenkopf (z. B. Copyright-Check): trennt zusammen-
                                          gehörige Einträge sichtbar voneinander. -->
-                                    <v-divider v-if="item.groupHeader && idx > 0" class="mt-2 mb-1" />
+                                    <v-divider
+                                        v-if="item.groupHeader && idx > 0"
+                                        class="mt-2 mb-1"
+                                    />
                                     <v-list-subheader
                                         v-if="item.groupHeader"
                                         class="check-group-header"
@@ -259,12 +263,20 @@ watch(
                             >
                                 <div class="acked-toggle" @click="toggleAcked(check.id)">
                                     <v-icon size="small">
-                                        {{ isAckedOpen(check.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
+                                        {{
+                                            isAckedOpen(check.id)
+                                                ? 'mdi-chevron-down'
+                                                : 'mdi-chevron-right'
+                                        }}
                                     </v-icon>
                                     <v-icon size="small" color="success">mdi-check-circle</v-icon>
                                     Bestätigt / ausgeblendet ({{ check.ackedItems.length }})
                                 </div>
-                                <v-list v-if="isAckedOpen(check.id)" density="compact" class="check-items">
+                                <v-list
+                                    v-if="isAckedOpen(check.id)"
+                                    density="compact"
+                                    class="check-items"
+                                >
                                     <v-list-item
                                         v-for="(item, idx) in check.ackedItems"
                                         :key="'ack-' + (item.fp ?? idx)"
@@ -281,7 +293,9 @@ watch(
                                             >
                                                 {{ item.nummer }}
                                             </v-chip>
-                                            <v-icon v-else size="small" class="me-2">mdi-pound</v-icon>
+                                            <v-icon v-else size="small" class="me-2"
+                                                >mdi-pound</v-icon
+                                            >
                                         </template>
                                         <v-list-item-title>{{ item.title }}</v-list-item-title>
                                         <v-list-item-subtitle v-if="item.detail">

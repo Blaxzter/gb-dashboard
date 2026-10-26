@@ -802,6 +802,27 @@ export function checkToTsv(check, items = check.items) {
     return [header, ...items.map(row)].map((r) => r.map(cell).join('\t')).join('\n');
 }
 
+// Befunde eines beliebigen Checks zum Kopieren: die eigene Tabelle des Checks,
+// sonst Nummer, Befund und Detail je Treffer (bei gruppierten Checks wie dem
+// Copyright-Check vorne die Gruppe).
+export function checkToClipboardText(check, items = check.items) {
+    if (check.copyTable) return checkToTsv(check, items);
+    const grouped = items.some((it) => it.groupHeader);
+    let group = '';
+    return checkToTsv(
+        {
+            copyTable: {
+                header: [...(grouped ? ['Gruppe'] : []), 'Nr.', 'Befund', 'Detail'],
+                row: (it) => {
+                    if (it.groupHeader) group = it.groupHeader;
+                    return [...(grouped ? [group] : []), it.nummer, it.title, it.detail];
+                },
+            },
+        },
+        items,
+    );
+}
+
 // Stabiler Fingerprint (FNV-1a → base36) zur Wiedererkennung eines Befunds über
 // mehrere PDF-Läufe hinweg – Grundlage der lokalen „Bestätigt"-Speicherung.
 function hashFp(str) {

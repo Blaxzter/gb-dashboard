@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     canon,
+    checkToClipboardText,
     checkToTsv,
     compareCopyrightScope,
     comparePrintPdf,
@@ -640,5 +641,34 @@ describe('checkToTsv (Befunde kopieren, Issue #120)', () => {
     });
     it('ohne copyTable leer', () => {
         expect(checkToTsv(makeCheck('a', 'x', 'A', '', [], {}))).toBe('');
+    });
+});
+
+describe('checkToClipboardText', () => {
+    it('ohne copyTable: Nummer, Befund und Detail je Treffer', () => {
+        const check = {
+            items: [
+                { nummer: 250, title: 'O Gott', detail: 'nur im Notenbild: „Oh“' },
+                { nummer: null, title: 'Liednummer fehlt' },
+            ],
+        };
+        expect(checkToClipboardText(check)).toBe(
+            'Nr.\tBefund\tDetail\n250\tO Gott\tnur im Notenbild: „Oh“\n\tLiednummer fehlt\t',
+        );
+    });
+    it('gruppierte Treffer bekommen die Gruppe vorneweg', () => {
+        const check = {
+            items: [
+                { groupHeader: '© A', nummer: 1, title: 'x' },
+                { nummer: 2, title: 'y' },
+                { groupHeader: '© B', nummer: 3, title: 'z' },
+            ],
+        };
+        expect(checkToClipboardText(check).split('\n')).toEqual([
+            'Gruppe\tNr.\tBefund\tDetail',
+            '© A\t1\tx\t',
+            '© A\t2\ty\t',
+            '© B\t3\tz\t',
+        ]);
     });
 });
