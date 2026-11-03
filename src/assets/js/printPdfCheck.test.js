@@ -381,6 +381,140 @@ describe('extractPdfSongs (mehrseitiger Notensatz vs. fehlende Liednummer)', () 
     });
 });
 
+describe('extractPdfSongs (Seiten hinter einem abgeschlossenen Lied)', () => {
+    const lied = (nummer, choral, footer) => [
+        ...kopf(nummer, choral),
+        noten(),
+        strophe('2. Die Welt ist so voll Sorgen', 200),
+        fusszeile(footer),
+    ];
+
+    it('hängt den Nachspann nicht an das letzte Lied (Lied 552, Psalm + IVZ)', async () => {
+        const letztes = lied('552', '251', 'Text: Eberhard Köhler (1927–2014)');
+        const psalm = [
+            { str: 'Wohl dem,', x: 225.9, yTop: 40.5, size: 11 },
+            { str: 'der nicht wandelt im Rat der Gottlosen', x: 97, yTop: 53.7, size: 11 },
+        ];
+        const ivz = [
+            { str: 'INHALTSVERZEICHNIS', x: 30, yTop: 40, size: 11 },
+            { str: '1 Abend wird es wieder', x: 30, yTop: 60, size: 7 },
+        ];
+        const extracted = await extractPdfSongs(fakePdf([letztes, [], psalm, ivz]));
+        expect(extracted.songs).toHaveLength(1);
+        expect(extracted.songs[0].pages).toEqual([1]);
+        expect(extracted.songs[0].footerText).toBe('Text: Eberhard Köhler (1927–2014)');
+        expect(extracted.outroPages).toEqual([3, 4]);
+        expect(extracted.strayPages).toEqual([]);
+    });
+
+    it('meldet eine Text-Seite ohne Lied zwischen zwei Liedern', async () => {
+        const extracted = await extractPdfSongs(
+            fakePdf([
+                lied('10', '5', 'Text: Jens Lehmann (1966)'),
+                [strophe('Ein verrutschter Textblock', 100)],
+                lied('11', '6', 'Text: Ulrike Gehde (1959)'),
+            ]),
+        );
+        expect(extracted.songs.map((s) => s.pages)).toEqual([[1], [3]]);
+        expect(extracted.strayPages).toEqual([
+            expect.objectContaining({ page: 2, nummer: '10', text: 'Ein verrutschter Textblock' }),
+        ]);
+        const check = comparePrintPdf(extracted, []).find((c) => c.id === 'stray-pages');
+        expect(check.items).toHaveLength(1);
+        expect(check.items[0].sev).toBe('warning');
+    });
+
+    it('nimmt den Rest einer über den Seitenumbruch gelaufenen Fußzeile mit', async () => {
+        const extracted = await extractPdfSongs(
+            fakePdf([
+                lied('10', '5', 'Text: Jens Lehmann (1966)'),
+                [fusszeile('Melodie: Siegfried Lehmann (1932–2025)', 40)],
+            ]),
+        );
+        expect(extracted.songs[0].pages).toEqual([1, 2]);
+        expect(extracted.songs[0].footerText).toBe(
+            'Text: Jens Lehmann (1966)\nMelodie: Siegfried Lehmann (1932–2025)',
+        );
+        expect(extracted.outroPages).toEqual([]);
+    });
+});
+
+describe('extractPdfSongs (Seitenfußnote unter der Fußzeile)', () => {
+    it('trennt die Fußnote von der Fußzeile und meldet sie als Hinweis (Lied 420)', async () => {
+        // Seite 599: Fußzeile bei y = 235, die Fußnote „¹ …" am Seitenfuß.
+        const seite = [
+            ...kopf('420', '230'),
+            noten(),
+            strophe('2. Singt von Hoffnung für die Welt', 150),
+            fusszeile('Text und Melodie: Gottfried Neubert (1926–1983)', 226.7),
+            fusszeile('© Strube Verlag, München', 235.1),
+            fusszeile(
+                '„... das erste Licht schon brennt“ kann an die Adventssonntage angepasst wer-',
+                424.1,
+            ),
+            fusszeile(
+                'den, wie z.B. am 2. Adventssonntag: „... das zweite Licht schon brennt“ usw.',
+                432.5,
+            ),
+        ];
+        const extracted = await extractPdfSongs(fakePdf([seite]));
+        const [song] = extracted.songs;
+        expect(song.footerText).toBe(
+            'Text und Melodie: Gottfried Neubert (1926–1983)\n© Strube Verlag, München',
+        );
+        expect(song.footnotes.map((f) => f.text)).toEqual([
+            '„... das erste Licht schon brennt“ kann an die Adventssonntage angepasst werden, wie z.B. am 2. Adventssonntag: „... das zweite Licht schon brennt“ usw.',
+        ]);
+        const checks = comparePrintPdf(extracted, [
+            {
+                id: 1,
+                liednummer2026: 420,
+                status: 'accepted',
+                titel: 'Singet fröhlich im Advent',
+                text: {
+                    strophenEinzeln: [
+                        { strophe: 'x' },
+                        { strophe: 'Singt von Hoffnung für die Welt' },
+                    ],
+                },
+            },
+        ]);
+        const anmerkung = checks.find((c) => c.id === 'anmerkung');
+        expect(anmerkung.items.map((i) => i.detail)).toEqual([
+            expect.stringMatching(/^Fußnote: „\.\.\. das erste Licht/),
+        ]);
+    });
+});
+
+describe('comparePrintPdf (fehlende Glyphen)', () => {
+    it('meldet Kästchen statt Text als fehlende Zeichen der Satzschrift (Lied 353)', async () => {
+        const seite = [
+            ...kopf('353', '200'),
+            noten(),
+            strophe('2. Laudate omnes gentes', 150),
+            strophe('3. すすすすすすすすすすすすす', 172),
+        ];
+        const checks = comparePrintPdf(await extractPdfSongs(fakePdf([seite])), [
+            {
+                id: 1,
+                liednummer2026: 353,
+                status: 'accepted',
+                titel: 'Lobt Gott, alle Völker',
+                text: {
+                    strophenEinzeln: [
+                        { strophe: 'x' },
+                        { strophe: 'Laudate omnes gentes' },
+                        { strophe: 'すべてのひとよ主をたたえよ' },
+                    ],
+                },
+            },
+        ]);
+        const items = checks.find((c) => c.id === 'verse-text').items;
+        expect(items).toHaveLength(1);
+        expect(items[0].detail).toMatch(/^Im Druck stehen statt des Textes leere Kästchen/);
+    });
+});
+
 describe('comparePrintPdf (Refrain-Blöcke)', () => {
     const R = 'Herr, wir bitten: Komm und segne uns.';
     const lied = (strophen) => ({

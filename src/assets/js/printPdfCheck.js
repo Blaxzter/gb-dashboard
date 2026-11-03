@@ -534,8 +534,22 @@ function expectedNumberRect(page, width) {
     return { x: page % 2 === 0 ? 6 : width - w - 6, y: 30, w, h: 34 };
 }
 
+// Ab diesem senkrechten Abstand (in Vielfachen des Fußzeilen-Grads) gehört eine
+// Zeile unter der Fußzeile nicht mehr zu ihr, sondern ist eine Seitenfußnote.
+const FOOTNOTE_GAP_EM = 3;
+
+// Die Fortsetzung einer über den Seitenumbruch gelaufenen Fußzeile: die
+// führenden Zeilen der Folgeseite, die in Fußzeilengröße gesetzt sind.
+function footerCarryOver(songLines, pageLines) {
+    const footerSize = songLines.find(isFooterLine)?.size;
+    if (!footerSize) return [];
+    const n = pageLines.findIndex((l) => !(l.size && l.size <= footerSize + 1));
+    return n === -1 ? pageLines : pageLines.slice(0, n);
+}
+
 // Eine ganze PDF (PDFDocumentProxy von vue-pdf-embed/pdf.js) in Lieder zerlegen.
-// Rückgabe: { songs, pageCount, blankPages, introPages, clipped, coveredNumbers, warnings }.
+// Rückgabe: { songs, pageCount, blankPages, introPages, outroPages, strayPages,
+// clipped, coveredNumbers, warnings }.
 export async function extractPdfSongs(pdfDoc) {
     const pageCount = pdfDoc.numPages;
     const songs = [];
@@ -543,6 +557,9 @@ export async function extractPdfSongs(pdfDoc) {
     const introPages = [];
     const clipped = []; // Text außerhalb der Seite – je Seite ein Eintrag.
     const coveredNumbers = []; // verdeckte alte Lied-/Choralbuchnummern – je Seite
+    // Text-Seiten hinter einem abgeschlossenen Lied, die zu keinem Lied gehören
+    // (Nachspann bzw. verirrte Seiten zwischen zwei Liedern).
+    const orphanPages = [];
     const pageSizes = {};
     let cur = null;
     // Zuletzt gemessener Fließtext-Grad (siehe sizeHint weiter unten).
@@ -681,6 +698,33 @@ export async function extractPdfSongs(pdfDoc) {
                 pageWidth: width,
             };
             songs.push(cur);
+        } else if (cur && cur.lines.some(isFooterLine)) {
+            // Weder Liednummer noch Notensatz, und das laufende Lied ist mit
+            // seiner Fußzeile schon abgeschlossen: Diese Seite gehört zu keinem
+            // Lied. Im Druck ist das der Nachspann hinter dem letzten Lied
+            // (Seite 787: Psalm 1, danach das Inhaltsverzeichnis). Angehängt an
+            // das letzte Lied verschluckte dessen Fußzeile den ganzen Nachspann
+            // (Lied 552: „Melodie: Heinrich Isaac … Wohl dem, der nicht wandelt
+            // … INHALTSVERZEICHNIS …").
+            //
+            // Einzige Ausnahme: eine über den Seitenumbruch gelaufene Fußzeile.
+            // Ihr Rest steht oben auf der direkt folgenden Seite, in Fußzeilen-
+            // größe.
+            const carry =
+                cur.pages[cur.pages.length - 1] === p - 1 ? footerCarryOver(cur.lines, lines) : [];
+            if (carry.length) {
+                cur.pages.push(p);
+                cur.lines.push(...carry);
+            }
+            const rest = lines.slice(carry.length);
+            if (rest.length) {
+                orphanPages.push({
+                    page: p,
+                    after: cur,
+                    text: trunc(rest.map((l) => l.text).join(' '), 120),
+                    box: boxOfLines(rest),
+                });
+            }
         } else if (cur) {
             // Fortsetzungsseite eines mehrseitigen Liedes – entweder reiner
             // Strophentext oder die zweite Seite eines langen Notensatzes.
@@ -701,10 +745,28 @@ export async function extractPdfSongs(pdfDoc) {
         // Zahl (angefangene Folgeliednummer) – verhindert, dass bei zwei Liedern
         // auf einer Seite die Fußzeile den Rest verschluckt.
         let footerEnd = song.lines.length;
+        let footnoteLines = [];
         if (footerStart !== -1) {
             const footerSize = song.lines[footerStart].size;
             for (let i = footerStart + 1; i < song.lines.length; i++) {
                 const line = song.lines[i];
+                // Die Zeilen einer Fußzeile folgen dicht aufeinander (7 pt auf
+                // 8,4 pt Abstand, im ganzen Buch ohne Ausnahme). Weit darunter
+                // auf derselben Seite steht keine Fußzeile mehr, sondern eine
+                // Seitenfußnote am unteren Rand (Lied 420, Seite 599: „¹ … das
+                // erste Licht schon brennt" kann an die Adventssonntage angepasst
+                // werden …", 189 pt unter der Fußzeile). Die Fußnote erzeugt der
+                // Export nicht; sie ist ein Hinweis zum manuellen Prüfen.
+                const prev = song.lines[i - 1];
+                if (
+                    footerSize &&
+                    line.page === prev.page &&
+                    line.yTop - prev.yTop > FOOTNOTE_GAP_EM * footerSize
+                ) {
+                    footerEnd = i;
+                    footnoteLines = song.lines.slice(i).filter((l) => l.page === line.page);
+                    break;
+                }
                 // Eine umbrochene Fußzeile kann wie ein Strophenanfang aussehen
                 // („… ‚Te Deum laudamus‘ / ⏎ 4. Jahrhundert", Lied 223) – sie
                 // steht aber in Fußzeilen-Schriftgröße (7 pt, Strophen 10,8 pt)
@@ -728,7 +790,26 @@ export async function extractPdfSongs(pdfDoc) {
         song.footerText = song.footerLines.join('\n');
         song.footerAnmerkung = song.footerLines.filter((l) => FOOTER_UNVERIFIABLE.test(l));
         song.footerBox = boxOfLines(footerLineObjs);
+        song.footnotes = footnoteLines.length
+            ? [
+                  {
+                      text: joinDehyphen(footnoteLines.map((l) => l.text)),
+                      box: boxOfLines(footnoteLines),
+                  },
+              ]
+            : [];
         delete song.lines;
+    }
+
+    // Seiten ohne Lied hinter dem letzten Lied sind der Nachspann. Stehen sie
+    // dagegen ZWISCHEN zwei Liedern, ist das verdächtig (verrutschter
+    // Strophenblock, Seite ohne Notensatz und Nummer) – die meldet der Vergleich.
+    const lastSong = songs[songs.length - 1];
+    const outroPages = [];
+    const strayPages = [];
+    for (const o of orphanPages) {
+        if (o.after === lastSong) outroPages.push(o.page);
+        else strayPages.push({ page: o.page, text: o.text, box: o.box, nummer: o.after.nummer });
     }
 
     return {
@@ -736,6 +817,8 @@ export async function extractPdfSongs(pdfDoc) {
         pageCount,
         blankPages,
         introPages,
+        outroPages,
+        strayPages,
         clipped,
         coveredNumbers,
         pageSizes,
@@ -880,6 +963,8 @@ export function comparePrintPdf(extracted, dbSongs) {
         pageCount,
         blankPages,
         introPages,
+        outroPages = [],
+        strayPages = [],
         clipped = [],
         coveredNumbers = [],
     } = extracted;
@@ -1021,6 +1106,15 @@ export function comparePrintPdf(extracted, dbSongs) {
                     loc: ps.footerBox || ps.numberBox,
                 });
             }
+            for (const fn of ps.footnotes || []) {
+                anmerkung.push({
+                    id: lied.id,
+                    nummer: ps.nummer,
+                    title: lied.titel,
+                    detail: `Fußnote: ${fn.text}`,
+                    loc: fn.box || ps.footerBox || ps.numberBox,
+                });
+            }
         }
         for (const ps of extraPdf) {
             duplicates.push({
@@ -1125,7 +1219,7 @@ export function comparePrintPdf(extracted, dbSongs) {
             'overview',
             CAT_OVERVIEW,
             'Erkannte Lieder',
-            'Aus dem Text-Layer der PDF erkannte Lieder. Leerseiten und Vorspann-Seiten werden übersprungen.',
+            'Aus dem Text-Layer der PDF erkannte Lieder. Leerseiten, Vorspann und Nachspann (Seiten hinter dem letzten Lied) werden übersprungen.',
             recognized.map((r) => ({
                 id: r.id,
                 nummer: r.nummer,
@@ -1140,7 +1234,8 @@ export function comparePrintPdf(extracted, dbSongs) {
                 okSummary: `${recognized.length} Lieder erkannt`,
                 problemSummary: () =>
                     `${recognized.length} Lieder · ${pageCount} Seiten` +
-                    ` (${blankPages.length} Leerseiten, ${introPages.length} Vorspann-Seiten)`,
+                    ` (${blankPages.length} Leerseiten, ${introPages.length} Vorspann-Seiten,` +
+                    ` ${outroPages.length} Nachspann-Seiten)`,
             },
         ),
     );
@@ -1342,6 +1437,34 @@ export function comparePrintPdf(extracted, dbSongs) {
         ),
     );
 
+    // Text-Seite zwischen zwei Liedern, die zu keinem gehört: weder Liednummer
+    // noch Notensatz, und das Lied davor ist mit seiner Fußzeile abgeschlossen.
+    // Hinter dem letzten Lied ist das der Nachspann (nur in der Übersicht
+    // gezählt), mittendrin ein Satzfehler oder ein verrutschter Textblock.
+    checks.push(
+        makeCheck(
+            'stray-pages',
+            CAT_COMPLETE,
+            'Text-Seiten ohne Lied',
+            'Seiten mit Text, aber ohne Liednummer und ohne Notensatz, die zwischen zwei Liedern stehen. Das Lied davor ist mit seiner Fußzeile schon abgeschlossen – der Text gehört also zu keinem Lied (verrutschter Textblock oder fehlende Liedseite?).',
+            strayPages.map((s) => {
+                const rec = recognized.find((r) => r.nummer === s.nummer);
+                return {
+                    sev: 'warning',
+                    id: rec?.id ?? null,
+                    nummer: s.nummer,
+                    title: `Seite ${s.page}`,
+                    detail: `Seite ${s.page} (hinter Lied ${s.nummer ?? '—'}): „${s.text}"`,
+                    loc: s.box,
+                };
+            }),
+            {
+                okSummary: 'Keine Text-Seiten zwischen den Liedern',
+                problemSummary: (i) => `${i.length} Text-Seite(n) ohne Lied`,
+            },
+        ),
+    );
+
     // Verdeckte Nummern: Eine Korrektur wurde über die alte Nummer gelegt, statt
     // sie zu ersetzen (Seite 106: neue „225" über alter „226"). Geprüft wird die
     // sichtbare, obenauf liegende Nummer; die verdeckte steht aber weiter im PDF
@@ -1394,7 +1517,7 @@ export function comparePrintPdf(extracted, dbSongs) {
                 'anmerkung',
                 CAT_INFO,
                 'Anmerkungs-Zeilen (nicht geprüft)',
-                'Zeilen wie „Anmerkung:" / „Quelle:" erzeugt der Export nicht automatisch und können daher nicht gegen die DB geprüft werden – bitte manuell prüfen.',
+                'Zeilen wie „Anmerkung:" / „Quelle:" und Seitenfußnoten erzeugt der Export nicht automatisch und können daher nicht gegen die DB geprüft werden – bitte manuell prüfen.',
                 anmerkung.map((a) => ({ ...a, detail: a.detail })),
                 { forceStatus: 'info', okSummary: '' },
             ),
@@ -1818,6 +1941,17 @@ function foldRefrains(verses, strophen, report) {
     return out;
 }
 
+// Fehlende Glyphen: Kennt die Satzschrift die Zeichen einer Strophe nicht
+// (Lied 353: Strophe 9 Japanisch, Strophe 14 Arabisch in Optima), steht im
+// Druck für jedes Zeichen dasselbe leere Kästchen – und im Text-Layer immer
+// wieder dasselbe Zeichen („すすすすすすすす"). Ein echter Satzfehler, der als
+// „PDF: すすすす" aber wie ein Auslesefehler des Checks aussieht.
+function looksLikeMissingGlyphs(pdfText, dbText) {
+    const letters = (s) => [...String(s || '').replace(/[\s\p{P}\p{N}]/gu, '')];
+    const p = letters(pdfText);
+    return p.length >= 4 && new Set(p).size === 1 && new Set(letters(dbText)).size >= 3;
+}
+
 function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
     const strophen = lied.text?.strophenEinzeln || [];
     const N = strophen.length; // inkl. Strophe 1 (im Notensatz)
@@ -2026,7 +2160,11 @@ function compareVerses(ps, lied, { verseText, verseCount, allUnderNotes }) {
             id: lied.id,
             nummer: ps.nummer,
             title: `Lied ${ps.nummer} · Strophe ${v.num}`,
-            detail: `PDF: „${trunc(v.text)}" | DB: „${trunc(dbText)}"`,
+            detail: looksLikeMissingGlyphs(v.text, dbText)
+                ? `Im Druck stehen statt des Textes leere Kästchen – der Satzschrift fehlen ` +
+                  `die Zeichen dieser Strophe (im PDF ist jedes Zeichen dieselbe Ersatzglyphe ` +
+                  `„${trunc(v.text, 20)}"). DB: „${trunc(dbText)}"`
+                : `PDF: „${trunc(v.text)}" | DB: „${trunc(dbText)}"`,
             pdf: v.text,
             expected: dbText,
             loc: v.box || ps.numberBox,
