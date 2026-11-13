@@ -7,6 +7,7 @@ import {
     formatAuthorEntry,
     formatAuthors,
     buildFooter,
+    melodyCopyrightPlacement,
 } from '@/assets/js/authorFormat';
 
 describe('formatYearRange (Issue #18)', () => {
@@ -312,6 +313,136 @@ describe('buildFooter', () => {
                 'Verlag X',
             ),
         ).toBe('© Martin Göth (1957)\n© Verlag X');
+    });
+
+    it('Lied 91: Melodie-Copyright als eigene Zeile "Musik © …" (Issue #123)', () => {
+        const lied = {
+            text: {
+                authors: [
+                    { vorname: 'Eberhard', nachname: 'Köhler', geburtsjahr: 1927, sterbejahr: 2014 },
+                ],
+            },
+            melodie: {
+                authors: [
+                    {
+                        vorname: 'Christian',
+                        nachname: 'Lahusen',
+                        geburtsjahr: 1886,
+                        sterbejahr: 1975,
+                    },
+                ],
+                copyright: 'Bärenreiter-Verlag, Kassel',
+            },
+            melodieAutorExtraSuffix: '„Noch hinter Berges Rande“',
+        };
+        expect(buildFooter(lied)).toBe(
+            'Text: Eberhard Köhler (1927–2014)\n' +
+                'Melodie: Christian Lahusen (1886–1975) „Noch hinter Berges Rande“\n' +
+                'Musik © Bärenreiter-Verlag, Kassel',
+        );
+    });
+
+    it('Lied 414: Text und Melodie mit Copyright -> Melodie-Copyright bleibt inline (Issue #123)', () => {
+        const lied = {
+            text: {
+                authors: [{ vorname: 'Lothar', nachname: 'Zenetti' }],
+                copyright: 'Strube Verlag, München',
+            },
+            melodie: {
+                authors: [{ vorname: 'Peter', nachname: 'Klever' }],
+                copyright: 'Rechtsnachfolge Peter Klever',
+            },
+        };
+        expect(buildFooter(lied)).toBe(
+            'Text: Lothar Zenetti © Strube Verlag, München\n' +
+                'Melodie: Peter Klever © Rechtsnachfolge Peter Klever',
+        );
+        expect(melodyCopyrightPlacement(lied)).toBe('inline');
+    });
+
+    it('Copyright-Marker am Text zählt als Text-Copyright (Issue #123)', () => {
+        expect(
+            buildFooter({
+                text: { authors: [{ nachname: 'A' }], copyright: '©' },
+                melodie: { authors: [{ nachname: 'B' }], copyright: 'Verlag M' },
+            }),
+        ).toBe('Text: © A\nMelodie: B © Verlag M');
+    });
+
+    it('Lied 368: Melodie-Copyright = Lied-Copyright -> nur das des Liedes (Issue #123)', () => {
+        const lied = {
+            copyright: 'Bärenreiter-Verlag, Kassel',
+            text: { authors: [{ vorname: 'Arno', nachname: 'Pötzsch' }] },
+            melodie: {
+                authors: [{ vorname: 'Christian', nachname: 'Lahusen' }],
+                copyright: ' bärenreiter-verlag,  Kassel ',
+            },
+        };
+        expect(buildFooter(lied)).toBe(
+            'Text: Arno Pötzsch\nMelodie: Christian Lahusen\n© Bärenreiter-Verlag, Kassel',
+        );
+        expect(melodyCopyrightPlacement(lied)).toBe('lied');
+    });
+
+    it('Text-Copyright = Lied-Copyright -> nur das des Liedes, Melodie bekommt die Musik-Zeile (Issue #123)', () => {
+        expect(
+            buildFooter({
+                copyright: 'Verlag L',
+                text: { authors: [{ nachname: 'A' }], copyright: 'Verlag L' },
+                melodie: { authors: [{ nachname: 'B' }], copyright: 'Verlag M' },
+            }),
+        ).toBe('Text: A\nMelodie: B\nMusik © Verlag M\n© Verlag L');
+    });
+
+    it('Melodie- und anderes Lied-Copyright, Text ohne -> Musik-Zeile plus Lied-Copyright (Issue #123)', () => {
+        expect(
+            buildFooter({
+                copyright: 'Verlag L',
+                text: { authors: [{ nachname: 'A' }] },
+                melodie: { authors: [{ nachname: 'B' }], copyright: 'Verlag M' },
+            }),
+        ).toBe('Text: A\nMelodie: B\nMusik © Verlag M\n© Verlag L');
+    });
+
+    it('formatAuthors: gleiche Copyrights nur einmal (Lied 368, Issue #123)', () => {
+        expect(
+            formatAuthors(
+                [{ vorname: 'Christian', nachname: 'Lahusen' }],
+                'Bärenreiter-Verlag, Kassel',
+                'Bärenreiter-Verlag, Kassel',
+            ),
+        ).toBe('Christian Lahusen\n© Bärenreiter-Verlag, Kassel');
+    });
+
+    it('Melodie-Copyright ohne Melodie-Autor: nur die Musik-Zeile (Issue #123)', () => {
+        expect(
+            buildFooter({
+                text: { authors: [{ nachname: 'A' }] },
+                melodie: { copyright: 'Verlag X' },
+            }),
+        ).toBe('Text: A\nMusik © Verlag X');
+    });
+
+    it('"Text und Melodie:" – Musik-Zeile nur, wenn allein die Melodie ein Copyright hat (Issue #123)', () => {
+        const author = { vorname: 'Paul', nachname: 'Gerhardt' };
+        expect(
+            buildFooter({
+                text: { authors: [author], copyright: 'Verlag T' },
+                melodie: { authors: [author], copyright: 'Verlag M' },
+            }),
+        ).toBe('Text und Melodie: Paul Gerhardt © Verlag T © Verlag M');
+        expect(
+            buildFooter({
+                text: { authors: [author], copyright: 'Verlag X' },
+                melodie: { authors: [author], copyright: 'Verlag X' },
+            }),
+        ).toBe('Text und Melodie: Paul Gerhardt © Verlag X');
+        expect(
+            buildFooter({
+                text: { authors: [author] },
+                melodie: { authors: [author], copyright: 'Verlag M' },
+            }),
+        ).toBe('Text und Melodie: Paul Gerhardt\nMusik © Verlag M');
     });
 
     it('gleicher Text- und Melodie-Autor -> "Text und Melodie:"', () => {

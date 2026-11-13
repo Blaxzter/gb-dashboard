@@ -63,64 +63,139 @@ describe('footerSignaturesMatch', () => {
     });
 });
 
-describe('compareCopyrightScope (nur Melodie hat Copyright, Issue #78)', () => {
-    // Lied mit Copyright ausschließlich an der Melodie.
+describe('compareCopyrightScope (Melodie-Copyright als „Musik ©"-Zeile, Issue #123)', () => {
+    // Lied 91: Copyright an der Melodie.
     const lied = {
         id: 1,
-        titel: 'Gottes Stern',
+        titel: 'Die Sonne sinkt',
         copyright: '',
-        text: { copyright: '' },
-        melodie: { copyright: 'Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel' },
+        text: { authors: [{ vorname: 'Eberhard', nachname: 'Köhler' }], copyright: '' },
+        melodie: {
+            authors: [{ vorname: 'Christian', nachname: 'Lahusen' }],
+            copyright: 'Bärenreiter-Verlag, Kassel',
+        },
     };
-    const run = (footerLines, footerLineX) => {
+    const run = (footerLines, l = lied) => {
         const copyrightScope = [];
-        compareCopyrightScope({ nummer: '220', footerLines, footerLineX }, lied, {
-            copyrightScope,
-        });
+        compareCopyrightScope({ nummer: '91', footerLines }, l, { copyrightScope });
         return copyrightScope;
     };
 
-    it('meldet nichts, wenn das © inline hinter der Melodie-Zeile steht', () => {
+    it('meldet nichts bei eigener „Musik ©"-Zeile', () => {
         expect(
-            run(
-                ['Text: Ulrike Gehde (1959)', 'Melodie: Christian Lahusen © Bärenreiter'],
-                [27.6, 28.4],
-            ),
+            run([
+                'Text: Eberhard Köhler',
+                'Melodie: Christian Lahusen „Noch hinter Berges Rande“',
+                'Musik © Bärenreiter-Verlag, Kassel',
+            ]),
         ).toEqual([]);
     });
-    it('meldet nichts, wenn die ©-Zeile eingerückt unter der Melodie-Zeile steht', () => {
-        // Werte aus test_input_4.pdf, Seite 72 (Nr. 220).
+    it('meldet nichts, wenn die „Musik ©"-Zeile umbricht', () => {
         expect(
-            run(
-                [
-                    'Text: Ulrike Gehde (1959)',
-                    'Melodie: Christian Lahusen (1886–1975) „Wisst ihr noch, wie es geschehen?"',
-                    '© Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel',
-                ],
-                [27.6, 28.4, 54.6],
-            ),
+            run([
+                'Text: Eberhard Köhler',
+                'Melodie: Christian Lahusen',
+                'Musik © Bärenreiter-Verlag Karl Vötterle GmbH',
+                '& Co. KG, Kassel',
+            ]),
         ).toEqual([]);
     });
-    it('warnt, wenn die ©-Zeile bündig am linken Rand steht', () => {
+    it('Fehler bei der alten Form: © inline hinter der Melodie', () => {
+        const items = run([
+            'Text: Eberhard Köhler',
+            'Melodie: Christian Lahusen „Noch hinter Berges Rande“ © Bärenreiter-Verlag, Kassel',
+        ]);
+        expect(items).toHaveLength(1);
+        expect(items[0].sev).toBe('error');
+        expect(items[0].detail).toMatch(/inline/);
+        expect(items[0].detail).toMatch(/„Musik © Bärenreiter-Verlag, Kassel"/);
+    });
+    it('Fehler, wenn das © in der umbrochenen Melodie-Zeile hängt (Lied 147)', () => {
+        const items = run([
+            'Text: Eberhard Köhler',
+            'Melodie: Christian Lahusen',
+            '„Schon glänzt der goldne Abendstern“ © Bärenreiter-Verlag, Kassel',
+        ]);
+        expect(items).toHaveLength(1);
+        expect(items[0].detail).toMatch(/inline/);
+    });
+    it('Fehler bei nackter „©"-Zeile ohne „Musik" (wirkt wie Lied-Copyright)', () => {
+        const items = run([
+            'Text: Eberhard Köhler',
+            'Melodie: Christian Lahusen',
+            '© Bärenreiter-Verlag, Kassel',
+        ]);
+        expect(items).toHaveLength(1);
+        expect(items[0].sev).toBe('error');
+        expect(items[0].detail).toMatch(/ohne „Musik"/);
+    });
+    it('hat auch der Text ein Copyright, bleibt das Melodie-Copyright inline (Lied 414)', () => {
+        const l = { ...lied, text: { ...lied.text, copyright: 'Strube Verlag' } };
+        expect(
+            run(
+                ['Text: Eberhard Köhler © Strube Verlag', 'Melodie: Christian Lahusen © Bärenreiter'],
+                l,
+            ),
+        ).toEqual([]);
         const items = run(
             [
-                'Text: Ulrike Gehde (1959)',
-                'Melodie: Christian Lahusen (1886–1975)',
-                '© Bärenreiter-Verlag Karl Vötterle GmbH & Co. KG, Kassel',
+                'Text: Eberhard Köhler © Strube Verlag',
+                'Melodie: Christian Lahusen',
+                'Musik © Bärenreiter-Verlag, Kassel',
             ],
-            [27.6, 28.4, 27.9],
+            l,
         );
         expect(items).toHaveLength(1);
         expect(items[0].sev).toBe('warning');
+        expect(items[0].detail).toMatch(/auch der Text/);
     });
-    it('meldet nichts, wenn auch der Text ein Copyright hat', () => {
-        const copyrightScope = [];
-        compareCopyrightScope(
-            { nummer: '220', footerLines: ['Melodie: X', '© Verlag'], footerLineX: [27.6, 27.6] },
-            { ...lied, text: { copyright: 'Verlag' } },
-            { copyrightScope },
+    it('Melodie-Copyright = Lied-Copyright: keine Musik-Zeile (Lied 368)', () => {
+        const l = { ...lied, copyright: 'Bärenreiter-Verlag, Kassel' };
+        expect(
+            run(
+                ['Text: Eberhard Köhler', 'Melodie: Christian Lahusen', '© Bärenreiter-Verlag, Kassel'],
+                l,
+            ),
+        ).toEqual([]);
+        const items = run(
+            [
+                'Text: Eberhard Köhler',
+                'Melodie: Christian Lahusen',
+                'Musik © Bärenreiter-Verlag, Kassel',
+                '© Bärenreiter-Verlag, Kassel',
+            ],
+            l,
         );
-        expect(copyrightScope).toEqual([]);
+        expect(items).toHaveLength(1);
+        expect(items[0].detail).toMatch(/gleich dem Lied-Copyright/);
+    });
+    it('Warnung bei „Musik ©"-Zeile ohne Melodie-Copyright in der DB', () => {
+        const l = { ...lied, copyright: 'Bärenreiter', melodie: { ...lied.melodie, copyright: '' } };
+        const items = run(
+            ['Text: Eberhard Köhler', 'Melodie: Christian Lahusen', 'Musik © Bärenreiter'],
+            l,
+        );
+        expect(items).toHaveLength(1);
+        expect(items[0].sev).toBe('warning');
+        expect(items[0].detail).toMatch(/kein eigenes Copyright/);
+    });
+    it('Copyright-Marker „©" an der Melodie braucht keine Musik-Zeile', () => {
+        const l = { ...lied, melodie: { ...lied.melodie, copyright: '©' } };
+        expect(run(['Text: Eberhard Köhler', 'Melodie: © Christian Lahusen'], l)).toEqual([]);
+    });
+    it('meldet nichts ohne gedruckte Fußzeile (macht der Fußzeilen-Vergleich)', () => {
+        expect(run([])).toEqual([]);
+    });
+});
+
+describe('footerSignaturesMatch (Musik-Zeile, Issue #123)', () => {
+    it('vergleicht nur den Inhalt – das Label „Musik" zählt nicht', () => {
+        expect(
+            footerSignaturesMatch(
+                'Melodie: Lahusen\nMusik © Bärenreiter',
+                'Melodie: Lahusen © Bärenreiter',
+            ),
+        ).toBe(true);
     });
 });
 

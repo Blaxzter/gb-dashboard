@@ -120,12 +120,15 @@ function prefixCopyright(authors) {
 // Copyright-Zeilen (jeweils mit "© " und durch Zeilenumbruch getrennt).
 //
 // Ein Copyright-Marker (Issue #114) erzeugt keine eigene Zeile, sondern setzt
-// das „©" vor die Autoren.
+// das „©" vor die Autoren. Gleiche Copyrights (z. B. Melodie- = Lied-Copyright,
+// Issue #123) erscheinen nur einmal.
 export function formatAuthors(authors, ...copyrights) {
     let authorStrings = joinAuthorEntries((authors || []).map(formatAuthorEntry));
     if (copyrights.some(isCopyrightMarker)) authorStrings = prefixCopyright(authorStrings);
+    const seen = new Set();
     const copyrightStrings = copyrights
         .filter((c) => c && String(c).trim() && !isCopyrightMarker(c))
+        .filter((c) => !seen.has(copyrightKey(c)) && seen.add(copyrightKey(c)))
         .map((c) => `© ${String(c).trim()}`);
     return [authorStrings, ...copyrightStrings].filter(Boolean).join('\n');
 }
@@ -178,12 +181,66 @@ function footerCopyright(copyright) {
     return v ? `© ${v}` : '';
 }
 
+// Vergleichsform einer Copyright-Angabe: Groß-/Kleinschreibung und Leerraum
+// zählen nicht („Bärenreiter-Verlag,  Kassel" == „bärenreiter-verlag, Kassel").
+function copyrightKey(copyright) {
+    return String(copyright || '')
+        .normalize('NFC')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+// Label der eigenen Zeile für das Melodie-Copyright (Issue #123).
+export const MUSIC_COPYRIGHT_LABEL = 'Musik';
+
+// Welche Copyrights der Footer zeigt und wo das Melodie-Copyright steht
+// (Issue #123, Entscheidung der Korrektoren):
+//   1. Gleicht das Text- oder Melodie-Copyright dem Lied-Copyright, steht es nur
+//      einmal – als Lied-Copyright am Ende. Das Melodie-Copyright muss in der DB
+//      trotzdem an der Melodie stehen, damit es bei anderen Liedern mit derselben
+//      Melodie (und anderem Text) erscheint (Lied 368).
+//   2. Hat danach ALLEIN die Melodie ein Copyright, bekommt es eine eigene Zeile
+//      „Musik © …" – ein nacktes „© …" unter der Melodie sähe aus wie ein
+//      Copyright für das ganze Lied (löst die Einrückungs-Regel aus #78 ab).
+//   3. Trägt auch der Text ein „©" (Copyright oder Marker), bleibt das Melodie-
+//      Copyright wie bisher inline hinter „Melodie: …".
+//
+// melodyPlacement: 'music-line' | 'inline' | 'lied' (= nur als Lied-Copyright)
+//                  | 'none' (kein Melodie-Copyright bzw. nur der Marker)
+function footerCopyrights(lied) {
+    const liedCr = footerCopyright(lied?.copyright);
+    const own = (cr) => (cr && liedCr && copyrightKey(cr) === copyrightKey(liedCr) ? '' : cr);
+    const rawMelodyCr = footerCopyright(lied?.melodie?.copyright);
+    const textCr = own(footerCopyright(lied?.text?.copyright));
+    const melodyCr = own(rawMelodyCr);
+    const textMarker =
+        isCopyrightMarker(lied?.copyright) || isCopyrightMarker(lied?.text?.copyright);
+
+    let melodyPlacement = 'none';
+    if (rawMelodyCr && !melodyCr) melodyPlacement = 'lied';
+    else if (melodyCr) melodyPlacement = textCr || textMarker ? 'inline' : 'music-line';
+
+    return { textCr, melodyCr, liedCr, melodyPlacement };
+}
+
+// Wo steht das Melodie-Copyright im Footer? Für den Druck-Check (copyright-scope).
+export function melodyCopyrightPlacement(lied) {
+    return footerCopyrights(lied).melodyPlacement;
+}
+
 // Liefert den fertig formatierten Footer:
 //   Text: {Text-Autor} © {Text-Copyright}
 //   Melodie: {Melodie-Autor} © {Melodie-Copyright}
 //   © {Lied-Copyright}
 // Sind Text- und Melodie-Autor gleich: "Text und Melodie: {Autor}".
 // Leere Bestandteile (Copyright, Autor) werden samt führendem Trenner weggelassen.
+//
+// Hat allein die Melodie ein Copyright, steht es in einer eigenen Zeile
+// (Issue #123, Regeln siehe footerCopyrights):
+//   Text: Eberhard Köhler (1927–2014)
+//   Melodie: Christian Lahusen (1886–1975) „Noch hinter Berges Rande"
+//   Musik © Bärenreiter-Verlag, Kassel
 //
 // Lied-spezifische Zusatz-Suffixe (Issue #77): `textAutorExtraSuffix` und
 // `melodieAutorExtraSuffix` sitzen direkt am Gesangbuchlied (nicht am Autor bzw.
@@ -213,22 +270,23 @@ export function buildFooter(lied) {
     if (liedMarker || isCopyrightMarker(lied?.melodie?.copyright)) {
         melodyAuthors = prefixCopyright(melodyAuthors);
     }
-    const textCr = footerCopyright(lied?.text?.copyright);
-    const melodyCr = footerCopyright(lied?.melodie?.copyright);
-    const liedCr = footerCopyright(lied?.copyright);
+    const { textCr, melodyCr, liedCr, melodyPlacement } = footerCopyrights(lied);
+    const musicLine = melodyPlacement === 'music-line';
+    const inlineMelodyCr = musicLine ? '' : melodyCr;
 
     const lines = [];
 
     if (textAuthors && melodyAuthors && textAuthors === melodyAuthors) {
-        const crs = [...new Set([textCr, melodyCr].filter(Boolean))];
+        const crs = [...new Set([textCr, inlineMelodyCr].filter(Boolean))];
         lines.push(['Text und Melodie:', textAuthors, ...crs].join(' '));
     } else {
         const textBody = [textAuthors, textCr].filter(Boolean).join(' ');
         if (textBody) lines.push(`Text: ${textBody}`);
-        const melodyBody = [melodyAuthors, melodyCr].filter(Boolean).join(' ');
+        const melodyBody = [melodyAuthors, inlineMelodyCr].filter(Boolean).join(' ');
         if (melodyBody) lines.push(`Melodie: ${melodyBody}`);
     }
 
+    if (musicLine) lines.push(`${MUSIC_COPYRIGHT_LABEL} ${melodyCr}`);
     if (liedCr) lines.push(liedCr);
 
     return lines.join('\n');
